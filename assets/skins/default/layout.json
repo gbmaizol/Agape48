@@ -1,0 +1,628 @@
+{
+  "schema": "agape48.skin/1",
+  "title": "Agape48 Default",
+  "author": "Agape48",
+  "model": "48gx",
+  "_note": "The rects below are a generated placeholder grid on a 480x900 canvas. Retrace them over the real face.webp photograph before shipping - tools/tracekeys.py writes this file from a click-through session.",
+  "face": {
+    "image": "face.webp",
+    "size": [
+      480,
+      900
+    ]
+  },
+  "lcd": {
+    "rect": [
+      43,
+      92,
+      393,
+      192
+    ],
+    "zoom": 3,
+    "pixelColor": "#0d1a0d",
+    "background": "#9fbf7a"
+  },
+  "annunciators": [
+    {
+      "id": "left",
+      "bit": 1,
+      "rect": [
+        51,
+        98,
+        14,
+        12
+      ]
+    },
+    {
+      "id": "right",
+      "bit": 2,
+      "rect": [
+        73,
+        98,
+        14,
+        12
+      ]
+    },
+    {
+      "id": "alpha",
+      "bit": 4,
+      "rect": [
+        95,
+        98,
+        14,
+        12
+      ]
+    },
+    {
+      "id": "battery",
+      "bit": 8,
+      "rect": [
+        117,
+        98,
+        14,
+        12
+      ]
+    },
+    {
+      "id": "busy",
+      "bit": 16,
+      "rect": [
+        139,
+        98,
+        14,
+        12
+      ]
+    },
+    {
+      "id": "io",
+      "bit": 32,
+      "rect": [
+        161,
+        98,
+        14,
+        12
+      ]
+    }
+  ],
+  "keys": [
+    {
+      "id": "a",
+      "key": "A",
+      "label": "A",
+      "rect": [
+        22,
+        330,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "b",
+      "key": "B",
+      "label": "B",
+      "rect": [
+        96,
+        330,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "c",
+      "key": "C",
+      "label": "C",
+      "rect": [
+        170,
+        330,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "d",
+      "key": "D",
+      "label": "D",
+      "rect": [
+        244,
+        330,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "e",
+      "key": "E",
+      "label": "E",
+      "rect": [
+        318,
+        330,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "f",
+      "key": "F",
+      "label": "F",
+      "rect": [
+        392,
+        330,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "mth",
+      "key": "MTH",
+      "label": "MTH",
+      "rect": [
+        22,
+        391,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "prg",
+      "key": "PRG",
+      "label": "PRG",
+      "rect": [
+        96,
+        391,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "cst",
+      "key": "CST",
+      "label": "CST",
+      "rect": [
+        170,
+        391,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "var",
+      "key": "VAR",
+      "label": "VAR",
+      "rect": [
+        244,
+        391,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "up",
+      "key": "UP",
+      "label": "▲",
+      "rect": [
+        318,
+        391,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "nxt",
+      "key": "NXT",
+      "label": "NXT",
+      "rect": [
+        392,
+        391,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "quote",
+      "key": "QUOTE",
+      "label": "'",
+      "rect": [
+        22,
+        452,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "sto",
+      "key": "STO",
+      "label": "STO",
+      "rect": [
+        96,
+        452,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "eval",
+      "key": "EVAL",
+      "label": "EVAL",
+      "rect": [
+        170,
+        452,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "left",
+      "key": "LEFT",
+      "label": "◀",
+      "rect": [
+        244,
+        452,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "down",
+      "key": "DOWN",
+      "label": "▼",
+      "rect": [
+        318,
+        452,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "right",
+      "key": "RIGHT",
+      "label": "▶",
+      "rect": [
+        392,
+        452,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "sin",
+      "key": "SIN",
+      "label": "SIN",
+      "rect": [
+        22,
+        513,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "cos",
+      "key": "COS",
+      "label": "COS",
+      "rect": [
+        96,
+        513,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "tan",
+      "key": "TAN",
+      "label": "TAN",
+      "rect": [
+        170,
+        513,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "sqrt",
+      "key": "SQRT",
+      "label": "√x",
+      "rect": [
+        244,
+        513,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "power",
+      "key": "POWER",
+      "label": "y^x",
+      "rect": [
+        318,
+        513,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "inv",
+      "key": "INV",
+      "label": "1/x",
+      "rect": [
+        392,
+        513,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "enter",
+      "key": "ENTER",
+      "label": "ENTER",
+      "rect": [
+        22,
+        574,
+        138,
+        53
+      ]
+    },
+    {
+      "id": "neg",
+      "key": "NEG",
+      "label": "+/-",
+      "rect": [
+        170,
+        574,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "eex",
+      "key": "EEX",
+      "label": "EEX",
+      "rect": [
+        244,
+        574,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "del",
+      "key": "DEL",
+      "label": "DEL",
+      "rect": [
+        318,
+        574,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "bs",
+      "key": "BS",
+      "label": "⌫",
+      "rect": [
+        392,
+        574,
+        64,
+        53
+      ]
+    },
+    {
+      "id": "alpha",
+      "key": "ALPHA",
+      "label": "α",
+      "rect": [
+        22,
+        635,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "n7",
+      "key": "N7",
+      "label": "7",
+      "rect": [
+        111,
+        635,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "n8",
+      "key": "N8",
+      "label": "8",
+      "rect": [
+        200,
+        635,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "n9",
+      "key": "N9",
+      "label": "9",
+      "rect": [
+        289,
+        635,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "div",
+      "key": "DIV",
+      "label": "÷",
+      "rect": [
+        378,
+        635,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "shl",
+      "key": "SHL",
+      "label": "left shift",
+      "rect": [
+        22,
+        696,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "n4",
+      "key": "N4",
+      "label": "4",
+      "rect": [
+        111,
+        696,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "n5",
+      "key": "N5",
+      "label": "5",
+      "rect": [
+        200,
+        696,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "n6",
+      "key": "N6",
+      "label": "6",
+      "rect": [
+        289,
+        696,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "mul",
+      "key": "MUL",
+      "label": "×",
+      "rect": [
+        378,
+        696,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "shr",
+      "key": "SHR",
+      "label": "right shift",
+      "rect": [
+        22,
+        757,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "n1",
+      "key": "N1",
+      "label": "1",
+      "rect": [
+        111,
+        757,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "n2",
+      "key": "N2",
+      "label": "2",
+      "rect": [
+        200,
+        757,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "n3",
+      "key": "N3",
+      "label": "3",
+      "rect": [
+        289,
+        757,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "minus",
+      "key": "MINUS",
+      "label": "−",
+      "rect": [
+        378,
+        757,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "on",
+      "key": "ON",
+      "label": "ON",
+      "rect": [
+        22,
+        818,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "n0",
+      "key": "N0",
+      "label": "0",
+      "rect": [
+        111,
+        818,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "period",
+      "key": "PERIOD",
+      "label": ".",
+      "rect": [
+        200,
+        818,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "spc",
+      "key": "SPC",
+      "label": "SPC",
+      "rect": [
+        289,
+        818,
+        79,
+        53
+      ]
+    },
+    {
+      "id": "plus",
+      "key": "PLUS",
+      "label": "+",
+      "rect": [
+        378,
+        818,
+        79,
+        53
+      ]
+    }
+  ]
+}

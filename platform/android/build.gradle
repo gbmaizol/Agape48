@@ -1,0 +1,23 @@
+// Qt fills the buildscript/repositories/dependencies blocks in from its own
+// template; only the size-relevant bits are set here.
+android {
+    compileSdk 35
+    defaultConfig {
+        minSdk 26
+        targetSdk 35
+        // One ABI. Multi-ABI multiplies the packaged .so payload; publish an
+        // App Bundle if you ever need more than arm64-v8a.
+        ndk { abiFilters 'arm64-v8a' }
+    }
+    buildTypes {
+        release {
+            minifyEnabled true          // R8 on the Java side (SafBridge + Qt's loader)
+            shrinkResources true
+            proguardFiles 'proguard-rules.pro'
+        }
+    }
+    packagingOptions {
+        // Qt ships these for the debug bridge; nothing needs them in release.
+        exclude 'lib/**/libQt6QmlDebug*.so'
+    }
+}

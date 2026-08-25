@@ -1,0 +1,14 @@
+build/
+build-*/
+.cache/
+.qtc_clangd/
+CMakeLists.txt.user*
+*.o
+*.a
+*.so
+*.apk
+*.aab
+# ROM images are copyrighted - never commit one.
+*.rom
+hp48*.bin
+src/core/x48/
