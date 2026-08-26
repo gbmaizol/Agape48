@@ -4,7 +4,7 @@ An HP 48 emulator: the `x48` Saturn core, a Qt 6 / QML frontend, one binary per 
 
 "HP" spoken in Brazilian Portuguese is *agá-pê*, which is the Greek ἀγάπη. The calculator that people are unreasonably fond of, named after the word for it.
 
-Last updated: 2026aug26-00h05
+Last updated: 2026aug26-09h22
 
 ## Layout
 
@@ -108,6 +108,12 @@ Option 2 is the smallest total and it is not much work. Option 1 is the default 
 ## Sound and haptics
 
 `QSoundEffect` is in Qt Multimedia, so "use QSoundEffect, not Multimedia" cannot both hold. Qt Multimedia is a megabyte-class dependency plus platform backends, for a square-wave beep. The lean path is a ~60-line `Feedback` singleton per platform: Android `AudioTrack` (or `ToneGenerator`) and `Vibrator`/`VibrationEffect` through `QJniObject`, Linux a raw ALSA square wave or nothing at all, Windows `Beep()` on a worker thread. Haptics on Android need `<uses-permission android:name="android.permission.VIBRATE"/>`, which is a normal permission and needs no prompt. Not written yet - `qml/Main.qml` has the call sites stubbed and named.
+
+## Object interchange, both ways
+
+Agape48 reads and writes HP 48 binary objects - the format with the ASCII header `HPHP48-`. Both directions is a requirement, not a nice-to-have: it is how a calculator moves between Agape48, Emu48, Droid48, x48 and a real HP 48, and it is the only format all of them already agree on.
+
+Every emulator in this family reads that format. None of them writes it. That asymmetry is the gap Agape48 fills.
 
 ## Sync conflicts
 

@@ -1,6 +1,6 @@
 # Holes in the plan, and what to do about them
 
-Last updated: 2026aug26-00h05
+Last updated: 2026aug26-09h22
 
 Ordered by how much trouble each one causes if it is discovered late. Every item has options rather than a verdict, except where one option is clearly better.
 
@@ -23,6 +23,16 @@ Recommendation: read Droid48's frontend glue, then build on `x48ng`.
 - Ignore it. Alarms silently do not fire, which is a real Droid48-parity regression.
 
 Recommendation: 1 Hz idle tick now, wall-clock catch-up later if alarms matter.
+
+## 2b. REQUIREMENT: read *and* write `HPHP48-` objects, both directions
+
+Not an open question - a decision Gert made on 2026aug26. Agape48 must both import and export HP 48 binary objects, the format whose first seven bytes are the ASCII header `HPHP48-`.
+
+This is the state-integration story. It is what makes a calculator portable between Agape48, Emu48, Droid48, x48 and a real HP 48 over Kermit, and it is the format every one of those already agrees on.
+
+Every emulator in this family reads it. **None of them writes it.** Droid48's loader (`read_bin_file`) imports, and its only save is its own x48-format state files; Emu48 can save objects but cannot read x48 state. So there is no round trip anywhere in the ecosystem today. Doing both makes Agape48 the tool people use to move between all the others, which is a stronger differentiator than any skin.
+
+Note the trap in Droid48's loader, and do not copy it: when the `HPHP48-` header is absent it silently wraps the file's bytes as an HP 48 *string* object and pushes that instead of failing. The load reports success and the user gets something useless. Agape48 must reject a bad header loudly.
 
 ## 3. Clipboard to and from the RPL stack is not a small feature
 
