@@ -1,6 +1,6 @@
 # Holes in the plan, and what to do about them
 
-Last updated: 2026aug25-17h50
+Last updated: 2026aug26-00h05
 
 Ordered by how much trouble each one causes if it is discovered late. Every item has options rather than a verdict, except where one option is clearly better.
 
@@ -60,8 +60,8 @@ Recommendation: the converter. Keep `KmlParser.*` in the tree as the converter's
 
 - x48 is GPL, so Agape48 is GPL. The source ships with the binaries either way.
 - Statically linking Qt under the LGPL obliges you to let a recipient relink against a modified Qt. In practice: publish the object files, or publish the complete build recipe.
-- Check whether x48 is GPLv2 or v3. GPLv3 plus app-store distribution terms has caused friction before; v2 has not.
-- The HP 48 ROM is copyrighted and cannot ship in the APK. First run needs a ROM import flow, which is UX work that is not in the brief.
+- Check whether x48 is GPLv2 or v3. Droid48 answers half of it: its `COPYING` is GPLv3, and so is czodroid's. GPLv3 plus app-store distribution terms has caused friction before; v2 has not. x48 itself still needs checking.
+- ~~The HP 48 ROM cannot ship in the APK.~~ Wrong, corrected 2026aug26. HP's ACO allowed non-commercial use of the HP 48 ROMs in autumn 2000, and Droid48 has shipped both the 48G and 48S ROMs on the Play Store for years on that basis. Agape48 can bundle one as long as the release is free. Read the actual permission wording before relying on it.
 - A photorealistic face of an HP calculator is trade dress, and "HP 48" in a store listing is a trademark use. Droid48 has lived with this for years, so the risk is evidently low, but it is not zero. Keeping the app name Agape48 and describing it as a Saturn/RPL calculator emulator costs nothing.
 
 ## 8. Two brief items contradict themselves

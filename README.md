@@ -4,7 +4,7 @@ An HP 48 emulator: the `x48` Saturn core, a Qt 6 / QML frontend, one binary per 
 
 "HP" spoken in Brazilian Portuguese is *agá-pê*, which is the Greek ἀγάπη. The calculator that people are unreasonably fond of, named after the word for it.
 
-Last updated: 2026aug25-17h47
+Last updated: 2026aug26-00h05
 
 ## Layout
 
@@ -91,7 +91,9 @@ The single largest lever is not in this repo. A stock Qt binary is built for eve
   -qt-libpng -no-libjpeg -no-feature-printer
 ```
 
-Static linking Qt under the LGPL obliges you to let a recipient relink the application against a modified Qt - in practice, publish the object files or the full build recipe. `x48` is GPL, so Agape48 is GPL too and the source has to ship with the binaries either way. Worth settling before the first release, not after.
+Static linking Qt under the LGPL obliges you to let a recipient relink the application against a modified Qt - in practice, publish the object files or the full build recipe. `x48` is GPL, so Agape48 is GPL too and the source has to ship with the binaries either way. Droid48 and droid48sx both settled on GPLv3. Worth settling before the first release, not after.
+
+The ROM can be bundled. HP's ACO allowed non-commercial use of the HP 48 ROMs in autumn 2000, which is the basis Droid48 has shipped both the 48G and 48S ROM on for years. That holds only while the app is free.
 
 ## WebP is not free
 
