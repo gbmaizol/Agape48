@@ -62,6 +62,14 @@ class Agape48Engine : public QObject
     // explain a failed start go to logPath, which is in app storage and NOT in
     // the state folder - a log has no business syncing between machines.
     Q_PROPERTY(bool    debugLogging READ debugLogging WRITE setDebugLogging NOTIFY debugLoggingChanged)
+
+    // Off by default: a resize drag shows an outline and the window changes
+    // shape once, when you let go. On, the window follows the pointer the whole
+    // way. The outline is the default because a window that changes shape
+    // mid-drag is repainted by the OS a frame ahead of us, and on the left and
+    // top edges that lands the face at a shifted position - dogfood windows-02.
+    // Machine-local, like the window geometry and the keymap.
+    Q_PROPERTY(bool liveResize READ liveResize WRITE setLiveResize NOTIFY liveResizeChanged)
     Q_PROPERTY(QString logPath      READ logPath      CONSTANT)
 
 public:
@@ -80,12 +88,14 @@ public:
     bool hapticsEnabled() const { return m_haptics; }
     bool soundEnabled() const   { return m_sound; }
     bool debugLogging() const   { return m_debugLogging; }
+    bool liveResize() const     { return m_liveResize; }
     QString logPath() const;
 
     void setRomSource(const QUrl &url);
     void setHapticsEnabled(bool on);
     void setSoundEnabled(bool on);
     void setDebugLogging(bool on);
+    void setLiveResize(bool on);
 
     // The live modifier state, not an event's cached copy. A mouse press on the
     // face arrives through MultiPointTouchArea, whose touch points carry no
@@ -160,6 +170,7 @@ signals:
     void hapticsEnabledChanged();
     void soundEnabledChanged();
     void debugLoggingChanged();
+    void liveResizeChanged();
 
     void frameReady();                      // LcdItem listens; fires only on change
     void beep(int frequencyHz, int durationMs);
@@ -184,6 +195,7 @@ private:
     bool              m_haptics = true;
     bool              m_sound = true;
     bool              m_debugLogging = false;
+    bool              m_liveResize    = false;
     bool              m_displayOff = false;
 
     // A key has to stay down long enough for the ROM's keyboard scan to see

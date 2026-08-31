@@ -105,6 +105,7 @@ Window {
     // bought a mode for no visible effect.
     property bool fixingAspect: false
 
+
     function keepAspect(drivenByWidth) {
         if (fixingAspect || !visible || faceAspect <= 0)
             return
@@ -382,24 +383,48 @@ Window {
             // That is dogfood windows-01 line 14: "one direction first, then a
             // redraw top to bottom, then a third at the same size".
             root.fixingAspect = true
+
+            // Seed the outline at the window's current shape and show it, so it
+            // appears exactly over the calculator rather than springing in from
+            // wherever the last drag left it.
+            pendingW = startW; pendingH = startH
+            pendingX = startX; pendingY = startY
+            pendingGeometry = false
+            outline.visible = !engine.liveResize
+
         }
 
         onPositionChanged: (mouse) => {
             if (edges === 0 || root.faceAspect <= 0)
                 return
             const g = mapToGlobal(mouse.x, mouse.y)
+            aimAt(g.x, g.y)
+        }
+
+        // The target shape for a pointer at (gx, gy), in screen coordinates.
+        // Absolute, never incremental: it depends only on the cursor and on what
+        // was captured at press, so a dropped or coalesced move event costs
+        // nothing - the next one lands in exactly the right place.
+        function aimAt(gx, gy) {
+            if (edges === 0 || root.faceAspect <= 0)
+                return
             // One dimension drives; the other follows from the face's ratio.
             let dw = 0
-            if      (edges & Qt.RightEdge)  dw =   g.x - startCursor.x
-            else if (edges & Qt.LeftEdge)   dw = -(g.x - startCursor.x)
-            else if (edges & Qt.BottomEdge) dw =  (g.y - startCursor.y) * root.faceAspect
-            else if (edges & Qt.TopEdge)    dw = -(g.y - startCursor.y) * root.faceAspect
+            if      (edges & Qt.RightEdge)  dw =   gx - startCursor.x
+            else if (edges & Qt.LeftEdge)   dw = -(gx - startCursor.x)
+            else if (edges & Qt.BottomEdge) dw =  (gy - startCursor.y) * root.faceAspect
+            else if (edges & Qt.TopEdge)    dw = -(gy - startCursor.y) * root.faceAspect
 
             const w = Math.max(220, Math.round(startW + dw))
             const h = Math.round(w / root.faceAspect)
 
-            if (w === root.width && h === root.height)
-                return                      // nothing moved; do not touch X11
+            // Compared against the OUTLINE's current shape, not the window's.
+            // The window deliberately lags behind now, so testing against it
+            // would skip every move until the drag had already moved a full
+            // window's worth.
+            if (w === pendingW && h === pendingH) {
+                return
+            }
 
             // One call, not four. Setting x, y, width and height separately is
             // four window-geometry requests per mouse event, and the window
@@ -408,16 +433,110 @@ Window {
             // a single XMoveResizeWindow, so the window arrives in one piece.
             const nx = (edges & Qt.LeftEdge) ? Math.round(startX + (startW - w)) : root.x
             const ny = (edges & Qt.TopEdge)  ? Math.round(startY + (startH - h)) : root.y
-            engine.setWindowGeometry(root, nx, ny, w, h)   // fixingAspect is
-            saveGeometry.restart()                         // held by onPressed
+            // The window is NOT resized here. The outline follows the pointer
+            // and the real geometry is applied when the drag ends - Gert's
+            // design, dogfood windows-02, after four other approaches failed.
+            //
+            // It works because it removes the cause rather than managing it.
+            // Every artefact chased in that round came from the window changing
+            // shape mid-drag: the OS resizes it and blits the old pixels into
+            // the new rectangle a frame before our paint arrives, and when the
+            // left or top edge moves, that blit lands the whole face at a
+            // shifted position. A window that does not move cannot do any of
+            // that. The outline has no content to misplace.
+            pendingW = w; pendingH = h; pendingX = nx; pendingY = ny
+            pendingGeometry = true
+            if (!engine.liveResize)
+                settle.restart()
         }
 
-        // Releasing hands the aspect lock back. The size is already exact - it
-        // was computed from the ratio on every frame - so nothing needs
-        // correcting here, and re-enabling the lock only matters for whatever
-        // changes the window next.
-        onReleased: { edges = 0; root.fixingAspect = false }
-        onCanceled: { edges = 0; root.fixingAspect = false }
+        property bool pendingGeometry: false
+        property int  pendingW: 0
+        property int  pendingH: 0
+        property int  pendingX: 0
+        property int  pendingY: 0
+
+        // Live mode only. Mouse events arrive faster than the screen refreshes
+        // - measured 9-12 ms apart on a fast drag against a 16.7 ms frame - and
+        // a second SetWindowPos inside one frame is a geometry the compositor
+        // never presents, so it is pure cost. This applies at most one per
+        // rendered frame. Measured: 23 mouse moves became 11 geometry changes,
+        // and the duplicated repaints Windows was reporting went away.
+        FrameAnimation {
+            running: resizeBorder.edges !== 0 && engine.liveResize
+            onTriggered: resizeBorder.applyPending()
+        }
+
+        // Hold the pointer still for a second and the window catches up without
+        // letting go, so the result can be seen before committing to it.
+        Timer {
+            id: settle
+            interval: 1000
+            onTriggered: resizeBorder.applyPending()
+        }
+
+        function applyPending() {
+            if (!pendingGeometry)
+                return
+            pendingGeometry = false
+            if (pendingW === root.width && pendingH === root.height
+                && pendingX === root.x && pendingY === root.y)
+                return
+            engine.setWindowGeometry(root, pendingX, pendingY, pendingW, pendingH)
+            saveGeometry.restart()         // fixingAspect is held by onPressed
+        }
+
+        onReleased: (mouse) => {
+            settle.stop()
+            const g = mapToGlobal(mouse.x, mouse.y)
+            aimAt(g.x, g.y)
+            applyPending()
+            edges = 0; root.fixingAspect = false
+            outline.visible = false
+        }
+        onCanceled: {
+            settle.stop()
+            edges = 0; root.fixingAspect = false
+            outline.visible = false
+        }
+    }
+
+    // The rubber band. One window, created at the size of the screen and never
+    // resized - only the rectangle drawn inside it moves - so the overlay itself
+    // never triggers the geometry-change artefact it exists to avoid.
+    //
+    // Not a real XOR rectangle on the desktop DC, which is how Windows did this
+    // in 1995: under DWM the compositor repaints over it at unpredictable
+    // moments and leaves droppings behind. A transparent always-on-top window
+    // is the modern equivalent and works the same way on X11.
+    //
+    // WindowTransparentForInput matters - without it the overlay swallows the
+    // very drag it is drawing.
+    Window {
+        id: outline
+        flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+               | Qt.WindowTransparentForInput | Qt.Tool
+        color: "transparent"
+        visible: false
+
+        x: root.screen ? root.screen.virtualX : 0
+        y: root.screen ? root.screen.virtualY : 0
+        width:  root.screen ? root.screen.width  : 1920
+        height: root.screen ? root.screen.height : 1080
+
+        Rectangle {
+            // Frame only. The fill has to stay transparent or the overlay hides
+            // whatever is behind it, the calculator included.
+            color: "transparent"
+            border.color: "#e8e8ea"
+            border.width: 2
+            antialiasing: false
+
+            x: resizeBorder.pendingX - outline.x
+            y: resizeBorder.pendingY - outline.y
+            width:  resizeBorder.pendingW
+            height: resizeBorder.pendingH
+        }
     }
 
     // Haptics and beeps. Both are platform calls, not Qt Multimedia - see

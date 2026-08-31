@@ -156,6 +156,8 @@ Agape48Engine::Agape48Engine(QObject *parent)
     if (QSettings().value(QLatin1String("debug/logging"), false).toBool())
         setDebugLogging(true);
 
+    m_liveResize = QSettings().value(QLatin1String("window/liveResize"), false).toBool();
+
     m_clock.start();
     m_tick.setInterval(kTickIntervalMs);
     m_tick.setTimerType(Qt::PreciseTimer);
@@ -412,6 +414,15 @@ QString Agape48Engine::logPath() const
     // one the user syncs, and a log is machine-local noise.
     return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
            + QLatin1String("/agape48.log");
+}
+
+void Agape48Engine::setLiveResize(bool on)
+{
+    if (m_liveResize == on)
+        return;
+    m_liveResize = on;
+    QSettings().setValue(QLatin1String("window/liveResize"), on);
+    emit liveResizeChanged();
 }
 
 void Agape48Engine::setDebugLogging(bool on)

@@ -241,6 +241,27 @@ Window {
 
         Item { width: 1; height: 8 }
 
+        // Off by default. A resize drag draws an outline and the window changes
+        // shape once, when the mouse is released; ticked, the window follows the
+        // pointer the whole way. Both are kept because the second is what most
+        // programs do, and the first is what stops the face jumping about on a
+        // fast drag - dogfood windows-02.
+        Row {
+            spacing: 6
+            Switch {
+                id: liveResizeSwitch
+                checked: root.engine.liveResize
+                onToggled: root.engine.liveResize = checked
+            }
+            Label {
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Resize the window live, without an outline")
+                color: "#e8e8e8"; font.pixelSize: 13
+            }
+        }
+
+        Item { width: 1; height: 8 }
+
         // Debug logging, asked for in dogfood #8: there was no record at all of
         // why a start had failed, only a banner that vanished after six seconds.
         Row {
