@@ -8,7 +8,32 @@ CMakeLists.txt.user*
 *.so
 *.apk
 *.aab
-# ROM images are copyrighted - never commit one.
+# ROM images are copyrighted - never commit one, and the way back out of one
+# that slipped in is a history rewrite.
+#
+# *.rom and hp48*.bin alone matched NONE of the names these files actually have.
+# x48, Droid48 and Emu48 all use extensionless names, and decision 2026aug28
+# says Agape48 bundles two of them - so the first `git add -A` after the assets
+# landed would have committed both ROMs. Found by Windows-Claude on 2026aug31
+# with `git check-ignore -v`, which is also the way to check any change here:
+# reading the patterns is how this went unnoticed for a week.
 *.rom
+*.ROM
 hp48*.bin
+rom
+roms
+rom-*
+gxrom*
+sxrom*
+
+# HP 48 state images. Same extensionless names, and "hp48" is the state file the
+# core writes, not a ROM. Nobody should commit a calculator's memory either, and
+# the state folder is easy to point somewhere inside a checkout while testing.
+hp48
+hp48s
+ram
+port1
+port2
+in-use
+
 # src/core/x48/ is a vendored copy, not a submodule - it belongs in the repo.
