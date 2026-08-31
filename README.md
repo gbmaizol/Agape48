@@ -1,10 +1,12 @@
 # Agape48
 
+*Arguably the most friendly and beautiful HP 48 emulator.*
+
 An HP 48 emulator: the `x48` Saturn core, a Qt 6 / QML frontend, one binary per platform, as small as it will go.
 
 "HP" spoken in Brazilian Portuguese is *agá-pê*, which is the Greek ἀγάπη. The calculator that people are unreasonably fond of, named after the word for it.
 
-Last updated: 2026aug28-22h58
+Last updated: 2026aug31-22h25
 
 ## Layout
 
