@@ -2,10 +2,11 @@
 // SkinModel - loads a calculator skin: one raster face plus a layout that maps
 // screen rectangles to HP 48 keys.
 //
-// Two layout dialects, one in-memory model:
-//   *.json  - Agape48's native format (schema "agape48.skin/1").
-//   *.kml   - Emu48 Keypad Mapping Language, so the twenty-odd years of
-//             existing Emu48 skins are usable. See KmlParser.
+// One layout format: *.json, schema "agape48.skin/1".
+//
+// Emu48's KML was dropped on 2026aug28 (design-questions item 5). With Droid48's
+// shell on all three platforms there is no Emu48-shaped desktop to load Emu48
+// skins into, and their faces are 200-400 px BMPs drawn for a 1990s screen.
 //
 // Keys are exposed as a QVariantList of maps rather than a QAbstractListModel:
 // the list is loaded once and never mutates, so a model's incremental-update
@@ -49,6 +50,9 @@ public:
     //   row     int      x48 matrix out row, -1 when the skin used a name
     //   mask    int      x48 matrix in mask
     //   rect    rect     hit area in face-image pixels
+    //   cap rect         optional; the drawn key inside the hit rect, which is
+    //                    what the pressed highlight covers. tools/makeface.py
+    //                    emits it, and rect is then the cap plus a small frame.
     //   pressed rect     optional source rect of the pressed-key artwork
     //   label   string   accessibility / physical-keyboard hint
     struct Key {
@@ -57,6 +61,7 @@ public:
         int     row  = -1;
         int     mask = 0;
         QRect   rect;
+        QRect   cap;
         QRect   pressed;
         QString label;
     };
@@ -89,7 +94,6 @@ signals:
 
 private:
     bool loadJson(const QByteArray &data, const QUrl &base);
-    bool loadKml(const QByteArray &data, const QUrl &base);
     void clear();
     void setError(const QString &what);
     static QVariantMap keyToMap(const Key &k);

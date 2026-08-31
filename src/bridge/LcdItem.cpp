@@ -74,19 +74,38 @@ QSGNode *LcdItem::updatePaintNode(QSGNode *old, UpdatePaintNodeData *)
         const x48_frame_t &f = m_engine->frame();
         const int w = f.width  > 0 ? f.width  : X48_LCD_WIDTH;
         const int h = f.height > 0 ? f.height : X48_LCD_HEIGHT;
+        // Zero until the first frame arrives, and QImage with a zero stride is
+        // a null image.
+        const int stride = f.stride > 0 ? f.stride : X48_LCD_STRIDE;
 
         // Wraps the shim's buffer without copying. Safe because we are inside
         // updatePaintNode(), where the GUI thread is blocked and cannot tick.
-        m_image = QImage(f.pixels, w, h, f.stride, QImage::Format_Indexed8);
+        m_image = QImage(f.pixels, w, h, stride, QImage::Format_Indexed8);
         rebuildColorTable();
 
         // TODO(grayscale): when m_grayscale is on, OR this frame with
         // m_previous into a 3-level index buffer before upload, then keep a
         // copy. Needs its own scratch buffer - the wrap above is read-only.
 
-        delete node->texture();
-        node->setTexture(window()->createTextureFromImage(
-            m_image, QQuickWindow::TextureIsOpaque));
+        // A frame that never arrived - no ROM, or the engine failed to start -
+        // leaves a null QImage, and createTextureFromImage() then returns
+        // nullptr. QSGSimpleTextureNode::setTexture(nullptr) segfaults the
+        // render thread, so draw nothing at all until there is something to
+        // draw. This is what crashed the first Linux build on 2026aug29.
+        QSGTexture *tex = m_image.isNull()
+            ? nullptr
+            : window()->createTextureFromImage(m_image,
+                                               QQuickWindow::TextureIsOpaque);
+        if (!tex) {
+            delete node;
+            return nullptr;
+        }
+        // setOwnsTexture(true) above means the node deletes the OLD texture
+        // itself inside setTexture(). Deleting it here first left the node
+        // holding a dangling pointer that setTexture() then deleted again -
+        // a double free that segfaulted the render thread on the first Linux
+        // build, 2026aug29.
+        node->setTexture(tex);
         m_textureDirty = false;
     }
 

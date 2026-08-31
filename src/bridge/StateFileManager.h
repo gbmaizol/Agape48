@@ -23,7 +23,12 @@
 #include <QString>
 #include <QUrl>
 
-struct x48_config_t;
+// x48_shim.h now tags the struct, so this can stay a forward declaration and
+// keep the C header out of every translation unit that includes this one. A
+// bare "struct x48_config_t" does not exist - only the typedef does, which is
+// why the previous version of this line did not compile.
+struct x48_config_s;
+using x48_config_t = x48_config_s;
 
 class StateFileManager : public QObject
 {
@@ -60,6 +65,28 @@ public:
 
     bool hasExternalChange() const;
 
+    // --- one calculator, one instance --------------------------------------
+    // The state folder IS the calculator, so it is opened by one instance at a
+    // time, the way a word processor opens a document. claim() writes an
+    // "in-use" file naming this process and this machine; a second instance
+    // finds it and is turned away. Two calculators at once is two folders,
+    // which the folder picker already does. Gert asked for this on 2026aug30
+    // after two copies pointed at one folder quietly ate each other's memory -
+    // every instance writes the whole state on quit, so the last one out won.
+    //
+    // Local files only. An Android content:// tree would need the whole SAF
+    // dance to write one small file, and Android will not run two copies of an
+    // app anyway.
+    bool claim();
+    void release();
+    bool isHeld() const { return m_held; }
+
+    // True if a LIVE instance on this machine holds that folder. Used by
+    // claim(), and by migrateTo() before it copies anything - the check has to
+    // come first there, or a refused move has already overwritten the memory
+    // of the instance it was refused for.
+    bool isBusy(const QUrl &url) const;
+
 public slots:
     // Desktop: emits pickerRequested() so QML can show a folder chooser
     // (QtQuick.Dialogs FolderDialog - part of Quick, not Widgets).
@@ -90,4 +117,6 @@ private:
     QUrl    m_location;
     quint64 m_lastFingerprint = 0;
     QString m_lastError;
+    bool    m_held = false;
+    QString m_heldPath;
 };

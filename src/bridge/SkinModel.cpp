@@ -1,10 +1,8 @@
 #include "SkinModel.h"
 
-#include "KmlParser.h"
 #include "x48_shim.h"
 
 #include <QFile>
-#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -50,6 +48,7 @@ QVariantMap SkinModel::keyToMap(const Key &k)
         { QStringLiteral("row"),     k.row },
         { QStringLiteral("mask"),    k.mask },
         { QStringLiteral("rect"),    k.rect },
+        { QStringLiteral("cap"),     k.cap.isEmpty() ? k.rect : k.cap },
         { QStringLiteral("pressed"), k.pressed },
         { QStringLiteral("label"),   k.label },
     };
@@ -82,15 +81,7 @@ bool SkinModel::load(const QUrl &url)
     clear();
     m_source = url;
 
-    const QString suffix = QFileInfo(path).suffix().toLower();
-    bool ok = false;
-    if (suffix == QLatin1String("kml"))
-        ok = loadKml(data, url);
-    else if (suffix == QLatin1String("json"))
-        ok = loadJson(data, url);
-    else
-        ok = data.trimmed().startsWith('{') ? loadJson(data, url)
-                                            : loadKml(data, url);
+    const bool ok = loadJson(data, url);
 
     if (ok)
         emit changed();
@@ -140,10 +131,11 @@ bool SkinModel::loadJson(const QByteArray &data, const QUrl &base)
         k.key   = o.value(QStringLiteral("key")).toString();
         k.label = o.value(QStringLiteral("label")).toString();
         k.rect  = rectFromJson(o.value(QStringLiteral("rect")));
+        if (o.contains(QStringLiteral("cap")))
+            k.cap = rectFromJson(o.value(QStringLiteral("cap")));
         if (o.contains(QStringLiteral("pressed")))
             k.pressed = rectFromJson(o.value(QStringLiteral("pressed")));
-        // A skin may address the matrix directly instead of by name; useful for
-        // skins converted from KML, which only ever carries scancodes.
+        // A skin may address the matrix directly instead of by name.
         if (o.contains(QStringLiteral("code"))) {
             const QJsonArray c = o.value(QStringLiteral("code")).toArray();
             if (c.size() == 2) {
@@ -165,49 +157,15 @@ bool SkinModel::loadJson(const QByteArray &data, const QUrl &base)
     const QJsonArray anns = root.value(QStringLiteral("annunciators")).toArray();
     for (const QJsonValue &av : anns) {
         const QJsonObject o = av.toObject();
+        const QString img = o.value(QStringLiteral("image")).toString();
         m_annunciators.append(QVariantMap {
             { QStringLiteral("id"),   o.value(QStringLiteral("id")).toString() },
             { QStringLiteral("bit"),  o.value(QStringLiteral("bit")).toInt() },
             { QStringLiteral("rect"), rectFromJson(o.value(QStringLiteral("rect"))) },
+            // Drawn by tools/makeface.py, one small PNG each. A glyph in a font
+            // would not survive the trip to Android or Windows.
+            { QStringLiteral("image"), img.isEmpty() ? QUrl() : base.resolved(QUrl(img)) },
         });
-    }
-    return true;
-}
-
-bool SkinModel::loadKml(const QByteArray &data, const QUrl &base)
-{
-    KmlParser parser;
-    if (!parser.parse(QString::fromLatin1(data), base)) {
-        setError(parser.errorString());
-        return false;
-    }
-
-    const KmlSkin &s = parser.result();
-    m_title     = s.title;
-    m_author    = s.author;
-    m_model     = s.model;
-    m_faceImage = s.bitmap;
-    m_faceSize  = s.backgroundSize;
-    m_lcdRect   = QRect(s.lcdOffset, QSize(X48_LCD_WIDTH * s.lcdZoom,
-                                           X48_LCD_HEIGHT * s.lcdZoom));
-    m_lcdZoom   = s.lcdZoom;
-
-    for (const KmlButton &b : s.buttons) {
-        Key k;
-        k.id      = b.name;
-        k.rect    = QRect(b.offset, b.size);
-        k.pressed = b.down.isNull() ? QRect() : QRect(b.down, b.size);
-        // KML identifies keys by Emu48 scancode. Mapping those onto the x48
-        // (row, mask) matrix is a fixed 49-entry table - see KmlParser.cpp.
-        k.row  = b.row;
-        k.mask = b.mask;
-        if (k.row < 0) {
-            setError(tr("KML button \"%1\" uses scancode 0x%2, which has no "
-                        "x48 matrix equivalent yet.")
-                         .arg(b.name).arg(b.scancode, 0, 16));
-            return false;
-        }
-        m_keys.append(keyToMap(k));
     }
     return true;
 }

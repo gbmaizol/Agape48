@@ -6,15 +6,40 @@
 # Upstream x48 sources go in src/core/x48/ (git submodule or a plain copy).
 # Listed explicitly rather than globbed so a vendor bump is a visible diff.
 set(X48_SOURCES
-    # x48/src/emulate.c
-    # x48/src/cpu.c
-    # x48/src/memory.c
-    # x48/src/register.c
-    # x48/src/timer.c
-    # x48/src/romio.c
-    # x48/src/lcd.c
-    # x48/src/rpl.c
-    # x48/src/serial.c        <- see VENDORING.md: stub this out, saves ~8 KB
+    x48/emulate.c       # Saturn interpreter + step_instruction + agape48 slice
+    x48/actions.c       # opcodes with side effects, incl. do_shutdown
+    x48/memory.c
+    x48/register.c
+    x48/timer.c
+    x48/device.c
+    x48/init.c          # init_emulator / init_active_stuff
+    x48/romio.c         # ROM and state file I/O
+    x48/lcd.c           # writes lcd_buffer; x48_take_frame reads it
+    x48/errors.c
+    x48/rpl.c           # only real_number() survives, for the clipboard
+    x48/binio.c         # read_bin_file, for object import
+    x48/resources.c     # config defaults; no X11 left in it
+    x48/options.c
+
+    # Deliberately NOT built:
+    #   x48/main.c      JNI entry points + main(); the shim replaces both, and
+    #                   not compiling it is what frees blockConditionVariable()
+    #                   for the shim to define. See x48_shim.c.
+    #   x48/x48.c       X11 frontend
+    #   x48/debugger.c  interactive debugger; rpl.c is kept without it
+    #   x48/disasm.c    only the debugger needs it
+    #   x48/serial.c    Droid48 has no serial either - it compiles this file
+    #                   only because it inherited x48's source list whole.
+    #                   useTerminal and useSerial are hardcoded to 0 in
+    #                   resources.c:84, the one thing that could raise them is
+    #                   X48.ad.h (x48's X11 app-defaults table, unparsed once
+    #                   the X11 frontend is gone), and there is no serial,
+    #                   Kermit or XModem anywhere in Droid48's Java. So it is
+    #                   already dead at runtime; dropping it changes nothing,
+    #                   matches decision 2c, and is what lets this build for
+    #                   MSVC and MinGW, which have no termios.h, ptsname_r,
+    #                   grantpt, unlockpt or O_NDELAY. Its four entry points
+    #                   are no-ops in x48_shim.c.
 )
 
 add_library(agape48_x48core STATIC

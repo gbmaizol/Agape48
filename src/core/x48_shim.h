@@ -29,11 +29,16 @@ extern "C" {
 #define X48_LCD_STRIDE      144
 #define X48_LCD_PIXELS      (X48_LCD_STRIDE * X48_LCD_HEIGHT)
 
-/* Keyboard matrix: 9 "out" rows driven by the Saturn, up to 8 "in" columns
- * read back. The ON key is not in the matrix - x48 parks it in row 8.
- * TODO(vendor): confirm the ON row index against the fork you vendored. */
+/* Keyboard matrix: 9 "out" rows driven by the Saturn, six "in" columns read
+ * back as bits 0x01..0x20. Confirmed against the vendored buttons[] table at
+ * x48.c:233 - rows 1, 2 and 3 have the sixth key (SHR, SHL, ALPHA), the other
+ * six rows have five.
+ *
+ * ON is not in the matrix. x48 gives it code 0x8000 and sets that bit in ALL
+ * nine rows (x48.c:381), so the mask carries the meaning and the row argument
+ * is ignored: pass X48_KB_MASK_ON to x48_key_down/up in a single call. */
 #define X48_KB_ROWS           9
-#define X48_KB_ROW_ON         8
+#define X48_KB_MASK_ON   0x8000u
 
 /* Annunciator bits, in the left-to-right order they appear on the glass. */
 #define X48_ANN_LEFT     0x0001u   /* left shift  */
@@ -43,7 +48,7 @@ extern "C" {
 #define X48_ANN_BUSY     0x0010u
 #define X48_ANN_IO       0x0020u
 
-typedef struct {
+typedef struct x48_config_s {
     const char *rom_path;     /* required; NULL means "look next to state" */
 
     /* Desktop: a directory holding ram / port1 / port2 / state.
@@ -59,7 +64,7 @@ typedef struct {
     bool  throttle;           /* pace to real HP 48 speed vs. run free */
 } x48_config_t;
 
-typedef struct {
+typedef struct x48_frame_s {
     /* One byte per pixel, 0 or 1. Indexed8 rather than packed bits: 8.4 KB is
      * nothing, and it lets QImage wrap the buffer with no bit twiddling. */
     uint8_t  pixels[X48_LCD_PIXELS];
@@ -94,9 +99,9 @@ bool        x48_take_frame(x48_frame_t *out);
 
 /* --- keyboard ----------------------------------------------------------- */
 
-/* row is 0..X48_KB_ROWS-1, mask is the "in" column bit. Multiple simultaneous
- * presses are the point: ON+A+F is the HP 48 hard reset and must arrive as
- * three live keys, not a sequence. */
+/* row is 0..X48_KB_ROWS-1, mask is the "in" column bit, or X48_KB_MASK_ON for
+ * ON (row ignored). Multiple simultaneous presses are the point: ON+A+F is the
+ * HP 48 hard reset and must arrive as three live keys, not a sequence. */
 void        x48_key_down(int row, uint16_t mask);
 void        x48_key_up(int row, uint16_t mask);
 void        x48_key_release_all(void);

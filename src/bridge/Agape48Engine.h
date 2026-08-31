@@ -10,13 +10,26 @@
 #include <QObject>
 #include <QQmlEngine>
 #include <QString>
+#include <QElapsedTimer>
+#include <QHash>
+#include <QSet>
+#include <QStringList>
 #include <QTimer>
 #include <QUrl>
 
 #include "x48_shim.h"
 
-class SkinModel;
-class StateFileManager;
+// Included, not forward-declared: moc needs a complete type to build a
+// QMetaType for a pointer parameter, the same rule that caught SkinModel and
+// StateFileManager in the very first build. "Pointer Meta Types must either
+// point to fully-defined types."
+#include <QQuickWindow>
+
+// Included rather than forward-declared: both appear as pointer Q_PROPERTYs
+// below, and moc needs a complete type to build a QMetaType for a pointer
+// property ("Pointer Meta Types must either point to fully-defined types...").
+#include "SkinModel.h"
+#include "StateFileManager.h"
 
 class Agape48Engine : public QObject
 {
@@ -30,6 +43,12 @@ class Agape48Engine : public QObject
     Q_PROPERTY(int  annunciators   READ annunciators  NOTIFY annunciatorsChanged)
     Q_PROPERTY(QString lastError   READ lastError     NOTIFY lastErrorChanged)
 
+    // Names of the keys currently held down, whatever pressed them - mouse,
+    // finger or the physical keyboard. Keypad.qml lights its caps off this.
+    // It has to live here rather than in QML: QML only ever saw the touch
+    // points, so a key pressed from the keyboard lit nothing.
+    Q_PROPERTY(QStringList pressedKeys READ pressedKeys NOTIFY pressedKeysChanged)
+
     // Aggregated sub-objects, so QML reaches everything through one root:
     //   engine.state.location, engine.skin.keys, ...
     Q_PROPERTY(StateFileManager *state READ state CONSTANT)
@@ -38,6 +57,12 @@ class Agape48Engine : public QObject
     // User preferences that live on the frontend side, not in the core.
     Q_PROPERTY(bool hapticsEnabled READ hapticsEnabled WRITE setHapticsEnabled NOTIFY hapticsEnabledChanged)
     Q_PROPERTY(bool soundEnabled   READ soundEnabled   WRITE setSoundEnabled   NOTIFY soundEnabledChanged)
+
+    // Off by default. On, every qDebug/qWarning and the startup facts that
+    // explain a failed start go to logPath, which is in app storage and NOT in
+    // the state folder - a log has no business syncing between machines.
+    Q_PROPERTY(bool    debugLogging READ debugLogging WRITE setDebugLogging NOTIFY debugLoggingChanged)
+    Q_PROPERTY(QString logPath      READ logPath      CONSTANT)
 
 public:
     explicit Agape48Engine(QObject *parent = nullptr);
@@ -49,14 +74,39 @@ public:
     int  contrast() const    { return m_frame.contrast; }
     int  annunciators() const{ return m_annunciators; }
     QString lastError() const{ return m_lastError; }
+    QStringList pressedKeys() const { return m_pressed; }
     StateFileManager *state() const { return m_state; }
     SkinModel        *skin()  const { return m_skin; }
     bool hapticsEnabled() const { return m_haptics; }
     bool soundEnabled() const   { return m_sound; }
+    bool debugLogging() const   { return m_debugLogging; }
+    QString logPath() const;
 
     void setRomSource(const QUrl &url);
     void setHapticsEnabled(bool on);
     void setSoundEnabled(bool on);
+    void setDebugLogging(bool on);
+
+    // The live modifier state, not an event's cached copy. A mouse press on the
+    // face arrives through MultiPointTouchArea, whose touch points carry no
+    // modifiers at all, so Ctrl+click has to ask the platform directly.
+    Q_INVOKABLE int keyboardModifiers() const;
+
+    // A frameless window has no title bar for the window manager to drag, so
+    // the app asks for the drag itself. This hands the interaction to the WM,
+    // which is what makes it behave like a real title bar - snapping, workspace
+    // edges, the lot - instead of a hand-rolled x/y chase.
+    //
+    // There is deliberately no startSystemResize twin. The WM's own resize is
+    // interactive and ignores the height the aspect lock sets during the drag,
+    // so the window came out the wrong shape; Main.qml drives the resize itself
+    // and keeps the proportions exact on every frame.
+    Q_INVOKABLE bool startSystemMove(QQuickWindow *window);
+
+    // One XMoveResizeWindow for a resize drag. QML cannot reach QWindow's own
+    // four-argument setGeometry, and Main.qml already has a helper of that name
+    // with a different signature, so the call comes through here.
+    Q_INVOKABLE void setWindowGeometry(QQuickWindow *window, int x, int y, int w, int h);
 
     // --- called by LcdItem, not exposed to QML -----------------------------
     // Valid until the next tick; LcdItem copies out of it inside
@@ -73,12 +123,13 @@ public slots:
 
     // --- keys --------------------------------------------------------------
     // Name form is what skins use ("ENTER", "SIN", "N7", "ON"); the numeric
-    // form is what a KML skin carries. Both land on the same matrix write.
+    // form lets a skin address the matrix directly. Both land on the same write.
     void pressKey(const QString &keyId);
     void releaseKey(const QString &keyId);
     void pressCode(int row, int mask);
     void releaseCode(int row, int mask);
     void releaseAllKeys();
+
 
     // --- state -------------------------------------------------------------
     void reset(bool cold = false);
@@ -95,18 +146,25 @@ signals:
     void romSourceChanged();
     void annunciatorsChanged();
     void lastErrorChanged();
+    void pressedKeysChanged();
     void hapticsEnabledChanged();
     void soundEnabledChanged();
+    void debugLoggingChanged();
 
     void frameReady();                      // LcdItem listens; fires only on change
     void beep(int frequencyHz, int durationMs);
     void keyFeedback(const QString &keyId); // QML plays haptics/sound off this
     void romRequired();                     // no ROM yet - QML shows the picker
+    void stateFolderBusy();                 // another instance has it - same
 
 private:
     void tick();
     void setError(const QString &what);
     bool lookupKey(const QString &keyId, int *row, int *mask) const;
+    void markPressed(int row, int mask, bool down);
+    void finishRelease(int row, int mask);
+    void setTickRate(int ms);
+    void logStartupFacts() const;
 
     QTimer            m_tick;
     x48_frame_t       m_frame {};
@@ -115,8 +173,19 @@ private:
     bool              m_ready = false;
     bool              m_haptics = true;
     bool              m_sound = true;
+    bool              m_debugLogging = false;
+    bool              m_displayOff = false;
+
+    // A key has to stay down long enough for the ROM's keyboard scan to see
+    // it. A tap shorter than that was simply lost - and worst of all when the
+    // calculator was off, because then the scan only starts once the key is
+    // already down. Releases are held back to a minimum time; see releaseCode.
+    QElapsedTimer     m_clock;
+    QHash<int, qint64> m_downAt;
+    QSet<int>         m_releasePending;
     QUrl              m_romSource;
     QString           m_lastError;
+    QStringList       m_pressed;
     StateFileManager *m_state = nullptr;
     SkinModel        *m_skin  = nullptr;
 };

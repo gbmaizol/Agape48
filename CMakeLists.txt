@@ -40,7 +40,7 @@ include(Agape48Size)   # defines the agape48::size INTERFACE target
 # -----------------------------------------------------------------------------
 # Qt - Core, Gui, Qml, Quick. Nothing else, ever. Enforced at the bottom.
 # -----------------------------------------------------------------------------
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 QuickDialogs2)
 qt_standard_project_setup(REQUIRES 6.5)
 
 set(CMAKE_AUTOMOC ON)
@@ -58,12 +58,11 @@ qt_add_executable(agape48
     src/bridge/LcdItem.h            src/bridge/LcdItem.cpp
     src/bridge/StateFileManager.h   src/bridge/StateFileManager.cpp
     src/bridge/SkinModel.h          src/bridge/SkinModel.cpp
-    src/bridge/KmlParser.h          src/bridge/KmlParser.cpp
 )
 
 target_include_directories(agape48 PRIVATE src src/bridge src/core)
 target_link_libraries(agape48 PRIVATE
-    Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick
+    Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::QuickDialogs2
     agape48::x48core
     agape48::size
 )
@@ -83,8 +82,13 @@ set(AGAPE48_QML_FILES
     qml/Main.qml
     qml/Calculator.qml
     qml/Keypad.qml
-    qml/SettingsSheet.qml
+    qml/SettingsWindow.qml
+    qml/KeyBindingWindow.qml
+    qml/Agape48Keymap.qml
 )
+
+set_source_files_properties(qml/Agape48Keymap.qml
+    PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(agape48
     URI Agape48
@@ -92,8 +96,14 @@ qt_add_qml_module(agape48
     NO_PLUGIN                       # types are compiled straight into the exe
     QML_FILES ${AGAPE48_QML_FILES}
     RESOURCES
-        assets/skins/default/face.webp
+        assets/skins/default/face.png
         assets/skins/default/layout.json
+        assets/skins/default/ann_left.png
+        assets/skins/default/ann_right.png
+        assets/skins/default/ann_alpha.png
+        assets/skins/default/ann_battery.png
+        assets/skins/default/ann_busy.png
+        assets/skins/default/ann_io.png
 )
 
 # Compiled-QML cache costs binary size and buys startup time. Off by default.
@@ -176,13 +186,21 @@ if(NOT ANDROID)
 endif()
 
 # -----------------------------------------------------------------------------
+# Main.qml imports the QtCore QML module for Settings (window geometry, kept
+# machine-local by design - see docs/design-questions.md items 10b and 11). It
+# is backed by Qt6::Core, which is already linked, so nothing new is added here.
+# On a STATIC Qt build its QML plugin still has to be imported; Qt's CMake does
+# that automatically for an app with its own qt_add_qml_module, but it is the
+# first thing to check if a static build dies with "module QtCore is not
+# installed".
+
 # Guard: fail the configure step if a forbidden Qt module gets linked.
 # Catches direct links only; `ldd`/`readelf -d` is still the final word.
 # -----------------------------------------------------------------------------
 set(AGAPE48_FORBIDDEN
     Qt6::Network Qt6::Multimedia Qt6::MultimediaQuick Qt6::Sql Qt6::Widgets
     Qt6::WebEngineQuick Qt6::WebSockets Qt6::Charts Qt6::3DCore
-    Qt6::PrintSupport Qt6::Svg Qt6::QuickControls2 Qt6::Concurrent)
+    Qt6::PrintSupport Qt6::Svg Qt6::Concurrent)
 get_target_property(_a48_links agape48 LINK_LIBRARIES)
 foreach(_mod IN LISTS AGAPE48_FORBIDDEN)
     if("${_mod}" IN_LIST _a48_links)

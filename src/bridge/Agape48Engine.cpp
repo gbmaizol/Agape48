@@ -1,10 +1,20 @@
 #include "Agape48Engine.h"
 
+#include <QCoreApplication>
+
 #include "SkinModel.h"
 #include "StateFileManager.h"
 
 #include <QClipboard>
+#include <QFile>
+#include <QFileInfo>
 #include <QGuiApplication>
+#include <QQuickWindow>
+#include <QDateTime>
+#include <QDir>
+#include <QStandardPaths>
+#include <QTextStream>
+#include <QSettings>
 #include <QHash>
 #include <QStringView>
 
@@ -16,51 +26,113 @@ namespace {
 // worker thread would buy nothing but a frame-handoff race. If profiling ever
 // says otherwise, this is the one place that has to move.
 constexpr int  kTickIntervalMs = 16;
+
+// How long a key is guaranteed to stay down. The HP 48's ROM polls the matrix
+// on its own schedule - about 40 ms between scans - so a press and release
+// inside one gap is never seen at all. Dogfood #11 line 2: pressing Esc did
+// not switch the calculator back on, because from SHUTDN the scan only begins
+// after the key arrives, and a tap was over before it got there.
+constexpr int  kMinHoldMs      = 60;
 constexpr int  kCyclesPerTick  = 70000;
+constexpr int  kIdleIntervalMs = 100;
+
+// The rate we fall back to while the Saturn is parked in SHUTDN, which is where
+// it spends nearly all of its life. It must not be zero. The tick used to stop
+// outright, and that broke waking: SHUTDN is not a halt, it is a wait, and the
+// ROM leaves it on a TIMER tick as readily as on a key. With the tick stopped
+// nothing ever delivered that timer, so a machine that parked mid-wake stayed
+// parked until the next key press happened to shake it loose - Gert's "I have
+// to tap Esc 3 times", and the same reason clicking the title bar appeared to
+// help. Ten times a second costs a few dozen instructions and keeps the 48's
+// clock and alarms honest, which a full stop also quietly broke.
 
 // -----------------------------------------------------------------------------
 // Key name -> (out row, in mask).
 //
 // The NAMES are the contract skins are written against, and they are stable.
-// The CODES are not filled in: the exact (row, mask) pairs differ in ordering
-// between x48 forks, and inventing 49 of them would produce a keyboard that
-// looks right and types garbage. Copy them out of the vendored fork's keyboard
-// table (x48ng: src/keyboard.c) as part of VENDORING.md step 4.
 //
-// Until then lookupKey() fails loudly and the engine reports which key.
+// The CODES were transcribed on 2026aug28 from the vendored buttons[] table at
+// src/core/x48/x48.c:233 - x48's original 1994 array, 49 entries. Its 4th field
+// is a packed code that x48.c:386 decodes as row = code >> 4, mask = 1 << (code
+// & 0xf). Checked: 49 entries, no two keys share a (row, mask), all nine rows
+// used, masks 0x01..0x20. Rows 1, 2 and 3 carry a sixth key (SHR, SHL, ALPHA).
+//
+// Two names differ from x48's: its digits are "7", "8" where skins say "N7",
+// "N8", and its "COLON" is the third row's first key, which skins call "QUOTE".
+//
+// lookupKey() still fails loudly for anything not here, and the engine reports
+// which key by name rather than pressing something arbitrary.
 // -----------------------------------------------------------------------------
+// --- debug log ---------------------------------------------------------------
+// One file, appended to, installed as Qt's message handler only while the
+// option is on. Gert asked for this after dogfood #8, where the only record of
+// why the app would not start was a red banner hidden behind a window.
+QFile *g_logFile = nullptr;
+QtMessageHandler g_previousHandler = nullptr;
+
+void agape48LogHandler(QtMsgType type, const QMessageLogContext &ctx, const QString &msg)
+{
+    if (g_logFile && g_logFile->isOpen()) {
+        static const char *kLevel[] = { "debug", "warning", "critical", "fatal", "info" };
+        QTextStream out(g_logFile);
+        out << QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz"))
+            << "  " << kLevel[type <= QtInfoMsg ? type : 0] << "  " << msg << "\n";
+        out.flush();
+    }
+    if (g_previousHandler)
+        g_previousHandler(type, ctx, msg);
+}
+
 struct KeyDef { const char *id; int row; int mask; };
 
 constexpr int kUnmapped = -1;
 
 const KeyDef kKeys[] = {
     // menu row
-    { "A", kUnmapped, 0 }, { "B", kUnmapped, 0 }, { "C", kUnmapped, 0 },
-    { "D", kUnmapped, 0 }, { "E", kUnmapped, 0 }, { "F", kUnmapped, 0 },
+    { "A", 1, 0x10 }, { "B", 8, 0x10 }, { "C", 8, 0x08 },
+    { "D", 8, 0x04 }, { "E", 8, 0x02 }, { "F", 8, 0x01 },
     // second row
-    { "MTH", kUnmapped, 0 }, { "PRG", kUnmapped, 0 }, { "CST", kUnmapped, 0 },
-    { "VAR", kUnmapped, 0 }, { "UP",  kUnmapped, 0 }, { "NXT", kUnmapped, 0 },
+    { "MTH", 2, 0x10 }, { "PRG", 7, 0x10 }, { "CST", 7, 0x08 },
+    { "VAR", 7, 0x04 }, { "UP", 7, 0x02 }, { "NXT", 7, 0x01 },
     // third row
-    { "QUOTE", kUnmapped, 0 }, { "STO", kUnmapped, 0 }, { "EVAL", kUnmapped, 0 },
-    { "LEFT",  kUnmapped, 0 }, { "DOWN",kUnmapped, 0 }, { "RIGHT",kUnmapped, 0 },
+    { "QUOTE", 0, 0x10 }, { "STO", 6, 0x10 }, { "EVAL", 6, 0x08 },
+    { "LEFT", 6, 0x04 }, { "DOWN", 6, 0x02 }, { "RIGHT", 6, 0x01 },
     // fourth row
-    { "SIN", kUnmapped, 0 }, { "COS", kUnmapped, 0 }, { "TAN", kUnmapped, 0 },
-    { "SQRT",kUnmapped, 0 }, { "POWER", kUnmapped, 0 },
+    { "SIN", 3, 0x10 }, { "COS", 5, 0x10 }, { "TAN", 5, 0x08 },
+    { "SQRT", 5, 0x04 }, { "POWER", 5, 0x02 },
     // fifth row
-    { "INV", kUnmapped, 0 }, { "EEX", kUnmapped, 0 }, { "NEG", kUnmapped, 0 },
-    { "DEL", kUnmapped, 0 }, { "BS",  kUnmapped, 0 },
+    { "INV", 5, 0x01 }, { "EEX", 4, 0x04 }, { "NEG", 4, 0x08 },
+    { "DEL", 4, 0x02 }, { "BS", 4, 0x01 },
     // numeric block
-    { "ALPHA", kUnmapped, 0 }, { "N7", kUnmapped, 0 }, { "N8", kUnmapped, 0 },
-    { "N9",    kUnmapped, 0 }, { "DIV",kUnmapped, 0 },
-    { "SHL",   kUnmapped, 0 }, { "N4", kUnmapped, 0 }, { "N5", kUnmapped, 0 },
-    { "N6",    kUnmapped, 0 }, { "MUL",kUnmapped, 0 },
-    { "SHR",   kUnmapped, 0 }, { "N1", kUnmapped, 0 }, { "N2", kUnmapped, 0 },
-    { "N3",    kUnmapped, 0 }, { "MINUS", kUnmapped, 0 },
-    { "N0",    kUnmapped, 0 }, { "PERIOD",kUnmapped, 0 }, { "SPC", kUnmapped, 0 },
-    { "PLUS",  kUnmapped, 0 }, { "ENTER", kUnmapped, 0 },
-    // ON sits outside the matrix - X48_KB_ROW_ON. Part of the ON+A+F reset.
-    { "ON", X48_KB_ROW_ON, 0 },
+    { "ALPHA", 3, 0x20 }, { "N7", 3, 0x08 }, { "N8", 3, 0x04 },
+    { "N9", 3, 0x02 }, { "DIV", 3, 0x01 },
+    { "SHL", 2, 0x20 }, { "N4", 2, 0x08 }, { "N5", 2, 0x04 },
+    { "N6", 2, 0x02 }, { "MUL", 2, 0x01 },
+    { "SHR", 1, 0x20 }, { "N1", 1, 0x08 }, { "N2", 1, 0x04 },
+    { "N3", 1, 0x02 }, { "MINUS", 1, 0x01 },
+    { "N0", 0, 0x08 }, { "PERIOD", 0, 0x04 }, { "SPC", 0, 0x02 },
+    { "PLUS", 0, 0x01 }, { "ENTER", 4, 0x10 },
+    // ON is not in the matrix: X48_KB_MASK_ON sets bit 15 in all nine rows,
+    // which is x48.c:381. The row here is ignored. Part of the ON+A+F reset.
+    { "ON", 0, X48_KB_MASK_ON },
 };
+
+// The same table read backwards, so a press addressed by matrix code still
+// knows which key it lit. pressCode() is the one place both the name path and
+// the direct-matrix path meet, so the bookkeeping goes there and neither
+// caller has to remember to do it.
+const QHash<int, QString> &codeTable()
+{
+    static const QHash<int, QString> table = [] {
+        QHash<int, QString> t;
+        t.reserve(std::size(kKeys));
+        for (const KeyDef &k : kKeys)
+            if (k.row >= 0)
+                t.insert((k.row << 16) | k.mask, QString::fromLatin1(k.id));
+        return t;
+    }();
+    return table;
+}
 
 const QHash<QString, QPair<int, int>> &keyTable()
 {
@@ -81,9 +153,32 @@ Agape48Engine::Agape48Engine(QObject *parent)
     , m_state(new StateFileManager(this))
     , m_skin(new SkinModel(this))
 {
+    if (QSettings().value(QLatin1String("debug/logging"), false).toBool())
+        setDebugLogging(true);
+
+    m_clock.start();
     m_tick.setInterval(kTickIntervalMs);
     m_tick.setTimerType(Qt::PreciseTimer);
     connect(&m_tick, &QTimer::timeout, this, &Agape48Engine::tick);
+
+    // The state manager's own failures - a folder that does not exist, a copy
+    // that would not copy - had nowhere to go: nothing read its lastError
+    // except start(). So typing a bad folder into Settings looked like nothing
+    // happening at all. Now they surface exactly like any other error.
+    connect(m_state, &StateFileManager::lastErrorChanged, this, [this] {
+        // Both directions: a cleared state error clears ours, or the message
+        // outlives the problem and sits there after it has been fixed.
+        setError(m_state->lastError());
+    });
+
+    // Refused at startup - no ROM, or another instance holding the state
+    // folder - and then given a folder that works: start now, rather than
+    // making the user quit and reopen to get a calculator. migrateTo() and the
+    // house button both land here.
+    connect(m_state, &StateFileManager::locationChanged, this, [this] {
+        if (!m_ready)
+            start();
+    });
 
     // An external sync client rewriting the state file under us is the normal
     // case, not the exceptional one - that is the whole point of BYO-sync.
@@ -91,6 +186,13 @@ Agape48Engine::Agape48Engine(QObject *parent)
             this, [this] { if (!isRunning()) reloadState(); });
 
     m_skin->load(QUrl(QStringLiteral("qrc:/qt/qml/Agape48/assets/skins/default/layout.json")));
+
+    // Let go of the state folder on the way out. aboutToQuit rather than the
+    // destructor alone: Qt.quit() from the menu tears the QML engine down in
+    // an order this object does not control, and a lock left behind is a lock
+    // the next start has to reason about. A crash still leaves one, which is
+    // exactly what the dead-pid check in claim() is for.
+    connect(qApp, &QCoreApplication::aboutToQuit, this, [this] { m_state->release(); });
 }
 
 Agape48Engine::~Agape48Engine()
@@ -99,6 +201,7 @@ Agape48Engine::~Agape48Engine()
         x48_save_state();
         x48_shutdown();
     }
+    m_state->release();
 }
 
 // --- lifecycle --------------------------------------------------------------
@@ -107,17 +210,64 @@ bool Agape48Engine::start()
 {
     if (m_ready) {
         if (!m_tick.isActive()) {
+            if (m_debugLogging)
+                qWarning("emulation resumed");
             m_tick.start();
             emit runningChanged();
         }
         return true;
     }
 
+    // Before giving up, look for a "rom" beside the state. That is the layout
+    // x48 and Droid48 both use and the one x48_init() falls back to when
+    // rom_path is null, so dropping a ROM in the state folder just works.
+    // Decision 7 will bundle the ROM and set this properly.
+    // Remembered from last time. Without this a ROM typed into Settings worked
+    // for one session and was forgotten on restart, so the only thing that
+    // could ever find a ROM again was the "beside the state" fallback below -
+    // which is exactly what failed in dogfood #8 once migration had left the
+    // ROM behind in the old folder.
+    if (m_romSource.isEmpty()) {
+        const QString saved = QSettings().value(QLatin1String("rom/source")).toString();
+        if (!saved.isEmpty() && QFileInfo::exists(QUrl(saved).toLocalFile())) {
+            m_romSource = QUrl(saved);
+            emit romSourceChanged();
+        }
+    }
+
+    if (m_romSource.isEmpty()) {
+        const QString beside =
+            m_state->location().toLocalFile() + QLatin1String("/rom");
+        if (QFileInfo::exists(beside)) {
+            m_romSource = QUrl::fromLocalFile(beside);
+            // Not through setRomSource(): a fallback should not be written to
+            // QSettings and frozen. But QML has to hear about it, or the ROM
+            // field in Settings sits empty while a ROM is plainly loaded.
+            emit romSourceChanged();
+        }
+    }
+
     if (m_romSource.isEmpty()) {
         emit romRequired();
-        setError(tr("No HP 48 ROM selected."));
+        // Naming the folder is the whole difference between "something is
+        // wrong" and "put a file called rom in here".
+        setError(tr("No HP 48 ROM. There is no file named \"rom\" in %1, and "
+                    "none has been chosen in Settings.")
+                     .arg(m_state->location().toLocalFile()));
         return false;
     }
+
+    // One calculator, one instance. Before anything is read or written: a
+    // second copy pointed at this folder would save the whole state on quit
+    // and wipe whatever the first had done. Dogfood #10 raised it, #13 settled
+    // the shape of the answer.
+    if (!m_state->claim()) {
+        emit stateFolderBusy();
+        setError(m_state->lastError());
+        return false;
+    }
+
+    logStartupFacts();
 
     x48_config_t cfg {};
     cfg.fd_ram = cfg.fd_port1 = cfg.fd_port2 = cfg.fd_state = -1;
@@ -140,6 +290,7 @@ bool Agape48Engine::start()
     }
 
     m_ready = true;
+    setError(QString());
     emit readyChanged();
     m_tick.start();
     emit runningChanged();
@@ -150,6 +301,8 @@ void Agape48Engine::stop()
 {
     if (!m_tick.isActive())
         return;
+    if (m_debugLogging)
+        qWarning("emulation stopped (window inactive, or stop() called)");
     m_tick.stop();
     releaseAllKeys();
     emit runningChanged();
@@ -178,6 +331,26 @@ void Agape48Engine::tick()
 
     if (x48_take_frame(&m_frame)) {
         ++m_frameSerial;
+        // What the user sees, not what a register says. OFF does not clear
+        // display.on - it blanks the buffer and drops into SHUTDN - so testing
+        // height alone would never have fired. Dogfood #10 line 13 asked what
+        // had made the screen go blank and the log could not say, because it
+        // only ever spoke at startup.
+        // The display's own on/off bit, not a scan of the pixels. Scanning was
+        // the first version and it lied: the ROM clears the whole screen before
+        // it draws a full-screen form, and for that one frame an ordinary menu
+        // looks exactly like a calculator that has been switched off. It also
+        // read as "never fires" at first, which is what sent me to the pixels -
+        // the real reason was x48_take_frame() skipping a frame in which only
+        // display.on had changed. That is fixed at the source now.
+        const bool off = m_frame.height == 0;
+        if (off != m_displayOff) {
+            m_displayOff = off;
+            qWarning(off ? "screen off - the calculator has been switched off "
+                           "(OFF is green-shift ON, and Ctrl is the green "
+                           "shift). Press ON to switch it back on."
+                         : "screen on");
+        }
         const int ann = m_frame.annunciators;
         if (ann != m_annunciators) {
             m_annunciators = ann;
@@ -192,13 +365,124 @@ void Agape48Engine::tick()
             emit beep(int(hz), int(ms));
     }
 
-    // Deep sleep: the HP 48 spends most of its life in SHUTDN waiting for a
-    // key. Stop ticking so a phone can actually idle; any key press restarts.
-    if (x48_is_asleep())
-        m_tick.stop();
+    // Keys held back by releaseCode let go here, once they have been down
+    // long enough for the ROM to have scanned them.
+    if (!m_releasePending.isEmpty()) {
+        const qint64 now = m_clock.elapsed();
+        for (auto it = m_releasePending.begin(); it != m_releasePending.end(); ) {
+            const int id = *it;
+            if (now - m_downAt.value(id, 0) >= kMinHoldMs) {
+                finishRelease(id >> 16, id & 0xffff);
+                it = m_releasePending.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    // Idle: drop to the slow tick while the Saturn is in SHUTDN, so a phone is
+    // not spinning at 60 Hz to watch a sleeping calculator. Not while a release
+    // is still owed, or the key would take an idle period to come up.
+    //
+    // This deliberately does not log. SHUTDN is where the 48 waits between one
+    // keystroke and the next, so a line per transition was a line per key -
+    // dogfood #12 line 14, "you can see the mess". What the log still records
+    // is the screen going blank and coming back, which is a thing that happens
+    // to the user rather than a thing the CPU does all day.
+    const bool asleep = x48_is_asleep() && m_releasePending.isEmpty();
+    setTickRate(asleep ? kIdleIntervalMs : kTickIntervalMs);
+}
+
+// The timer never stops while the calculator is on; only its rate changes.
+void Agape48Engine::setTickRate(int ms)
+{
+    if (m_tick.interval() != ms)
+        m_tick.setInterval(ms);
+    if (m_ready && !m_tick.isActive()) {
+        m_tick.start();
+        emit runningChanged();
+    }
 }
 
 // --- keys -------------------------------------------------------------------
+
+QString Agape48Engine::logPath() const
+{
+    // App storage, deliberately not the state folder: the state folder is the
+    // one the user syncs, and a log is machine-local noise.
+    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+           + QLatin1String("/agape48.log");
+}
+
+void Agape48Engine::setDebugLogging(bool on)
+{
+    if (m_debugLogging == on)
+        return;
+    m_debugLogging = on;
+    QSettings().setValue(QLatin1String("debug/logging"), on);
+
+    if (on) {
+        const QString path = logPath();
+        QDir().mkpath(QFileInfo(path).absolutePath());
+        auto *f = new QFile(path);
+        if (f->open(QIODevice::Append | QIODevice::Text)) {
+            g_logFile = f;
+            g_previousHandler = qInstallMessageHandler(agape48LogHandler);
+            qWarning("--- Agape48 %s log opened ---", AGAPE48_VERSION);
+            logStartupFacts();
+        } else {
+            delete f;
+            setError(tr("Cannot write the log at %1.").arg(path));
+            m_debugLogging = false;
+        }
+    } else if (g_logFile) {
+        qInstallMessageHandler(g_previousHandler);
+        g_previousHandler = nullptr;
+        g_logFile->close();
+        delete g_logFile;
+        g_logFile = nullptr;
+    }
+    emit debugLoggingChanged();
+}
+
+// The four facts that would have answered "why did it not start" on their own.
+void Agape48Engine::logStartupFacts() const
+{
+    if (!m_debugLogging)
+        return;
+    const QString dir = m_state->location().toLocalFile();
+    qWarning().noquote() << "state folder :" << dir;
+    qWarning().noquote() << "rom source   :" << (m_romSource.isEmpty()
+                                                 ? QStringLiteral("(none chosen)")
+                                                 : m_romSource.toLocalFile());
+    qWarning().noquote() << "rom beside   :"
+                         << (QFileInfo::exists(dir + QLatin1String("/rom"))
+                             ? QStringLiteral("present") : QStringLiteral("MISSING"));
+    QStringList found;
+    for (const QString &n : { QStringLiteral("rom"), QStringLiteral("ram"),
+                              QStringLiteral("hp48"), QStringLiteral("port1"),
+                              QStringLiteral("port2") })
+        if (QFileInfo::exists(dir + QLatin1Char('/') + n))
+            found << n;
+    qWarning().noquote() << "files there  :"
+                         << (found.isEmpty() ? QStringLiteral("(none)") : found.join(QLatin1String(", ")));
+}
+
+bool Agape48Engine::startSystemMove(QQuickWindow *window)
+{
+    return window && window->startSystemMove();
+}
+
+void Agape48Engine::setWindowGeometry(QQuickWindow *window, int x, int y, int w, int h)
+{
+    if (window)
+        window->setGeometry(x, y, w, h);
+}
+
+int Agape48Engine::keyboardModifiers() const
+{
+    return int(QGuiApplication::queryKeyboardModifiers());
+}
 
 bool Agape48Engine::lookupKey(const QString &keyId, int *row, int *mask) const
 {
@@ -231,27 +515,62 @@ void Agape48Engine::releaseKey(const QString &keyId)
         releaseCode(row, mask);
 }
 
+void Agape48Engine::markPressed(int row, int mask, bool down)
+{
+    const QString id = codeTable().value((row << 16) | mask);
+    if (id.isEmpty() || m_pressed.contains(id) == down)
+        return;
+    if (down)
+        m_pressed.append(id);
+    else
+        m_pressed.removeAll(id);
+    emit pressedKeysChanged();
+}
+
 void Agape48Engine::pressCode(int row, int mask)
 {
     if (row < 0 || row >= X48_KB_ROWS)
         return;
+    const int id = (row << 16) | (mask & 0xffff);
+    m_downAt[id] = m_clock.elapsed();
+    m_releasePending.remove(id);
+
     x48_key_down(row, quint16(mask));
-    if (m_ready && !m_tick.isActive()) {   // wake from the deep-sleep stop above
-        m_tick.start();
-        emit runningChanged();
-    }
+    markPressed(row, mask, true);
+    setTickRate(kTickIntervalMs);          // straight back to full speed
+}
+
+void Agape48Engine::finishRelease(int row, int mask)
+{
+    x48_key_up(row, quint16(mask));
+    markPressed(row, mask, false);
+    m_downAt.remove((row << 16) | (mask & 0xffff));
 }
 
 void Agape48Engine::releaseCode(int row, int mask)
 {
     if (row < 0 || row >= X48_KB_ROWS)
         return;
-    x48_key_up(row, quint16(mask));
+    const int id = (row << 16) | (mask & 0xffff);
+    if (m_downAt.contains(id) && m_clock.elapsed() - m_downAt.value(id) < kMinHoldMs) {
+        // Too soon. Hold it down and let tick() let go once the ROM has had
+        // its chance to notice.
+        m_releasePending.insert(id);
+        setTickRate(kTickIntervalMs);
+        return;
+    }
+    finishRelease(row, mask);
 }
 
 void Agape48Engine::releaseAllKeys()
 {
+    m_downAt.clear();
+    m_releasePending.clear();
     x48_key_release_all();
+    if (!m_pressed.isEmpty()) {
+        m_pressed.clear();
+        emit pressedKeysChanged();
+    }
 }
 
 // --- state ------------------------------------------------------------------
@@ -259,10 +578,7 @@ void Agape48Engine::releaseAllKeys()
 void Agape48Engine::reset(bool cold)
 {
     x48_reset(cold);
-    if (m_ready && !m_tick.isActive()) {
-        m_tick.start();
-        emit runningChanged();
-    }
+    setTickRate(kTickIntervalMs);
 }
 
 bool Agape48Engine::saveState()
@@ -316,8 +632,7 @@ bool Agape48Engine::pasteClipboardToStack()
         setError(tr("Clipboard text is not a valid RPL object."));
         return false;
     }
-    if (m_ready && !m_tick.isActive())
-        m_tick.start();
+    setTickRate(kTickIntervalMs);
     return true;
 }
 
@@ -328,6 +643,7 @@ void Agape48Engine::setRomSource(const QUrl &url)
     if (m_romSource == url)
         return;
     m_romSource = url;
+    QSettings().setValue(QLatin1String("rom/source"), url.toString());
     emit romSourceChanged();
 }
 
