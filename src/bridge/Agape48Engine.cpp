@@ -479,6 +479,48 @@ void Agape48Engine::logStartupFacts() const
                          << (found.isEmpty() ? QStringLiteral("(none)") : found.join(QLatin1String(", ")));
 }
 
+bool Agape48Engine::importFile(const QUrl &url)
+{
+    if (!m_ready) {
+        setError(tr("The calculator is not running."));
+        return false;
+    }
+    const QString path = url.toLocalFile();
+    if (path.isEmpty()) {
+        setError(tr("Agape48 can only read a file on this computer."));
+        return false;
+    }
+    // Safe to reach into the Saturn's memory from here: emulation runs on this
+    // thread from a timer, so a menu handler is always between two slices and
+    // never inside one.
+    if (!x48_import_file(path.toUtf8().constData())) {
+        setError(QString::fromUtf8(x48_last_error()));
+        return false;
+    }
+    setError(QString());
+    setTickRate(kTickIntervalMs);
+    return true;
+}
+
+bool Agape48Engine::exportFile(const QUrl &url)
+{
+    if (!m_ready) {
+        setError(tr("The calculator is not running."));
+        return false;
+    }
+    const QString path = url.toLocalFile();
+    if (path.isEmpty()) {
+        setError(tr("Agape48 can only write a file on this computer."));
+        return false;
+    }
+    if (!x48_export_file(path.toUtf8().constData())) {
+        setError(QString::fromUtf8(x48_last_error()));
+        return false;
+    }
+    setError(QString());
+    return true;
+}
+
 QUrl Agape48Engine::pathToUrl(const QString &path) const
 {
     const QString t = path.trimmed();

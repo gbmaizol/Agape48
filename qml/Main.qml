@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtCore
 import Agape48
 
@@ -241,6 +242,15 @@ Window {
         MenuItem { text: qsTr("Paste");           onTriggered: engine.pasteClipboardToStack() }
         MenuSeparator {}
         MenuItem {
+            text: qsTr("Import file to stack…")
+            onTriggered: importPicker.open()
+        }
+        MenuItem {
+            text: qsTr("Export from stack to file…")
+            onTriggered: exportPicker.open()
+        }
+        MenuSeparator {}
+        MenuItem {
             text: qsTr("Reset memory and quit")
             onTriggered: { engine.reset(true); Qt.quit() }
         }
@@ -275,6 +285,32 @@ Window {
     // also why the focus bug below cannot come back through this door: closing
     // a separate window reactivates the main one, and onActiveChanged hands the
     // keyboard back.
+    // Object interchange. One format both ways - "HPHP48-" and the object's raw
+    // nibbles - which is what every emulator in this family and a real HP 48
+    // over Kermit already agree on. A library is not a special case: it is an
+    // object like any other, so it travels through these same two items.
+    FileDialog {
+        id: importPicker
+        title: qsTr("Choose an HP 48 object file")
+        nameFilters: [qsTr("HP 48 objects (*.hp *.lib *.bin)"), qsTr("All files (*)")]
+        // The push lands on level 1 immediately - but the ROM draws the stack,
+        // and it will not redraw until it runs again, which on an idle
+        // calculator means the next key. Saying so beats looking broken; the
+        // alternative is to fake a keypress, and the only one that forces a
+        // redraw is ON, which would throw away a half-typed command line.
+        onAccepted: if (engine.importFile(selectedFile))
+                        banner.hint(qsTr("Imported. Press a key to see it on the stack."))
+    }
+
+    FileDialog {
+        id: exportPicker
+        title: qsTr("Save the object on level 1 as")
+        fileMode: FileDialog.SaveFile
+        nameFilters: [qsTr("HP 48 objects (*.hp)"), qsTr("All files (*)")]
+        onAccepted: if (engine.exportFile(selectedFile))
+                        banner.hint(qsTr("Level 1 saved to %1").arg(engine.urlToPath(selectedFile)))
+    }
+
     SettingsWindow {
         id: settings
         engine: engine

@@ -21,6 +21,7 @@
 #include "x48/x48.h"
 #include "x48/romio.h"
 #include "x48/device.h"   /* ANN_* */
+#include "x48/rpl.h"     /* DSKTOP, TEMPTOP, the DO* prologues */
 
 /* Defined in the vendored lcd.c. Not declared in any header there, because the
  * X11 frontend reached straight into the file. 64 rows of nibble values. */
@@ -513,6 +514,296 @@ uint64_t x48_state_fingerprint(void)
  * formatted and parsed by the ROM via DUP ->STR and STR->. Neither needs the
  * per-type decoders, so neither is written here yet. What they do need first is
  * the HP 48 to Unicode table, which does not exist in the tree. */
+
+/* --- object interchange -------------------------------------------------- *
+ *
+ * The HP 48 binary transfer format, which is the only thing Agape48, Emu48,
+ * Droid48, x48 and a real HP 48 over Kermit all already agree on: eight ASCII
+ * bytes, "HPHP48-" and a ROM revision letter, then the object exactly as it
+ * lives in memory - raw nibbles, low nibble of each byte first.
+ *
+ * A library is not a different format. It is an object whose type happens to be
+ * library, so it travels in this same file; what differs is where it goes
+ * afterwards, which is a port and a warm start, not a file question.
+ *
+ * The RPL primitives all come from the vendored binio.c and are not declared in
+ * any header there, so they are declared here. Nothing in that file is edited:
+ * read_bin_file() is deliberately NOT used, because it treats a file without
+ * the header as a string, wraps the raw bytes in one, pushes it and reports
+ * success - drop a JPEG on the calculator and it becomes a large string with no
+ * complaint. Gert recorded that trap on 2026aug26. This rejects instead.
+ * ------------------------------------------------------------------------ */
+
+/* binio.c declares these three at file scope and puts them in no header, so
+ * they are repeated here rather than reached for. Same definitions. */
+typedef word_20       DWORD;
+typedef unsigned char BYTE;
+typedef unsigned int  UINT;
+
+extern void  Npeek(BYTE *a, DWORD d, UINT s);
+extern void  Nwrite(BYTE *a, DWORD d, UINT s);
+extern DWORD Read5(DWORD d);
+extern DWORD RPL_CreateTemp(DWORD l);
+extern void  RPL_Push(DWORD n);
+
+#define A48_HDR_LEN   8            /* "HPHP48" + '-' + revision letter */
+#define A48_ADDR_END  0x100000     /* the Saturn's 20-bit address space */
+
+/* The largest object we will move. A 48GX has 128 KB of RAM and up to 4 MB of
+ * card, so this is generous for anything that can sit on the stack, and it
+ * bounds every allocation below. */
+#define A48_MAX_NIBS  (4u * 1024u * 1024u)
+
+/* Nibble count of the object at o, or 0 if it does not fit inside avail.
+ *
+ * The vendored RPL_ObjectSize() takes a pointer and nothing else and recurses
+ * through composites, so a truncated or hostile file walks off the end of the
+ * buffer. This is the same walk with a length and a depth limit, which is what
+ * lets Agape48 open a file somebody downloaded. Prologue values from rpl.h. */
+static DWORD ob_size(const BYTE *o, DWORD avail, int depth)
+{
+    DWORD n, l = 0, i;
+
+    if (depth > 64 || avail < 5)
+        return 0;
+
+    n = 0;
+    for (i = 5; i-- > 0; )
+        n = (n << 4) | o[i];
+
+    switch (n) {
+    case DOBINT:  l = 10; break;
+    case DOREAL:  l = 21; break;
+    case DOEREAL: l = 26; break;
+    case DOCMP:   l = 37; break;
+    case DOECMP:  l = 47; break;
+    case DOCHAR:  l =  7; break;
+    case DOEXT1:  l = 15; break;
+    case DOROMP:  l = 11; break;
+    case SEMI:    return 0;        /* end marker: zero length, on purpose */
+
+    case DOLIST: case DOSYMB: case DOEXT: case DOCOL: {
+        DWORD step = 5;
+        l = 0;
+        do {
+            l += step;
+            if (l > avail)
+                return 0;
+            step = ob_size(o + l, avail - l, depth + 1);
+        } while (step);
+        l += 5;                    /* the SEMI that ended the loop */
+        break;
+    }
+
+    case DOIDNT: case DOLAM: case DOTAG: {
+        DWORD body;
+        if (avail < 7)
+            return 0;
+        n = 7 + ((DWORD)o[5] | ((DWORD)o[6] << 4)) * 2;
+        if (n > avail)
+            return 0;
+        body = ob_size(o + n, avail - n, depth + 1);
+        if (body == 0)
+            return 0;
+        l = n + body;
+        break;
+    }
+
+    case DORRP: {                  /* directory */
+        DWORD body;
+        if (avail < 13)
+            return 0;
+        n = 0;
+        for (i = 5; i-- > 0; )
+            n = (n << 4) | o[8 + i];
+        if (n == 0) { l = 13; break; }
+        l = 8 + n;
+        if (l + 2 > avail)
+            return 0;
+        n = ((DWORD)o[l] | ((DWORD)o[l + 1] << 4)) * 2 + 4;
+        l += n;
+        if (l > avail)
+            return 0;
+        body = ob_size(o + l, avail - l, depth + 1);
+        if (body == 0)
+            return 0;
+        l += body;
+        break;
+    }
+
+    case DOARRY: case DOLNKARRY: case DOCSTR: case DOHSTR: case DOGROB:
+    case DOLIB:  case DOBAK:     case DOEXT0: case DOEXT2: case DOEXT3:
+    case DOEXT4: case DOCODE:
+        if (avail < 10)
+            return 0;
+        n = 0;
+        for (i = 5; i-- > 0; )
+            n = (n << 4) | o[5 + i];
+        l = 5 + n;
+        break;
+
+    default:
+        l = 5;                     /* an unknown prologue is a bare pointer */
+        break;
+    }
+
+    return (l == 0 || l > avail) ? 0 : l;
+}
+
+bool x48_import_file(const char *path)
+{
+    FILE  *fp;
+    long   len;
+    BYTE  *raw = NULL, *nibs = NULL;
+    DWORD  nib_count, size, addr;
+    size_t got;
+    long   i;
+
+    if (!s_ready) { set_error("no calculator running"); return false; }
+
+    if ((fp = fopen(path, "rb")) == NULL) {
+        set_error("cannot open that file");
+        return false;
+    }
+    if (fseek(fp, 0, SEEK_END) != 0 || (len = ftell(fp)) < 0
+            || fseek(fp, 0, SEEK_SET) != 0) {
+        fclose(fp);
+        set_error("cannot read that file");
+        return false;
+    }
+    if (len <= A48_HDR_LEN) {
+        fclose(fp);
+        set_error("that file is too short to be an HP 48 object");
+        return false;
+    }
+    if ((DWORD)(len - A48_HDR_LEN) * 2u > A48_MAX_NIBS) {
+        fclose(fp);
+        set_error("that file is too large for the calculator");
+        return false;
+    }
+
+    raw = (BYTE *)malloc((size_t)len);
+    if (!raw) { fclose(fp); set_error("out of memory"); return false; }
+    got = fread(raw, 1, (size_t)len, fp);
+    fclose(fp);
+    if (got != (size_t)len) { free(raw); set_error("cannot read that file"); return false; }
+
+    if (memcmp(raw, "HPHP48-", 7) != 0) {
+        free(raw);
+        set_error("that is not an HP 48 object file - it has no \"HPHP48-\" header");
+        return false;
+    }
+
+    /* Body to nibbles, low nibble of each byte first. */
+    nib_count = (DWORD)(len - A48_HDR_LEN) * 2u;
+    nibs = (BYTE *)malloc(nib_count);
+    if (!nibs) { free(raw); set_error("out of memory"); return false; }
+    for (i = 0; i < len - A48_HDR_LEN; i++) {
+        BYTE b = raw[A48_HDR_LEN + i];
+        nibs[i * 2]     = (BYTE)(b & 0x0f);
+        nibs[i * 2 + 1] = (BYTE)(b >> 4);
+    }
+    free(raw);
+
+    size = ob_size(nibs, nib_count, 0);
+    if (size == 0) {
+        free(nibs);
+        set_error("that object is damaged or truncated");
+        return false;
+    }
+
+    /* A transfer file holds exactly one object, so its size has to account for
+     * very nearly the whole file - at most one byte of padding, which is what
+     * an object with an odd nibble count leaves behind.
+     *
+     * Without this, random bytes behind a valid header are accepted: an
+     * unrecognised prologue falls to the "bare pointer, five nibbles" case,
+     * which is correct INSIDE a program - a program body is full of pointers to
+     * ROM commands - and nonsense as a whole file. Measured: 40 bytes of
+     * /dev/urandom with an HPHP48-A header imported happily before this, and
+     * pushing a malformed object is how a real 48 gets a Memory Clear. */
+    if (size + 2 < nib_count) {
+        free(nibs);
+        set_error("that file does not hold a single HP 48 object");
+        return false;
+    }
+
+    addr = RPL_CreateTemp(size);
+    if (addr == 0) {
+        free(nibs);
+        set_error("not enough calculator memory for that object");
+        return false;
+    }
+    Nwrite(nibs, addr, size);
+    free(nibs);
+    RPL_Push(addr);
+    s_dirty = true;                /* the stack display has to be redrawn */
+    return true;
+}
+
+bool x48_export_file(const char *path)
+{
+    FILE  *fp;
+    DWORD  stkp, addr, avail, size, i;
+    BYTE  *nibs;
+    bool   ok;
+
+    if (!s_ready) { set_error("no calculator running"); return false; }
+
+    /* DSKTOP holds the address of the stack; at that address is the 5-nibble
+     * pointer to whatever is on level 1. RPL_Push() documents this layout from
+     * the other side. A null pointer there means the stack is empty. */
+    stkp = Read5(DSKTOP);
+    addr = Read5(stkp);
+    if (addr == 0 || addr >= A48_ADDR_END) {
+        set_error("there is nothing on level 1 to export");
+        return false;
+    }
+
+    avail = A48_ADDR_END - addr;
+    if (avail > A48_MAX_NIBS)
+        avail = A48_MAX_NIBS;
+
+    nibs = (BYTE *)malloc(avail);
+    if (!nibs) { set_error("out of memory"); return false; }
+    Npeek(nibs, addr, avail);
+
+    size = ob_size(nibs, avail, 0);
+    if (size == 0) {
+        free(nibs);
+        set_error("level 1 does not hold an object this version can export");
+        return false;
+    }
+
+    if ((fp = fopen(path, "wb")) == NULL) {
+        free(nibs);
+        set_error("cannot write that file");
+        return false;
+    }
+
+    /* The letter is the ROM revision of the machine that produced the file.
+     * Nothing in the vendored tree reports it, and every reader in this family
+     * checks the seven characters before it and ignores the letter itself, so
+     * this writes a fixed one rather than inventing a wrong one. */
+    ok = fwrite("HPHP48-A", 1, A48_HDR_LEN, fp) == A48_HDR_LEN;
+
+    /* Nibbles back to bytes, low nibble first. An object with an odd nibble
+     * count pads with a zero, which is what a real transfer does. */
+    for (i = 0; ok && i < size; i += 2) {
+        int b = nibs[i] | ((i + 1 < size ? nibs[i + 1] : 0) << 4);
+        ok = fputc(b, fp) != EOF;
+    }
+    if (fclose(fp) != 0)
+        ok = false;
+    free(nibs);
+
+    if (!ok) {
+        remove(path);
+        set_error("could not finish writing that file");
+        return false;
+    }
+    return true;
+}
 
 size_t x48_stack_to_text(char *buf, size_t buflen)
 {

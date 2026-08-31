@@ -116,6 +116,16 @@ bool        x48_reload_state(void);      /* re-read after an external sync wrote
  * Cheap: size + mtime + a hash of the first and last page. */
 uint64_t    x48_state_fingerprint(void);
 
+/* --- object interchange ------------------------------------------------- */
+
+/* The HP 48 binary transfer format: "HPHP48-" plus a revision letter, then the
+ * object as raw nibbles. Import pushes onto stack level 1; export writes
+ * whatever is on level 1, whatever type it is - the format does not care.
+ * Both return false and set x48_last_error() on any failure, including a file
+ * that is not an HP 48 object at all. */
+bool        x48_import_file(const char *path);
+bool        x48_export_file(const char *path);
+
 /* --- clipboard ---------------------------------------------------------- */
 
 /* Renders level 1 of the RPL stack as UTF-8 into buf. Returns the byte length

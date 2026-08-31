@@ -118,6 +118,11 @@ public:
     // front of C:\Users\… produces backslashes no URL may contain. Qt's own
     // conversions already know about drive letters, UNC paths and
     // percent-encoding. Flagged from the Windows laptop, 2026aug31.
+    // Object interchange, the HPHP48- binary format. Import pushes onto stack
+    // level 1; export writes whatever is on level 1, whatever type it is.
+    Q_INVOKABLE bool importFile(const QUrl &url);
+    Q_INVOKABLE bool exportFile(const QUrl &url);
+
     Q_INVOKABLE QUrl    pathToUrl(const QString &path) const;
     Q_INVOKABLE QString urlToPath(const QUrl &url) const;
 
