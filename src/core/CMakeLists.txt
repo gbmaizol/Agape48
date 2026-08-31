@@ -59,6 +59,35 @@ target_compile_definitions(agape48_x48core PRIVATE
     _GNU_SOURCE
 )
 
+# Windows lacks two POSIX things the core reaches for. Both are absorbed here
+# rather than by editing the vendored tree, so a re-vendor never has to know.
+#
+#   compat/win32  supplies <pwd.h>; that file explains why NULL is safe and why
+#                 the function needing it is already dead.
+#   SYSV_TIME     picks timer.c:212's other branch, which reads the global
+#                 `timezone` instead of ltm->tm_gmtoff. This is not a Windows
+#                 workaround: global.h:79 already defines SYSV_TIME whenever
+#                 `linux` is defined, so tm_gmtoff is dead on Linux too and this
+#                 puts Windows on the exact path Linux has always used. MinGW's
+#                 CRT has `timezone` with the same sign convention - seconds
+#                 west of UTC - including the DST hour the branch subtracts.
+if(WIN32)
+    target_include_directories(agape48_x48core
+        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/compat/win32)
+    target_compile_definitions(agape48_x48core PRIVATE SYSV_TIME=1)
+
+    # mkdir's arity differs, and the fix has to be in scope before the CRT
+    # headers declare mkdir. A force-include is the only place that is. The
+    # header itself explains the ordering.
+    set(_a48_win32_compat
+        "${CMAKE_CURRENT_SOURCE_DIR}/compat/win32/agape48_win32.h")
+    if(MSVC)
+        target_compile_options(agape48_x48core PRIVATE "/FI${_a48_win32_compat}")
+    else()
+        target_compile_options(agape48_x48core PRIVATE -include "${_a48_win32_compat}")
+    endif()
+endif()
+
 target_link_libraries(agape48_x48core PRIVATE agape48::size)
 
 # The Saturn interpreter is the one hot loop in the whole program. -Os on an
