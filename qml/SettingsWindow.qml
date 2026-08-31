@@ -171,15 +171,33 @@ Window {
                 // house at this size. Canvas is part of QtQuick, so this costs
                 // no module.
                 Canvas {
+                    id: houseIcon
                     anchors.centerIn: parent
                     width: 26; height: 24
+
+                    // Take the button's own text colour rather than a fixed
+                    // near-black. This window comes up on the system palette,
+                    // which is dark on Gert's Windows, and "#1c1c1c" there is a
+                    // near-black house on a near-black button - dogfood
+                    // windows-01 line 12, "the house seems greyed out (low
+                    // contrast)". The "…" button beside it stayed legible only
+                    // because its glyph is real text that the style colours.
+                    //
+                    // Not a Windows bug: any dark palette does this, which is
+                    // why Gert guessed it affects Linux too.
+                    //
+                    // Canvas does not repaint when a value its onPaint read
+                    // changes, so the repaint has to be asked for explicitly.
+                    property color ink: homeButton.palette.buttonText
+                    onInkChanged: requestPaint()
+
                     onPaint: {
                         const ctx = getContext("2d")
                         ctx.reset()
                         ctx.lineWidth = 2
                         ctx.lineJoin = "round"
                         ctx.lineCap = "round"
-                        ctx.strokeStyle = "#1c1c1c"
+                        ctx.strokeStyle = ink
                         // roof, wider than the walls so it overhangs
                         ctx.beginPath()
                         ctx.moveTo(1, 12); ctx.lineTo(13, 2); ctx.lineTo(25, 12)
