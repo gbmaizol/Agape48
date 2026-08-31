@@ -42,6 +42,13 @@ class StateFileManager : public QObject
     Q_PROPERTY(bool    isDefault   READ isDefault   NOTIFY locationChanged)
     Q_PROPERTY(QString lastError   READ lastError   NOTIFY lastErrorChanged)
 
+    // Which calculator inside the state folder is open. The state folder is a
+    // shelf, not a calculator: it holds one shared ROM and a subfolder per
+    // calculator, each with its own ram, hp48, ports and in-use lock. Two
+    // calculators at once is two subfolders, and the one-instance-per-folder
+    // rule from 2026aug30 now applies per calculator rather than per shelf.
+    Q_PROPERTY(QString instance READ instance NOTIFY instanceChanged)
+
 public:
     explicit StateFileManager(QObject *parent = nullptr);
 
@@ -87,6 +94,25 @@ public:
     // of the instance it was refused for.
     bool isBusy(const QUrl &url) const;
 
+    // --- calculators inside the state folder --------------------------------
+    QString instance() const { return m_instance; }
+
+    // One entry per calculator: { name, lastUsed (QDateTime), inUse (bool),
+    // heldBy (QString, empty unless inUse) }, most recently used first.
+    Q_INVOKABLE QVariantList instances() const;
+
+    // Switch to another calculator. Releases the current one first, and comes
+    // back false with lastError() set if the new one is held by somebody.
+    Q_INVOKABLE bool openInstance(const QString &name);
+
+    // Make a fresh calculator and switch to it. Returns its name, or empty.
+    Q_INVOKABLE QString createInstance();
+
+    Q_INVOKABLE bool renameInstance(const QString &from, const QString &to);
+
+    // location/<instance>, which is what the core is given as its state_dir.
+    QString instanceDir() const;
+
 public slots:
     // Desktop: emits pickerRequested() so QML can show a folder chooser
     // (QtQuick.Dialogs FolderDialog - part of Quick, not Widgets).
@@ -102,6 +128,7 @@ public slots:
 
 signals:
     void locationChanged();
+    void instanceChanged();
     void lastErrorChanged();
     void pickerRequested();
     void externalChangeDetected();
@@ -111,10 +138,14 @@ private:
     bool populateDesktop(x48_config_t *cfg, QByteArray *storage);
     bool populateAndroidSaf(x48_config_t *cfg);
     void loadPersistedLocation();
+    void prepareInstances();
+    QString freeInstanceName() const;
+    bool busyAt(const QString &dir) const;
     void persistLocation();
     void setError(const QString &what);
 
     QUrl    m_location;
+    QString m_instance;
     quint64 m_lastFingerprint = 0;
     QString m_lastError;
     bool    m_held = false;

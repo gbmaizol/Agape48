@@ -506,7 +506,15 @@ bool x48_reload_state(void)
 uint64_t x48_state_fingerprint(void)
 {
     struct stat st;
-    if (stat(conf_filename, &st) != 0)
+    char path[512];
+
+    /* conf_filename is a bare leaf - "hp48" - because init.c pastes files_path
+     * in front of it everywhere else. This did not, so it has been stat'ing a
+     * file in the working directory since it was written, which is nowhere, and
+     * hasExternalChange() has therefore always said no. It matters now that
+     * each calculator has its own folder. */
+    snprintf(path, sizeof path, "%s%s", files_path, conf_filename);
+    if (stat(path, &st) != 0)
         return 0;
     return ((uint64_t)st.st_size << 32) ^ (uint64_t)st.st_mtime;
 }

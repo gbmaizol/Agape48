@@ -129,9 +129,10 @@ Window {
     Agape48Engine {
         id: engine
         onRomRequired: settings.open()
-        // Same treatment as a missing ROM: the thing that has to change is in
-        // Settings, so put the user in front of it.
-        onStateFolderBusy: settings.open()
+        // The calculator you used last is open in another window. Show the
+        // shelf, not Settings: choosing another calculator or making a new one
+        // is what you want, and both are here.
+        onStateFolderBusy: picker.openPicker()
         onBeep: (hz, ms) => feedback.beep(hz, ms)
         onKeyFeedback: (keyId) => feedback.tap()
         onLastErrorChanged: if (lastError) banner.show(lastError)
@@ -208,7 +209,7 @@ Window {
             // text field is still what activeFocusItem names, so testing for
             // null missed it. The question is "does the keypad have it", and
             // if not, whether anything with a better claim is on screen.
-            if (settings.opened || appMenu.opened || rebind.opened)
+            if (settings.opened || appMenu.opened || rebind.opened || picker.opened)
                 return
             if (!calculator.hasKeyboardFocus())
                 calculator.grabKeyboardFocus()
@@ -231,6 +232,10 @@ Window {
     Menu {
         id: appMenu
         onClosed: focusGuard.restart()
+        MenuItem {
+            text: qsTr("Open another calculator…")
+            onTriggered: picker.openPicker()
+        }
         MenuItem { text: qsTr("Settings…");       onTriggered: settings.open() }
         MenuItem {
             text: qsTr("Customize keyboard…")
@@ -316,6 +321,12 @@ Window {
         nameFilters: [qsTr("All files (*)"), qsTr("HP 48 objects (*.hp)")]
         onAccepted: if (engine.exportFile(selectedFile))
                         banner.hint(qsTr("Level 1 saved to %1").arg(engine.urlToPath(selectedFile)))
+    }
+
+    CalculatorPickerWindow {
+        id: picker
+        engine: engine
+        transientParent: root
     }
 
     SettingsWindow {

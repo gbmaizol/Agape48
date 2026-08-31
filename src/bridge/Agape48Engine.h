@@ -122,6 +122,12 @@ public:
     // level 1; export writes whatever is on level 1, whatever type it is.
     // Asked before the export dialog opens: refusing an empty stack after the
     // user has already chosen a filename is the wrong order - dogfood #15 line 6.
+    // Switching calculators. Order is the whole of it: the running one has to
+    // be saved and torn down BEFORE the state manager points somewhere else,
+    // or its memory is written into the folder of the calculator you asked for.
+    Q_INVOKABLE bool    openCalculator(const QString &name);
+    Q_INVOKABLE QString newCalculator();
+
     Q_INVOKABLE bool hasStackObject() const;
     // The banner times out but lastError did not, so a failed import was still
     // sitting in the settings window minutes later - dogfood #15 line 20.
@@ -198,6 +204,7 @@ private:
     void finishRelease(int row, int mask);
     void setTickRate(int ms);
     void queueTaps(const QStringList &keys);
+    void shutdownCore();
     void logStartupFacts() const;
 
     QTimer            m_tick;

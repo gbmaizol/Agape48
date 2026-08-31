@@ -2,6 +2,8 @@
 
 #include "x48_shim.h"
 
+#include <algorithm>
+
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
@@ -27,6 +29,7 @@
 namespace {
 constexpr auto kSettingsKey = "state/location";
 constexpr auto kFingerprintKey = "state/fingerprint";
+constexpr auto kInstanceKey    = "state/instance";
 
 // Two lists, because they had two jobs and one of them was silently wrong.
 //
@@ -63,6 +66,7 @@ void StateFileManager::loadPersistedLocation()
     m_lastFingerprint = s.value(QLatin1String(kFingerprintKey)).toULongLong();
     if (!stored.isEmpty()) {
         m_location = QUrl(stored);
+        prepareInstances();
         return;
     }
     useDefaultLocation();
@@ -94,6 +98,7 @@ void StateFileManager::useDefaultLocation()
         QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
     QDir().mkpath(dir);
     setLocation(QUrl::fromLocalFile(dir));
+    prepareInstances();
 }
 
 bool StateFileManager::isDefault() const
@@ -175,12 +180,10 @@ LockInfo readLock(const QString &path)
 
 } // namespace
 
-bool StateFileManager::isBusy(const QUrl &url) const
+bool StateFileManager::busyAt(const QString &dirPath) const
 {
-    if (!url.isLocalFile())
-        return false;
-    const QDir dir(url.toLocalFile());
-    if (!dir.exists())
+    const QDir dir(dirPath);
+    if (dirPath.isEmpty() || !dir.exists())
         return false;
     const LockInfo in = readLock(dir.filePath(QLatin1String(kLockName)));
     return in.present
@@ -189,23 +192,207 @@ bool StateFileManager::isBusy(const QUrl &url) const
         && processAlive(in.pid);
 }
 
+bool StateFileManager::isBusy(const QUrl &url) const
+{
+    return url.isLocalFile() && busyAt(url.toLocalFile());
+}
+
+// --- calculators inside the state folder ------------------------------------
+
+QString StateFileManager::instanceDir() const
+{
+    if (!m_location.isLocalFile())
+        return QString();               // Android SAF keeps the flat layout
+    const QString base = m_location.toLocalFile();
+    return m_instance.isEmpty() ? base : QDir(base).filePath(m_instance);
+}
+
+QString StateFileManager::freeInstanceName() const
+{
+    const QDir base(m_location.toLocalFile());
+    for (int n = 1; n < 1000; ++n) {
+        const QString name = tr("Calculator %1").arg(n);
+        if (!base.exists(name))
+            return name;
+    }
+    return QString();
+}
+
+// Called once the location is settled. Three jobs: move a flat state folder
+// from before this existed into a calculator of its own, make sure there is at
+// least one calculator, and choose which one to open.
+void StateFileManager::prepareInstances()
+{
+    if (!m_location.isLocalFile()) {
+        m_instance.clear();
+        return;
+    }
+    QDir base(m_location.toLocalFile());
+    if (!base.exists())
+        return;
+
+    // The old layout put ram and hp48 straight in the state folder. Anything
+    // that finds them there predates calculators and becomes the first one.
+    // The ROM is NOT moved: one shared copy at the top is the point - it is
+    // half a megabyte and every calculator wants the same one.
+    if (base.exists(QStringLiteral("ram")) || base.exists(QStringLiteral("hp48"))) {
+        const QString name = freeInstanceName();
+        if (!name.isEmpty() && base.mkdir(name)) {
+            static const char *const move[] = { "ram", "hp48", "port1", "port2",
+                                                kLockName };
+            for (const char *leaf : move) {
+                const QString from = base.filePath(QLatin1String(leaf));
+                if (QFile::exists(from))
+                    QFile::rename(from, base.filePath(name + QLatin1Char('/')
+                                                      + QLatin1String(leaf)));
+            }
+        }
+    }
+
+    QStringList found = base.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    if (found.isEmpty()) {
+        const QString name = freeInstanceName();
+        if (!name.isEmpty() && base.mkdir(name))
+            found << name;
+    }
+    if (found.isEmpty()) {
+        m_instance.clear();
+        return;
+    }
+
+    const QString remembered = QSettings().value(QLatin1String(kInstanceKey)).toString();
+    if (found.contains(remembered)) {
+        m_instance = remembered;
+        return;
+    }
+    // No memory of one, or it has been deleted: the most recently touched.
+    QString best = found.first();
+    QDateTime bestAt;
+    for (const QString &n : std::as_const(found)) {
+        const QFileInfo fi(base.filePath(n + QStringLiteral("/hp48")));
+        const QDateTime at = fi.exists() ? fi.lastModified()
+                                         : QFileInfo(base.filePath(n)).lastModified();
+        if (!bestAt.isValid() || at > bestAt) { bestAt = at; best = n; }
+    }
+    m_instance = best;
+}
+
+QVariantList StateFileManager::instances() const
+{
+    QVariantList out;
+    if (!m_location.isLocalFile())
+        return out;
+    const QDir base(m_location.toLocalFile());
+    const QStringList names = base.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QString &n : names) {
+        const QString dir = base.filePath(n);
+        const QFileInfo fi(dir + QStringLiteral("/hp48"));
+        const LockInfo in = readLock(QDir(dir).filePath(QLatin1String(kLockName)));
+        out.append(QVariantMap {
+            { QStringLiteral("name"), n },
+            { QStringLiteral("lastUsed"), fi.exists() ? fi.lastModified()
+                                                      : QFileInfo(dir).lastModified() },
+            { QStringLiteral("inUse"), busyAt(dir) },
+            { QStringLiteral("heldBy"), in.present ? in.host : QString() },
+            { QStringLiteral("heldSince"), in.present ? in.started : QString() },
+            // "this window" means we actually hold it, not merely that it is
+            // the one we asked for: a window that was turned away still has
+            // the name set, and saying both "this window" and "open in
+            // another window" about one row helps nobody.
+            { QStringLiteral("current"), m_held && n == m_instance },
+        });
+    }
+    std::sort(out.begin(), out.end(), [](const QVariant &a, const QVariant &b) {
+        return a.toMap().value(QStringLiteral("lastUsed")).toDateTime()
+             > b.toMap().value(QStringLiteral("lastUsed")).toDateTime();
+    });
+    return out;
+}
+
+bool StateFileManager::openInstance(const QString &name)
+{
+    if (name == m_instance)
+        return true;
+    const QDir base(m_location.toLocalFile());
+    if (!base.exists(name)) {
+        setError(tr("There is no calculator called %1.").arg(name));
+        return false;
+    }
+    const QString previous = m_instance;
+    const bool wasHeld = m_held;
+    release();
+    m_instance = name;
+    if (wasHeld && !claim()) {
+        m_instance = previous;
+        claim();
+        return false;               // lastError() already says why
+    }
+    QSettings().setValue(QLatin1String(kInstanceKey), m_instance);
+    emit instanceChanged();
+    return true;
+}
+
+QString StateFileManager::createInstance()
+{
+    if (!m_location.isLocalFile()) {
+        setError(tr("A new calculator needs a state folder on this computer."));
+        return QString();
+    }
+    QDir base(m_location.toLocalFile());
+    const QString name = freeInstanceName();
+    if (name.isEmpty() || !base.mkdir(name)) {
+        setError(tr("Could not make a new calculator."));
+        return QString();
+    }
+    return openInstance(name) ? name : QString();
+}
+
+bool StateFileManager::renameInstance(const QString &from, const QString &to)
+{
+    const QString clean = to.trimmed();
+    if (clean.isEmpty() || clean.contains(QLatin1Char('/'))
+            || clean.contains(QLatin1Char('\\'))) {
+        setError(tr("That name cannot be used for a folder."));
+        return false;
+    }
+    QDir base(m_location.toLocalFile());
+    if (base.exists(clean)) {
+        setError(tr("There is already a calculator called %1.").arg(clean));
+        return false;
+    }
+    // Renaming the folder we are holding is fine - the lock file travels with
+    // it and still names this process - but the remembered name has to follow.
+    if (!base.rename(from, clean)) {
+        setError(tr("Could not rename %1.").arg(from));
+        return false;
+    }
+    if (m_instance == from) {
+        m_instance = clean;
+        if (m_held)
+            m_heldPath = QDir(base.filePath(clean)).filePath(QLatin1String(kLockName));
+        QSettings().setValue(QLatin1String(kInstanceKey), m_instance);
+        emit instanceChanged();
+    }
+    return true;
+}
+
 bool StateFileManager::claim()
 {
     m_held = false;
     m_heldPath.clear();
     if (!m_location.isLocalFile())
         return true;                    // SAF: see the note in the header
-    const QDir dir(m_location.toLocalFile());
-    if (!dir.exists())
+    const QDir dir(instanceDir());
+    if (instanceDir().isEmpty() || !dir.exists())
         return true;                    // populate() says this better than we can
 
     const QString path = dir.filePath(QLatin1String(kLockName));
     const QString here = QSysInfo::machineHostName();
     const LockInfo in = readLock(path);
 
-    if (isBusy(m_location)) {
-        setError(tr("That calculator is already open in another Agape48 "
-                    "window. Close it, or choose a different state folder."));
+    if (busyAt(instanceDir())) {
+        setError(tr("%1 is already open in another Agape48 window. Close it, "
+                    "or open a different calculator.").arg(m_instance));
         return false;
     }
     // A lock from a dead process - a crash, or a machine that went down with
@@ -290,7 +477,7 @@ bool StateFileManager::populate(x48_config_t *cfg, QByteArray *storage)
 
 bool StateFileManager::populateDesktop(x48_config_t *cfg, QByteArray *storage)
 {
-    const QString path = m_location.toLocalFile();
+    const QString path = instanceDir();
     if (path.isEmpty()) {
         setError(tr("State location is not a local directory."));
         return false;
@@ -412,18 +599,42 @@ bool StateFileManager::migrateTo(const QUrl &destination)
                     "pick one, or to make one.").arg(to.absolutePath()));
         return false;
     }
-    for (const char *name : kMigrateFiles) {
-        const QString src = from.filePath(QLatin1String(name));
-        if (!QFile::exists(src))
-            continue;
-        const QString dst = to.filePath(QLatin1String(name));
+    // The shelf moves, not one calculator: the shared ROM at the top, and every
+    // calculator subfolder with it. kMigrateFiles is still the per-calculator
+    // list and is used inside the loop.
+    const QString romSrc = from.filePath(QStringLiteral("rom"));
+    if (QFile::exists(romSrc)) {
+        const QString dst = to.filePath(QStringLiteral("rom"));
         QFile::remove(dst);
-        if (!QFile::copy(src, dst)) {
-            setError(tr("Could not copy %1.").arg(name));
+        if (!QFile::copy(romSrc, dst)) {
+            setError(tr("Could not copy the ROM."));
             return false;
         }
     }
+    const QStringList calcs = from.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QString &calc : calcs) {
+        if (!to.exists(calc) && !to.mkdir(calc)) {
+            setError(tr("Could not make %1 in the new folder.").arg(calc));
+            return false;
+        }
+        for (const char *name : kMigrateFiles) {
+            if (qstrcmp(name, "rom") == 0)
+                continue;                       // shared, handled above
+            const QString src = from.filePath(calc + QLatin1Char('/')
+                                              + QLatin1String(name));
+            if (!QFile::exists(src))
+                continue;
+            const QString dst = to.filePath(calc + QLatin1Char('/')
+                                            + QLatin1String(name));
+            QFile::remove(dst);
+            if (!QFile::copy(src, dst)) {
+                setError(tr("Could not copy %1 of %2.").arg(QLatin1String(name), calc));
+                return false;
+            }
+        }
+    }
     setLocation(destination);
+    prepareInstances();
     return true;
 }
 

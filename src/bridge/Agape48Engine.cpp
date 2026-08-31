@@ -507,6 +507,44 @@ void Agape48Engine::queueTaps(const QStringList &keys)
     setTickRate(kTickIntervalMs);
 }
 
+void Agape48Engine::shutdownCore()
+{
+    if (!m_ready)
+        return;
+    x48_save_state();
+    m_state->commit(x48_state_fingerprint());
+    x48_shutdown();
+    m_ready = false;
+    m_tapQueue.clear();
+    releaseAllKeys();
+    m_tick.stop();
+    emit readyChanged();
+    emit runningChanged();
+}
+
+bool Agape48Engine::openCalculator(const QString &name)
+{
+    if (name.isEmpty() || name == m_state->instance())
+        return true;
+    shutdownCore();                       // saves into the folder we are leaving
+    if (!m_state->openInstance(name)) {
+        setError(m_state->lastError());
+        start();                          // openInstance put the old one back
+        return false;
+    }
+    return start();
+}
+
+QString Agape48Engine::newCalculator()
+{
+    shutdownCore();
+    const QString made = m_state->createInstance();
+    if (made.isEmpty())
+        setError(m_state->lastError());
+    start();
+    return made;
+}
+
 bool Agape48Engine::hasStackObject() const
 {
     return m_ready && x48_stack_has_object();
