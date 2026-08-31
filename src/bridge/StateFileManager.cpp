@@ -74,11 +74,24 @@ void StateFileManager::persistLocation()
     s.setValue(QLatin1String(kSettingsKey), m_location.toString());
 }
 
+// AppLocalData, not AppData. They are the same directory on Linux and Android
+// and two different ones on Windows: AppDataLocation is AppData\Roaming, which
+// a domain-joined machine's policy may sync between the user's computers all by
+// itself. This folder holds a 512 KB ROM, a 128 KB memory image and an "in-use"
+// file naming one host and one pid - roaming it would carry a calculator
+// between machines behind the back of the very lock that exists to stop two
+// machines sharing one, and with none of the conflict handling the state folder
+// gets. Carrying the calculator between machines is what the user-chosen synced
+// folder is FOR; it should not also happen by accident.
+//
+// Gert's Windows laptop is Azure-AD joined, which is what raised it. Only fresh
+// installs move: the location is written to QSettings on first run, so anything
+// already running keeps the folder it has.
 void StateFileManager::useDefaultLocation()
 {
     setError(QString());
     const QString dir =
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
     QDir().mkpath(dir);
     setLocation(QUrl::fromLocalFile(dir));
 }
@@ -86,7 +99,7 @@ void StateFileManager::useDefaultLocation()
 bool StateFileManager::isDefault() const
 {
     const QString def =
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
     return m_location.isLocalFile() && m_location.toLocalFile() == def;
 }
 

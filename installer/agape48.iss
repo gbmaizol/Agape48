@@ -4,7 +4,7 @@
 ;   & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\agape48.iss
 ;
 ; Deliberately NOT included: an HP 48 ROM. The app looks for a file called "rom"
-; in its state folder (%APPDATA%\Agape48\Agape48\) and reports a clear error when
+; in its state folder (%LOCALAPPDATA%\Agape48\Agape48\) and reports a clear error when
 ; it is missing, so shipping one is a licensing decision rather than a technical
 ; need. Keeping it out also means this installer can be handed to anyone.
 ;
@@ -66,7 +66,7 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename:
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Start {#AppName}"; Flags: nowait postinstall skipifsilent
 
-; No [UninstallDelete] for the state folder. %APPDATA%\Agape48\Agape48 holds the
+; No [UninstallDelete] for the state folder. %LOCALAPPDATA%\Agape48\Agape48 holds the
 ; calculator's memory - the user's own stack, programs and ROM - and an
 ; uninstaller has no business deleting that. Same for the settings under
 ; HKCU\Software\Agape48, which are machine-local preferences, not app files.

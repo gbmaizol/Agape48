@@ -412,7 +412,7 @@ QString Agape48Engine::logPath() const
 {
     // App storage, deliberately not the state folder: the state folder is the
     // one the user syncs, and a log is machine-local noise.
-    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+    return QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
            + QLatin1String("/agape48.log");
 }
 

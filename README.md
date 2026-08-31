@@ -61,10 +61,10 @@ cmake --build build -j
 
 ```
 Linux    ~/.local/share/Agape48/Agape48/
-Windows  %APPDATA%\Agape48\Agape48\        (Roaming, NOT Local)
+Windows  %LOCALAPPDATA%\Agape48\Agape48\
 ```
 
-Roaming is worth the shout. `QStandardPaths::AppDataLocation` is `AppData\Roaming` on Windows — `AppData\Local` is `AppLocalDataLocation`, a different value. Measured from the Windows laptop on 2026aug31, after this file sent someone to the wrong folder. Putting the ROM in `Local` means the app never finds it, and the symptom is a blank screen rather than an error.
+The Windows one is `AppLocalDataLocation` on purpose, not `AppDataLocation`. The two are the same directory on Linux and Android and two different ones on Windows, where `AppDataLocation` is `AppData\Roaming` — a folder a domain-joined machine's policy may sync between the user's computers by itself. This one holds a ROM, a memory image and an `in-use` file naming a single host, so roaming it would carry a calculator between machines behind the back of the lock that exists to stop exactly that. Carrying it between machines is what the user-chosen synced folder is for; it should not also happen by accident.
 
 Two things that bite on Windows and not on Linux:
 
