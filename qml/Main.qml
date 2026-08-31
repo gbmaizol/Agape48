@@ -364,6 +364,24 @@ Window {
             startW = root.width;  startH = root.height
             startX = root.x;      startY = root.y
             startCursor = mapToGlobal(mouse.x, mouse.y)
+
+            // Hold the aspect lock off for the WHOLE drag, not around each
+            // setGeometry call. While a drag is running this handler already
+            // derives both dimensions from faceAspect, so keepAspect() has
+            // nothing left to contribute - all it can do is re-derive the same
+            // numbers one frame late, and each of those is another window
+            // geometry request and another full repaint of the face.
+            //
+            // Guarding only the call itself assumed widthChanged/heightChanged
+            // fire synchronously inside it. On Windows they do not:
+            // QWindow::setGeometry is SetWindowPos, and Qt delivers the
+            // resulting geometry change after it returns, by which point the
+            // guard had already been cleared. So one intended resize became
+            // three - the size we asked for, then keepAspect(true) correcting
+            // the height, then keepAspect(false) correcting the width back.
+            // That is dogfood windows-01 line 14: "one direction first, then a
+            // redraw top to bottom, then a third at the same size".
+            root.fixingAspect = true
         }
 
         onPositionChanged: (mouse) => {
@@ -390,14 +408,16 @@ Window {
             // a single XMoveResizeWindow, so the window arrives in one piece.
             const nx = (edges & Qt.LeftEdge) ? Math.round(startX + (startW - w)) : root.x
             const ny = (edges & Qt.TopEdge)  ? Math.round(startY + (startH - h)) : root.y
-            root.fixingAspect = true        // we are already keeping it
-            engine.setWindowGeometry(root, nx, ny, w, h)
-            root.fixingAspect = false
-            saveGeometry.restart()
+            engine.setWindowGeometry(root, nx, ny, w, h)   // fixingAspect is
+            saveGeometry.restart()                         // held by onPressed
         }
 
-        onReleased: edges = 0
-        onCanceled: edges = 0
+        // Releasing hands the aspect lock back. The size is already exact - it
+        // was computed from the ratio on every frame - so nothing needs
+        // correcting here, and re-enabling the lock only matters for whatever
+        // changes the window next.
+        onReleased: { edges = 0; root.fixingAspect = false }
+        onCanceled: { edges = 0; root.fixingAspect = false }
     }
 
     // Haptics and beeps. Both are platform calls, not Qt Multimedia - see
