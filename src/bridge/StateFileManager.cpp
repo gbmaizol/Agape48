@@ -30,6 +30,13 @@ namespace {
 constexpr auto kSettingsKey = "state/location";
 constexpr auto kFingerprintKey = "state/fingerprint";
 constexpr auto kInstanceKey    = "state/instance";
+// Once a minute against a fifteen-minute expiry, which is fifteen missed beats
+// before anything is concluded. One a second was the first proposal and is far
+// too much FOR A SYNCED FOLDER - 28,800 writes and as many sync events over an
+// eight-hour session, on a file whose entire content is "still here". Local
+// disk would not care; Dropbox and an Android radio would.
+constexpr int kHeartbeatMs = 60 * 1000;
+constexpr int kQuietMinutes = 15;
 
 // Two lists, because they had two jobs and one of them was silently wrong.
 //
@@ -56,6 +63,9 @@ constexpr auto kSafClass = "dk/geeak/agape48/SafBridge";
 StateFileManager::StateFileManager(QObject *parent)
     : QObject(parent)
 {
+    m_heartbeat.setInterval(kHeartbeatMs);
+    m_heartbeat.setTimerType(Qt::VeryCoarseTimer);
+    connect(&m_heartbeat, &QTimer::timeout, this, &StateFileManager::beat);
     loadPersistedLocation();
 }
 
@@ -155,8 +165,10 @@ struct LockInfo {
     bool    present = false;
     qint64  pid = 0;
     QString host;
-    QString started;
+    QString started;      // UTC ISO-8601, when the calculator was opened
+    QString seen;         // UTC ISO-8601, refreshed while it is still open
 };
+
 
 LockInfo readLock(const QString &path)
 {
@@ -174,6 +186,7 @@ LockInfo readLock(const QString &path)
         if      (key == QLatin1String("pid"))     in.pid = val.toLongLong();
         else if (key == QLatin1String("host"))    in.host = val;
         else if (key == QLatin1String("started")) in.started = val;
+        else if (key == QLatin1String("seen"))    in.seen = val;
     }
     return in;
 }
@@ -265,6 +278,8 @@ void StateFileManager::prepareInstances()
         m_instance = remembered;
         return;
     }
+    // Whatever is chosen below becomes the remembered one, or "the calculator
+    // you used last" is only ever true within a single run.
     // No memory of one, or it has been deleted: the most recently touched.
     QString best = found.first();
     QDateTime bestAt;
@@ -275,6 +290,7 @@ void StateFileManager::prepareInstances()
         if (!bestAt.isValid() || at > bestAt) { bestAt = at; best = n; }
     }
     m_instance = best;
+    QSettings().setValue(QLatin1String(kInstanceKey), m_instance);
 }
 
 QVariantList StateFileManager::instances() const
@@ -376,7 +392,7 @@ bool StateFileManager::renameInstance(const QString &from, const QString &to)
     return true;
 }
 
-bool StateFileManager::claim()
+bool StateFileManager::claim(bool takeOver)
 {
     m_held = false;
     m_heldPath.clear();
@@ -390,7 +406,7 @@ bool StateFileManager::claim()
     const QString here = QSysInfo::machineHostName();
     const LockInfo in = readLock(path);
 
-    if (busyAt(instanceDir())) {
+    if (!takeOver && busyAt(instanceDir())) {
         setError(tr("%1 is already open in another Agape48 window. Close it, "
                     "or open a different calculator.").arg(m_instance));
         return false;
@@ -398,7 +414,7 @@ bool StateFileManager::claim()
     // A lock from a dead process - a crash, or a machine that went down with
     // it open - means nothing is reading the folder. Take it over, say nothing.
 
-    if (in.present && !in.host.isEmpty() && in.host != here) {
+    if (!takeOver && in.present && !in.host.isEmpty() && in.host != here) {
         // No way to ask another machine whether its copy is still running, and
         // refusing would lock the user out of their own calculator whenever
         // that machine is simply switched off. So: allow, and say so.
@@ -410,15 +426,71 @@ bool StateFileManager::claim()
     QFile f(path);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
         return true;                    // read-only folder: populate() reports it
-    f.write(QStringLiteral("agape48-lock 1\npid=%1\nhost=%2\nstarted=%3\n")
+    const QString nowUtc = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
+    f.write(QStringLiteral("agape48-lock 2\npid=%1\nhost=%2\nstarted=%3\nseen=%4\n")
                 .arg(QCoreApplication::applicationPid())
-                .arg(here,
-                     QDateTime::currentDateTime().toString(Qt::ISODate))
+                .arg(here, nowUtc, nowUtc)
                 .toUtf8());
     f.close();
     m_held = true;
     m_heldPath = path;
+    m_heartbeat.start();
     return true;
+}
+
+// Rewrites only the seen= line's file, whole and small, once a minute. A
+// process that is alive but cannot reach the network still writes this: being
+// offline is not being dead, which is why nothing expires automatically.
+void StateFileManager::beat()
+{
+    if (!m_held || m_heldPath.isEmpty())
+        return;
+    const LockInfo in = readLock(m_heldPath);
+    if (!in.present || in.pid != QCoreApplication::applicationPid()) {
+        // Somebody decided we were gone and took it. Stop pretending.
+        m_held = false;
+        m_heartbeat.stop();
+        emit lockLost();
+        return;
+    }
+    QFile f(m_heldPath);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return;
+    f.write(QStringLiteral("agape48-lock 2\npid=%1\nhost=%2\nstarted=%3\nseen=%4\n")
+                .arg(QCoreApplication::applicationPid())
+                .arg(in.host, in.started,
+                     QDateTime::currentDateTimeUtc().toString(Qt::ISODate))
+                .toUtf8());
+}
+
+QVariantMap StateFileManager::lockHolder() const
+{
+    QVariantMap out;
+    const QString dir = instanceDir();
+    if (dir.isEmpty())
+        return out;
+    const LockInfo in = readLock(QDir(dir).filePath(QLatin1String(kLockName)));
+    if (!in.present)
+        return out;
+
+    const QDateTime seen = QDateTime::fromString(in.seen.isEmpty() ? in.started
+                                                                   : in.seen,
+                                                 Qt::ISODate);
+    const qint64 quiet = seen.isValid()
+        ? QDateTime::currentDateTimeUtc().secsTo(seen.toUTC()) / -60 : -1;
+
+    out.insert(QStringLiteral("host"), in.host);
+    out.insert(QStringLiteral("sameMachine"), in.host == QSysInfo::machineHostName());
+    out.insert(QStringLiteral("alive"),
+               in.host == QSysInfo::machineHostName() && processAlive(in.pid));
+    out.insert(QStringLiteral("since"),
+               QDateTime::fromString(in.started, Qt::ISODate).toLocalTime());
+    out.insert(QStringLiteral("seen"), seen.toLocalTime());
+    out.insert(QStringLiteral("quietMinutes"), quiet);
+    // Only a suggestion. A machine that is merely offline looks exactly like a
+    // machine that has died, so this never acts on its own.
+    out.insert(QStringLiteral("probablyGone"), quiet >= kQuietMinutes);
+    return out;
 }
 
 void StateFileManager::release()
@@ -432,6 +504,7 @@ void StateFileManager::release()
         QFile::remove(m_heldPath);
     m_held = false;
     m_heldPath.clear();
+    m_heartbeat.stop();
 }
 
 QString StateFileManager::displayName() const

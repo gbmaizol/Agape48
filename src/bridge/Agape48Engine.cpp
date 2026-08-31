@@ -184,6 +184,18 @@ Agape48Engine::Agape48Engine(QObject *parent)
 
     // An external sync client rewriting the state file under us is the normal
     // case, not the exceptional one - that is the whole point of BYO-sync.
+    // Somebody took the calculator over. Treat it exactly like OFF: stop
+    // touching the files, and wait for ON.
+    connect(m_state, &StateFileManager::lockLost, this, [this] {
+        if (m_detached)
+            return;
+        m_detached = true;
+        stop();
+        emit detachedChanged();
+        setError(tr("This calculator was taken over by another window. "
+                    "Press ON to take it back."));
+    });
+
     connect(m_state, &StateFileManager::externalChangeDetected,
             this, [this] { if (!isRunning()) reloadState(); });
 
@@ -346,12 +358,40 @@ void Agape48Engine::tick()
         // the real reason was x48_take_frame() skipping a frame in which only
         // display.on had changed. That is fixed at the source now.
         const bool off = m_frame.height == 0;
+        if (!m_sawFirstFrame) {
+            m_sawFirstFrame = true;
+            m_displayOff = off;
+            m_detached = off;          // loaded switched off: nobody holds it
+            if (off) {
+                m_state->release();
+                emit detachedChanged();
+            }
+        }
         if (off != m_displayOff) {
             m_displayOff = off;
             qWarning(off ? "screen off - the calculator has been switched off "
                            "(OFF is green-shift ON, and Ctrl is the green "
                            "shift). Press ON to switch it back on."
                          : "screen on");
+            // Switching the calculator off is how you hand it to the other
+            // machine: save it, then let go of the lock. Gert dismissed the
+            // worry about hitting Ctrl+Esc by accident, and he is right - an
+            // accidental release only costs anything if somebody also takes it
+            // over by accident at the same moment, and Esc puts it straight
+            // back.
+            //
+            // Not on the first frame of a run, though: a calculator saved in
+            // the off state loads as off, and that is not somebody switching
+            // it off - it is how they left it. Acting on it would save and
+            // release something we had only just claimed.
+            // ...and not while we are part-way through switching it on for
+            // the user, or attach() would hand back what it has just taken.
+            if (off && !m_detached && m_sawFirstFrame && m_tapQueue.isEmpty()) {
+                saveState();
+                m_state->release();
+                m_detached = true;
+                emit detachedChanged();
+            }
         }
         const int ann = m_frame.annunciators;
         if (ann != m_annunciators) {
@@ -522,6 +562,38 @@ void Agape48Engine::shutdownCore()
     emit runningChanged();
 }
 
+// Take the calculator back. Claim first, then read what is on disk - the whole
+// point of handing it over is that somebody else may have used it since, and
+// theirs is the version that counts.
+bool Agape48Engine::attach(bool takeOver)
+{
+    if (!m_detached)
+        return true;
+    if (!m_state->claim(takeOver)) {
+        emit attachRefused(m_state->lockHolder());
+        setError(m_state->lastError());
+        return false;
+    }
+    if (!reloadState()) {
+        // The files are there and unreadable, which is worth saying plainly
+        // rather than leaving a blank calculator and no reason.
+        m_state->release();
+        emit attachRefused(m_state->lockHolder());
+        return false;
+    }
+    // The calculator we just read is the one somebody switched off, so it is
+    // still off - reloading does not turn it on. Press ON for real: it wakes
+    // the machine and makes the ROM repaint, which is the same thing an import
+    // needs and the same queue does it.
+    m_detached = false;
+    m_displayOff = true;
+    m_sawFirstFrame = true;
+    setError(QString());
+    emit detachedChanged();
+    queueTaps({ QStringLiteral("ON") });
+    return true;
+}
+
 bool Agape48Engine::openCalculator(const QString &name)
 {
     if (name.isEmpty() || name == m_state->instance())
@@ -659,6 +731,15 @@ bool Agape48Engine::lookupKey(const QString &keyId, int *row, int *mask) const
 
 void Agape48Engine::pressKey(const QString &keyId)
 {
+    // Detached: the calculator is off and belongs to nobody, so the keyboard
+    // does nothing until ON takes it back. That is also what a real 48 does -
+    // when it is off, only ON is listened to.
+    if (m_detached) {
+        if (keyId == QLatin1String("ON"))
+            attach();
+        return;
+    }
+
     int row = 0, mask = 0;
     if (!lookupKey(keyId, &row, &mask)) {
         setError(tr("Key \"%1\" has no matrix code yet "
@@ -745,6 +826,14 @@ void Agape48Engine::reset(bool cold)
 bool Agape48Engine::saveState()
 {
     if (!m_ready)
+        return false;
+    // Never write a calculator we do not hold. Losing focus saves, and a window
+    // whose calculator was taken over is still a running window - without this
+    // it would write its stale memory over the top of whoever now owns the
+    // folder, which is the one thing the lock exists to prevent. Detaching is
+    // deliberately silent about it: the save that matters already happened when
+    // the calculator was switched off.
+    if (!m_state->isHeld() && m_state->location().isLocalFile())
         return false;
     if (!x48_save_state()) {
         setError(QString::fromUtf8(x48_last_error()));

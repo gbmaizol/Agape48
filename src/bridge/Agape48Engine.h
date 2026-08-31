@@ -125,6 +125,14 @@ public:
     // Switching calculators. Order is the whole of it: the running one has to
     // be saved and torn down BEFORE the state manager points somewhere else,
     // or its memory is written into the folder of the calculator you asked for.
+    // The handover. OFF hands the calculator back - it saves, lets go of the
+    // lock, and the window sits detached until ON. ON claims it again and
+    // reloads from disk, so whatever another machine did in between is what
+    // you get. Gert's design, 2026aug31.
+    Q_PROPERTY(bool detached READ isDetached NOTIFY detachedChanged)
+    bool isDetached() const { return m_detached; }
+    Q_INVOKABLE bool attach(bool takeOver = false);
+
     Q_INVOKABLE bool    openCalculator(const QString &name);
     Q_INVOKABLE QString newCalculator();
 
@@ -193,6 +201,11 @@ signals:
     void frameReady();                      // LcdItem listens; fires only on change
     void beep(int frequencyHz, int durationMs);
     void keyFeedback(const QString &keyId); // QML plays haptics/sound off this
+    void detachedChanged();
+    // Could not take the calculator back: QML shows who has it and what can be
+    // done about it. The map is StateFileManager::lockHolder().
+    void attachRefused(const QVariantMap &holder);
+
     void romRequired();                     // no ROM yet - QML shows the picker
     void stateFolderBusy();                 // another instance has it - same
 
@@ -217,6 +230,8 @@ private:
     bool              m_debugLogging = false;
     bool              m_liveResize    = false;
     bool              m_displayOff = false;
+    bool              m_detached = false;
+    bool              m_sawFirstFrame = false;
 
     // A key has to stay down long enough for the ROM's keyboard scan to see
     // it. A tap shorter than that was simply lost - and worst of all when the

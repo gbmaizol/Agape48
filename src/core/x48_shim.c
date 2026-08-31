@@ -496,11 +496,38 @@ bool x48_save_state(void)
 
 bool x48_reload_state(void)
 {
-    /* TODO(agape48): needed for the sync-conflict path in the README. It has to
-     * tear the core down and bring it back up against the same paths, because
-     * the vendored init_emulator() is the only thing that reads state files. */
-    set_error("x48_reload_state: not implemented");
-    return false;
+    const char *why;
+
+    if (!s_ready) {
+        set_error("x48_reload_state: no calculator running");
+        return false;
+    }
+
+    /* Throw away what is in memory and read the files again. Nothing is
+     * written: the whole point is that somebody else's version of this
+     * calculator is now on disk and ours is the one being discarded.
+     *
+     * read_files() mallocs all four of these and assigns over the old pointers
+     * without looking, so they have to go first or every reload leaks a ROM,
+     * a RAM image and two card ports - about 650 KB a time. */
+    free(saturn.rom);   saturn.rom   = NULL;
+    free(saturn.ram);   saturn.ram   = NULL;
+    free(saturn.port1); saturn.port1 = NULL;
+    free(saturn.port2); saturn.port2 = NULL;
+
+    why = agape48_init_emulator();
+    if (why) {
+        snprintf(s_error, sizeof s_error, "x48_reload_state: %s", why);
+        s_ready = false;               /* there is no calculator now */
+        return false;
+    }
+    init_active_stuff();
+    agape48_emulate_begin();
+    detect_rom_revision();
+    s_dirty = true;
+    s_asleep = false;
+    set_error("");
+    return true;
 }
 
 uint64_t x48_state_fingerprint(void)

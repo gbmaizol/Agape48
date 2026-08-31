@@ -19,6 +19,8 @@
 #pragma once
 
 #include <QObject>
+#include <QTimer>
+#include <QVariantMap>
 #include <QQmlEngine>
 #include <QString>
 #include <QUrl>
@@ -84,8 +86,14 @@ public:
     // Local files only. An Android content:// tree would need the whole SAF
     // dance to write one small file, and Android will not run two copies of an
     // app anyway.
-    bool claim();
+    bool claim(bool takeOver = false);
     void release();
+
+    // Who holds the calculator we could not claim, for the dialog to explain:
+    // { host, sameMachine, alive, since, seen, quietMinutes }. Times are stored
+    // UTC and handed over as local QDateTime, because two machines' clocks
+    // differ - especially a laptop that has been suspended.
+    Q_INVOKABLE QVariantMap lockHolder() const;
     bool isHeld() const { return m_held; }
 
     // True if a LIVE instance on this machine holds that folder. Used by
@@ -129,6 +137,9 @@ public slots:
 signals:
     void locationChanged();
     void instanceChanged();
+    // Another instance decided we were gone and took the calculator. Only ever
+    // fires after a take-over, which is always somebody's deliberate choice.
+    void lockLost();
     void lastErrorChanged();
     void pickerRequested();
     void externalChangeDetected();
@@ -138,6 +149,7 @@ private:
     bool populateDesktop(x48_config_t *cfg, QByteArray *storage);
     bool populateAndroidSaf(x48_config_t *cfg);
     void loadPersistedLocation();
+    void beat();
     void prepareInstances();
     QString freeInstanceName() const;
     bool busyAt(const QString &dir) const;
@@ -150,4 +162,5 @@ private:
     QString m_lastError;
     bool    m_held = false;
     QString m_heldPath;
+    QTimer  m_heartbeat;
 };
