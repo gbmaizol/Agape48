@@ -236,7 +236,17 @@ bool x48_init(const x48_config_t *cfg)
     {
         char probe[1024];
         FILE *f;
-        if (rom_filename[0] == '/' || rom_filename[0] == '\\')
+        /* Must agree with agape48_rom_is_absolute() in init.c, which already
+         * knows about drive letters. This probe did not, so on Windows an
+         * absolute ROM path fell into the concatenation branch and produced
+         * "C:/state/dir/C:/rom/path" - the probe failed before init.c's correct
+         * logic ever ran, and x48_init reported a ROM it could not read while
+         * naming a path nobody had asked for. */
+        if (rom_filename[0] == '/' || rom_filename[0] == '\\'
+#ifdef _WIN32
+            || (rom_filename[0] != '\0' && rom_filename[1] == ':')
+#endif
+           )
             snprintf(probe, sizeof probe, "%s", rom_filename);
         else
             snprintf(probe, sizeof probe, "%s%s", files_path, rom_filename);
