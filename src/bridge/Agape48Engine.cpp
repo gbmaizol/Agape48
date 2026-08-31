@@ -468,6 +468,33 @@ void Agape48Engine::logStartupFacts() const
                          << (found.isEmpty() ? QStringLiteral("(none)") : found.join(QLatin1String(", ")));
 }
 
+QUrl Agape48Engine::pathToUrl(const QString &path) const
+{
+    const QString t = path.trimmed();
+    if (t.isEmpty())
+        return QUrl();
+
+    // Already a URL? A content:// tree from Android's file picker, or a
+    // file:// somebody pasted. The length test is the whole point: on Windows
+    // QUrl("C:/Users/gert").scheme() is "c", so asking "does it have a scheme"
+    // calls every drive-lettered path a URL and hands it straight back
+    // unconverted. No real scheme is one character.
+    const QUrl asUrl(t);
+    if (asUrl.isValid() && asUrl.scheme().size() > 1)
+        return asUrl;
+
+    return QUrl::fromLocalFile(QDir::fromNativeSeparators(t));
+}
+
+QString Agape48Engine::urlToPath(const QUrl &url) const
+{
+    if (url.isEmpty())
+        return QString();
+    if (url.isLocalFile())
+        return QDir::toNativeSeparators(url.toLocalFile());
+    return url.toString();      // content:// has no path to show
+}
+
 bool Agape48Engine::startSystemMove(QQuickWindow *window)
 {
     return window && window->startSystemMove();

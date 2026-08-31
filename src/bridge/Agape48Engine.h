@@ -101,6 +101,16 @@ public:
     // interactive and ignores the height the aspect lock sets during the drag,
     // so the window came out the wrong shape; Main.qml drives the resize itself
     // and keeps the proportions exact on every frame.
+    // QML cannot reach QUrl::fromLocalFile()/toLocalFile(), so SettingsWindow
+    // hand-rolled both with string surgery. That breaks the moment there is a
+    // drive letter: toString().mid(7) on file:///C:/x leaves "/C:/x", a leading
+    // slash Windows does not want, and building a URL by pasting "file:///" in
+    // front of C:\Users\… produces backslashes no URL may contain. Qt's own
+    // conversions already know about drive letters, UNC paths and
+    // percent-encoding. Flagged from the Windows laptop, 2026aug31.
+    Q_INVOKABLE QUrl    pathToUrl(const QString &path) const;
+    Q_INVOKABLE QString urlToPath(const QUrl &url) const;
+
     Q_INVOKABLE bool startSystemMove(QQuickWindow *window);
 
     // One XMoveResizeWindow for a resize drag. QML cannot reach QWindow's own

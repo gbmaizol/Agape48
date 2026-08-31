@@ -76,15 +76,12 @@ Window {
         onAccepted: { root.engine.romSource = selectedFile; root.engine.start() }
     }
 
-    function pathToUrl(p) {
-        if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(p))
-            return p
-        return p.startsWith("/") ? "file://" + p : "file:///" + p
-    }
-    function urlToPath(u) {
-        const s = u.toString()
-        return s.startsWith("file://") ? decodeURIComponent(s.substring(7)) : s
-    }
+    // Both go through Qt rather than through string surgery here - see the
+    // comment on Agape48Engine::pathToUrl. The hand-rolled pair worked on Linux
+    // and was wrong on Windows for every path, because every Windows path has a
+    // drive letter in front of it.
+    function pathToUrl(p) { return root.engine.pathToUrl(p) }
+    function urlToPath(u) { return root.engine.urlToPath(u) }
 
     // Esc closes the window. NOT a Shortcut: a Shortcut declared in a secondary
     // window goes on grabbing its sequence application-wide after the window is
