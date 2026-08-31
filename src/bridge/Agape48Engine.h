@@ -120,6 +120,13 @@ public:
     // percent-encoding. Flagged from the Windows laptop, 2026aug31.
     // Object interchange, the HPHP48- binary format. Import pushes onto stack
     // level 1; export writes whatever is on level 1, whatever type it is.
+    // Asked before the export dialog opens: refusing an empty stack after the
+    // user has already chosen a filename is the wrong order - dogfood #15 line 6.
+    Q_INVOKABLE bool hasStackObject() const;
+    // The banner times out but lastError did not, so a failed import was still
+    // sitting in the settings window minutes later - dogfood #15 line 20.
+    Q_INVOKABLE void clearError();
+
     Q_INVOKABLE bool importFile(const QUrl &url);
     Q_INVOKABLE bool exportFile(const QUrl &url);
 

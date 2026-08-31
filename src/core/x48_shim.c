@@ -120,6 +120,8 @@ Pixmap XCreateBitmapFromData(Display *d, Window w, char *data, int a, int b)
  * actions.c reports which of the two happened; that one line is the only edit
  * in the vendored file.
  * ------------------------------------------------------------------------ */
+static void detect_rom_revision(void);   /* defined with the object interchange code */
+
 static bool s_asleep;
 static long s_shutdn_pc;      /* PC just after the SHUTDN we are parked on */
 
@@ -276,6 +278,7 @@ bool x48_init(const x48_config_t *cfg)
     agape48_emulate_begin();
 
     s_ready = true;
+    detect_rom_revision();   /* for the HPHP48- transfer header */
     s_dirty = true;
     set_error("");
     return true;
@@ -650,6 +653,66 @@ static DWORD ob_size(const BYTE *o, DWORD avail, int depth)
     return (l == 0 || l > avail) ? 0 : l;
 }
 
+/* The revision letter for the transfer header, read out of the ROM itself.
+ *
+ * The letter names the ROM revision of the machine that produced the file, and
+ * ours is whichever ROM the user loaded. Hardcoding 'A' made every export
+ * differ from its source at byte 8 and nowhere else - dogfood #15 line 11,
+ * where Gert's own S6.LIB came in as HPHP48-M and went out as HPHP48-A.
+ *
+ * The ROM says so itself: "Version HP48-" appears in it as ordinary text, two
+ * nibbles per character, and the character after it is the revision. In the
+ * 48GX ROM this project runs on it is R, twice over. */
+static char s_rom_rev = 'A';
+
+static void detect_rom_revision(void)
+{
+    static const char key[] = "Version HP48-";
+    const size_t klen = sizeof key - 1;
+    size_t i, k;
+
+    s_rom_rev = 'A';
+    if (!saturn.rom || rom_size < (klen + 1) * 2)
+        return;
+
+    for (i = 0; i + (klen + 1) * 2 <= rom_size; i++) {
+        for (k = 0; k < klen; k++) {
+            unsigned c = (unsigned)saturn.rom[i + k * 2]
+                       | ((unsigned)saturn.rom[i + k * 2 + 1] << 4);
+            if (c != (unsigned char)key[k])
+                break;
+        }
+        if (k == klen) {
+            unsigned c = (unsigned)saturn.rom[i + klen * 2]
+                       | ((unsigned)saturn.rom[i + klen * 2 + 1] << 4);
+            if (c >= 'A' && c <= 'Z') {
+                s_rom_rev = (char)c;
+                return;
+            }
+        }
+    }
+}
+
+/* True if stack level 1 holds anything at all. Asked before the file dialog
+ * opens, so an empty stack is refused before the user has picked a name -
+ * dogfood #15 line 6.
+ *
+ * The empty stack this has to catch is the real one: the ROM terminates the
+ * stack with a null pointer, which is the same layout RPL_Push() walks, so
+ * Read5() of it gives 0. It assumes a booted machine and says "yes" to the
+ * uninitialised RAM of a calculator that has not started yet - measured, and
+ * unreachable from a menu, since the menu needs a running calculator. Export
+ * checks properly on its own account either way. */
+bool x48_stack_has_object(void)
+{
+    DWORD stkp, addr;
+    if (!s_ready)
+        return false;
+    stkp = Read5(DSKTOP);
+    addr = Read5(stkp);
+    return addr != 0 && addr < A48_ADDR_END;
+}
+
 bool x48_import_file(const char *path)
 {
     FILE  *fp;
@@ -781,11 +844,12 @@ bool x48_export_file(const char *path)
         return false;
     }
 
-    /* The letter is the ROM revision of the machine that produced the file.
-     * Nothing in the vendored tree reports it, and every reader in this family
-     * checks the seven characters before it and ignores the letter itself, so
-     * this writes a fixed one rather than inventing a wrong one. */
-    ok = fwrite("HPHP48-A", 1, A48_HDR_LEN, fp) == A48_HDR_LEN;
+    /* The revision letter comes from the loaded ROM - see detect_rom_revision. */
+    {
+        char hdr[A48_HDR_LEN + 1];
+        snprintf(hdr, sizeof hdr, "HPHP48-%c", s_rom_rev);
+        ok = fwrite(hdr, 1, A48_HDR_LEN, fp) == A48_HDR_LEN;
+    }
 
     /* Nibbles back to bytes, low nibble first. An object with an odd nibble
      * count pads with a zero, which is what a real transfer does. */

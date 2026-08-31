@@ -247,7 +247,15 @@ Window {
         }
         MenuItem {
             text: qsTr("Export from stack to file…")
-            onTriggered: exportPicker.open()
+            // Ask before the dialog, not after: being told there is nothing to
+            // export once you have already typed a filename is the wrong way
+            // round. Dogfood #15 line 6.
+            onTriggered: {
+                if (engine.hasStackObject())
+                    exportPicker.open()
+                else
+                    banner.show(qsTr("There is nothing on level 1 to export."))
+            }
         }
         MenuSeparator {}
         MenuItem {
@@ -292,7 +300,8 @@ Window {
     FileDialog {
         id: importPicker
         title: qsTr("Choose an HP 48 object file")
-        nameFilters: [qsTr("HP 48 objects (*.hp *.lib *.bin)"), qsTr("All files (*)")]
+        nameFilters: [qsTr("All files (*)"),
+                      qsTr("HP 48 objects (*.hp *.HP *.lib *.LIB *.bin *.BIN *.48 *.obj)")]
         // The push lands on level 1 immediately - but the ROM draws the stack,
         // and it will not redraw until it runs again, which on an idle
         // calculator means the next key. Saying so beats looking broken; the
@@ -306,7 +315,7 @@ Window {
         id: exportPicker
         title: qsTr("Save the object on level 1 as")
         fileMode: FileDialog.SaveFile
-        nameFilters: [qsTr("HP 48 objects (*.hp)"), qsTr("All files (*)")]
+        nameFilters: [qsTr("All files (*)"), qsTr("HP 48 objects (*.hp)")]
         onAccepted: if (engine.exportFile(selectedFile))
                         banner.hint(qsTr("Level 1 saved to %1").arg(engine.urlToPath(selectedFile)))
     }
@@ -338,13 +347,25 @@ Window {
         opacity: 0
         visible: opacity > 0
         Behavior on opacity { NumberAnimation { duration: 180 } }
-        Timer { id: hideTimer; interval: 12000; onTriggered: banner.opacity = 0 }
+        // Clearing the engine's error too, not just hiding the strip: the
+        // settings window shows lastError, so a failed import was still on
+        // display there long after the banner had gone. Dogfood #15 line 20.
+        Timer {
+            id: hideTimer
+            interval: 12000
+            onTriggered: { banner.opacity = 0; if (banner.isError) engine.clearError() }
+        }
         Text {
             id: text
             anchors { fill: parent; margins: 12 }
             color: "white"; wrapMode: Text.WordWrap; font.pixelSize: 13
         }
-        MouseArea { anchors.fill: parent; onClicked: banner.opacity = 0 }
+        // Same on a deliberate dismissal, or the error the user just waved away
+        // reappears the next time Settings is opened.
+        MouseArea {
+            anchors.fill: parent
+            onClicked: { banner.opacity = 0; if (banner.isError) engine.clearError() }
+        }
     }
 
     // The resize border. It sits above everything and hands back any press that

@@ -123,6 +123,7 @@ uint64_t    x48_state_fingerprint(void);
  * whatever is on level 1, whatever type it is - the format does not care.
  * Both return false and set x48_last_error() on any failure, including a file
  * that is not an HP 48 object at all. */
+bool        x48_stack_has_object(void);   /* is there anything on level 1? */
 bool        x48_import_file(const char *path);
 bool        x48_export_file(const char *path);
 

@@ -479,6 +479,16 @@ void Agape48Engine::logStartupFacts() const
                          << (found.isEmpty() ? QStringLiteral("(none)") : found.join(QLatin1String(", ")));
 }
 
+bool Agape48Engine::hasStackObject() const
+{
+    return m_ready && x48_stack_has_object();
+}
+
+void Agape48Engine::clearError()
+{
+    setError(QString());
+}
+
 bool Agape48Engine::importFile(const QUrl &url)
 {
     if (!m_ready) {
