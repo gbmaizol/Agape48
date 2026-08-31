@@ -61,8 +61,10 @@ cmake --build build -j
 
 ```
 Linux    ~/.local/share/Agape48/Agape48/
-Windows  %LOCALAPPDATA%\Agape48\Agape48\
+Windows  %APPDATA%\Agape48\Agape48\        (Roaming, NOT Local)
 ```
+
+Roaming is worth the shout. `QStandardPaths::AppDataLocation` is `AppData\Roaming` on Windows — `AppData\Local` is `AppLocalDataLocation`, a different value. Measured from the Windows laptop on 2026aug31, after this file sent someone to the wrong folder. Putting the ROM in `Local` means the app never finds it, and the symptom is a blank screen rather than an error.
 
 Two things that bite on Windows and not on Linux:
 

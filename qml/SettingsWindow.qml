@@ -217,7 +217,7 @@ Window {
                 id: stateField
                 width: parent.width - homeButton.width - browseButton.width - parent.spacing * 2
                 text: root.engine.state.displayName
-                placeholderText: qsTr("e.g. /home/you/Dropbox/Agape48")
+                placeholderText: qsTr("a folder to keep the calculator's memory in")
                 onAccepted: root.engine.state.migrateTo(root.pathToUrl(text))
             }
             Button {
