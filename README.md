@@ -4,7 +4,7 @@ An HP 48 emulator: the `x48` Saturn core, a Qt 6 / QML frontend, one binary per 
 
 "HP" spoken in Brazilian Portuguese is *agá-pê*, which is the Greek ἀγάπη. The calculator that people are unreasonably fond of, named after the word for it.
 
-Last updated: 2026aug26-09h22
+Last updated: 2026aug28-22h58
 
 ## Layout
 
@@ -41,7 +41,7 @@ Agape48/
 
 ## The seam
 
-Everything above `x48_shim.c` is Qt; everything below is C from the 1990s. The two never meet. `x48`, `x48ng` and Droid48 each expose a different `saturn` struct and a different main loop, so vendoring a different upstream means rewriting one 200-line C file and nothing else. `src/core/VENDORING.md` has the picking guide - the short version is: start from `x48ng`, because it already has `step_instruction()` factored out of the X11 event pump, and that is exactly the shape `x48_run_slice()` needs.
+Everything above `x48_shim.c` is Qt; everything below is C from the 1990s. The two never meet. `x48`, `x48ng` and Droid48 each expose a different `saturn` struct and a different main loop, so vendoring a different upstream means rewriting one 200-line C file and nothing else. `src/core/VENDORING.md` has the picking guide - the short version, decided 2026aug28, is: start from Droid48's fork, because it has already been through exactly this surgery - cycle-budgeted stepping with no X11 - and because the frontend it was built for is the one Agape48 is copying.
 
 ## Building
 
@@ -65,6 +65,8 @@ cmake --build build-android --target apk
 
 ## Size budget
 
+**The target is under 20 MB installed.** That is the number to design against, and it reframes everything below: a stock shared-Qt Quick app lands near or just over it, a leanly configured Qt lands far under. So the first row of this table is the whole game and the rest is rounding. Do not trade away clarity, a dependency that earns its keep, or a day of work for a few hundred KB - at this budget those are free.
+
 Ordered by how much each one actually saves.
 
 | Lever | Where | Rough effect |
@@ -78,6 +80,8 @@ Ordered by how much each one actually saves.
 | No QML cachegen | `AGAPE48_QML_CACHEGEN=OFF` | small; costs startup time |
 | `-fvisibility=hidden` | `agape48::size` | smaller dynsym, better LTO |
 | One ABI on Android | `abiFilters 'arm64-v8a'` | divides the .so payload by the ABI count |
+
+The two bundled ROMs add a fixed 533 KB compressed, 768 KB installed. Against a 20 MB budget that is not worth a sentence of deliberation, and it is recorded here only so nobody re-derives it later.
 
 The single largest lever is not in this repo. A stock Qt binary is built for everything; a Qt configured for this app is a fraction of it:
 
@@ -93,7 +97,7 @@ The single largest lever is not in this repo. A stock Qt binary is built for eve
 
 Static linking Qt under the LGPL obliges you to let a recipient relink the application against a modified Qt - in practice, publish the object files or the full build recipe. `x48` is GPL, so Agape48 is GPL too and the source has to ship with the binaries either way. Droid48 and droid48sx both settled on GPLv3. Worth settling before the first release, not after.
 
-The ROM can be bundled. HP's ACO allowed non-commercial use of the HP 48 ROMs in autumn 2000, which is the basis Droid48 has shipped both the 48G and 48S ROM on for years. That holds only while the app is free.
+Both ROMs ship in the binary, the 48GX and the 48SX, as Droid48 does. That is a risk call rather than a permission: the ACO wording everyone cites has no primary text, is silent on distribution, and ACO itself was dissolved in 2001 - Emu48 declines to bundle for exactly that reason. Taken deliberately on 2026aug28, on the grounds that the exposure for an open-source non-commercial release is negligible. Item 7 of `docs/design-questions.md` has the sources and the quotes.
 
 ## WebP is not free
 
@@ -101,9 +105,9 @@ The ROM can be bundled. HP's ACO allowed non-commercial use of the HP 48 ROMs in
 
 1. Link the plugin (`AGAPE48_WEBP_PLUGIN=ON`, the default). Costs the plugin plus libwebp, on the order of 200-400 KB static.
 2. Link libwebp's decoder only (`libwebpdecoder`) and call `WebPDecodeRGBA` yourself in a 30-line `QQuickImageProvider`. Smaller than the plugin, and it drops the encoder you will never use.
-3. Ship the face as PNG instead. Qt has PNG built in, so the module cost is zero - but a photorealistic 480×900 face is roughly 3-5× the bytes of the same image as lossy WebP, so this only wins if the plugin is the thing you are trying to avoid.
+3. Ship the face as PNG instead. Qt has PNG built in, so the module cost is zero - but a photorealistic face is roughly 3-5× the bytes of the same image as lossy WebP.
 
-Option 2 is the smallest total and it is not much work. Option 1 is the default because it is one CMake line.
+**Take option 1.** It is one CMake line, and the 200-400 KB it costs over option 2 is irrelevant against a 20 MB budget. Option 2 was only ever worth it under a much tighter target.
 
 ## Sound and haptics
 
@@ -115,6 +119,14 @@ Agape48 reads and writes HP 48 binary objects - the format with the ASCII header
 
 Every emulator in this family reads that format. None of them writes it. That asymmetry is the gap Agape48 fills.
 
+## One shell everywhere: Droid48
+
+Windows, Linux and Android all get Droid48's shape, not a per-platform shell. Droid48's entire menu is six items - minimal controls, save memory/state, put program on stack, settings, reset memory and quit, quit - and that is the UI spec on every platform, with desktop equivalents of the Android gestures. No Backup/Restore, because Droid48 has none. No serial for now. No Emu48 skins, so KML is not linked into any binary.
+
+The one thing Agape48 adds is object import *and* export to and from stack level 1, which is the requirement in the next-but-one section. The system clipboard leans on the calculator rather than on the emulator: `DUP →STR` before copy, `STR→` after paste. Reals and strings move directly, everything else is formatted and parsed by the ROM, which is exact by construction and costs no code. So lists, matrices and programs all work, and copying a program then pasting it back needs one keypress to become a program again. Lossless round trips without any keypress are what the object files are for.
+
+`docs/design-questions.md` section 2c has the reasoning, the size estimate, and the three bugs in Droid48's importer not to copy.
+
 ## Sync conflicts
 
 Byte-identical state files across three OSes make syncing trivial and conflict resolution impossible. Two devices that both open the calculator between syncs produce two divergent RAM images, and a RAM image cannot be merged - it is a heap with pointers into itself.
@@ -125,6 +137,8 @@ The honest version of this feature is "one calculator, several machines, one at 
 
 ## Deliberate non-dependencies
 
-Qt Quick Controls is not linked. It would add roughly a megabyte of styles to a static binary, and its widgets look wrong over a photograph of a calculator. The cost lands in `SettingsSheet.qml`: a text field is a `TextInput` inside a `Rectangle`, and there is no `FolderDialog`. Folder picking is a typed path plus a `DropArea` on desktop, and SAF on Android. `QtQuick.Dialogs` would give you a native folder dialog, but its fallback implementation pulls Controls back in, so it is Controls with extra steps.
+Qt Quick Controls **is** linked, as of 2026aug28. It was excluded for roughly a megabyte of styles, which is not a real cost against a 20 MB budget, and the exclusion was buying hand-rolled text fields and no `FolderDialog` in exchange for nothing. `QtQuick.Dialogs` comes back with it, so folder picking is a native dialog on desktop and SAF on Android.
 
-`CMakeLists.txt` fails the configure step if any forbidden module is linked directly, so this stays true by accident rather than by discipline.
+The aesthetic half of the old objection still stands and is now a usage rule rather than a build rule: **Controls stays off the calculator face.** The face, the LCD, the annunciators and the keypad remain raw Qt Quick, because a Controls button drawn over a photograph of an HP 48 looks like a Controls button drawn over a photograph of an HP 48. Controls is for the surfaces that are not pretending to be a calculator - `SettingsSheet.qml`, dialogs, the about screen. Pin the style to Basic so no Material or Universal assets come along for the ride.
+
+`CMakeLists.txt` still fails the configure step if any genuinely forbidden module is linked directly - Network, Multimedia, Sql, Widgets, WebEngine, Charts, Svg, Concurrent - so those stay true by accident rather than by discipline.
