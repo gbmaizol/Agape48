@@ -302,13 +302,11 @@ Window {
         title: qsTr("Choose an HP 48 object file")
         nameFilters: [qsTr("All files (*)"),
                       qsTr("HP 48 objects (*.hp *.HP *.lib *.LIB *.bin *.BIN *.48 *.obj)")]
-        // The push lands on level 1 immediately - but the ROM draws the stack,
-        // and it will not redraw until it runs again, which on an idle
-        // calculator means the next key. Saying so beats looking broken; the
-        // alternative is to fake a keypress, and the only one that forces a
-        // redraw is ON, which would throw away a half-typed command line.
+        // Agape48 presses ON itself afterwards so the ROM repaints the stack -
+        // Gert's choice in dogfood #16, knowing that ON is also CANCEL. Any
+        // latched shift is cancelled first, or ON would be OFF.
         onAccepted: if (engine.importFile(selectedFile))
-                        banner.hint(qsTr("Imported. Press a key to see it on the stack."))
+                        banner.hint(qsTr("Imported to level 1."))
     }
 
     FileDialog {

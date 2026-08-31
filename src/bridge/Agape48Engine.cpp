@@ -391,7 +391,17 @@ void Agape48Engine::tick()
     // dogfood #12 line 14, "you can see the mess". What the log still records
     // is the screen going blank and coming back, which is a thing that happens
     // to the user rather than a thing the CPU does all day.
-    const bool asleep = x48_is_asleep() && m_releasePending.isEmpty();
+    // Keys Agape48 presses for the user - see queueTaps(). One at a time, and
+    // only once the previous one has actually been let go, or the ROM's scan
+    // sees them as a chord instead of a sequence.
+    if (!m_tapQueue.isEmpty() && m_releasePending.isEmpty() && m_downAt.isEmpty()) {
+        const QString k = m_tapQueue.takeFirst();
+        pressKey(k);
+        releaseKey(k);          // the 60 ms latch holds it down long enough
+    }
+
+    const bool asleep = x48_is_asleep() && m_releasePending.isEmpty()
+                                        && m_tapQueue.isEmpty();
     setTickRate(asleep ? kIdleIntervalMs : kTickIntervalMs);
 }
 
@@ -479,6 +489,24 @@ void Agape48Engine::logStartupFacts() const
                          << (found.isEmpty() ? QStringLiteral("(none)") : found.join(QLatin1String(", ")));
 }
 
+// Press keys on the user's behalf, one per tick-with-nothing-held.
+//
+// The ROM owns the screen and will not repaint the stack until it runs again,
+// so an imported object sat there invisibly until the next keypress. Gert chose
+// to have Agape48 press ON itself (dogfood #16): on the 48 that is also CANCEL,
+// so a half-typed command line is lost, and he accepted that.
+//
+// His condition is the interesting half. ON with a shift active is not ON - it
+// is OFF, printed right there on the key - so a latched shift has to be
+// cancelled first. Pressing a shift key while it is active is what cancels it,
+// and the annunciators are how we know one is: they come straight off the
+// display register, so they are what the calculator itself thinks.
+void Agape48Engine::queueTaps(const QStringList &keys)
+{
+    m_tapQueue += keys;
+    setTickRate(kTickIntervalMs);
+}
+
 bool Agape48Engine::hasStackObject() const
 {
     return m_ready && x48_stack_has_object();
@@ -508,7 +536,12 @@ bool Agape48Engine::importFile(const QUrl &url)
         return false;
     }
     setError(QString());
-    setTickRate(kTickIntervalMs);
+
+    QStringList seq;
+    if (m_annunciators & X48_ANN_RIGHT) seq << QStringLiteral("SHR");
+    if (m_annunciators & X48_ANN_LEFT)  seq << QStringLiteral("SHL");
+    seq << QStringLiteral("ON");
+    queueTaps(seq);
     return true;
 }
 

@@ -197,6 +197,7 @@ private:
     void markPressed(int row, int mask, bool down);
     void finishRelease(int row, int mask);
     void setTickRate(int ms);
+    void queueTaps(const QStringList &keys);
     void logStartupFacts() const;
 
     QTimer            m_tick;
@@ -217,6 +218,7 @@ private:
     QElapsedTimer     m_clock;
     QHash<int, qint64> m_downAt;
     QSet<int>         m_releasePending;
+    QStringList       m_tapQueue;   // keys Agape48 presses on the user's behalf
     QUrl              m_romSource;
     QString           m_lastError;
     QStringList       m_pressed;
