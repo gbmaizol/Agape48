@@ -60,6 +60,15 @@ qt_add_executable(agape48
     src/bridge/SkinModel.h          src/bridge/SkinModel.cpp
 )
 
+# Windows subsystem, not console. Without this the linker produces a CUI binary
+# and Windows opens an empty console window behind the calculator on every
+# start - visible in the installed build, because a console is only suppressed
+# when the program is launched from an existing one. qt_add_executable does not
+# set this for you.
+if(WIN32)
+    set_target_properties(agape48 PROPERTIES WIN32_EXECUTABLE TRUE)
+endif()
+
 target_include_directories(agape48 PRIVATE src src/bridge src/core)
 target_link_libraries(agape48 PRIVATE
     Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::QuickDialogs2

@@ -37,3 +37,10 @@ port2
 in-use
 
 # src/core/x48/ is a vendored copy, not a submodule - it belongs in the repo.
+
+# Installer build products. The .iss and make-icon.py are the sources; the
+# payload is whatever windeployqt produced, and the icon is generated from the
+# face by make-icon.py.
+installer/payload/
+installer/*.exe
+installer/*.ico
