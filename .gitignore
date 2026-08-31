@@ -11,4 +11,4 @@ CMakeLists.txt.user*
 # ROM images are copyrighted - never commit one.
 *.rom
 hp48*.bin
-src/core/x48/
+# src/core/x48/ is a vendored copy, not a submodule - it belongs in the repo.
