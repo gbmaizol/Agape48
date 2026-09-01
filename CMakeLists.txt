@@ -107,6 +107,7 @@ qt_add_qml_module(agape48
     NO_PLUGIN                       # types are compiled straight into the exe
     QML_FILES ${AGAPE48_QML_FILES}
     RESOURCES
+        assets/icon.png
         assets/skins/default/face.png
         assets/skins/default/layout.json
         assets/skins/default/ann_left.png

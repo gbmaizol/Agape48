@@ -1,6 +1,7 @@
 ; Agape48 - Windows installer (Inno Setup 6)
 ;
 ; Built with:
+;   python tools\make-icon.py
 ;   & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\agape48.iss
 ;
 ; Deliberately NOT included: an HP 48 ROM. The app looks for a file called "rom"

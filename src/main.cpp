@@ -1,4 +1,5 @@
 #include <QGuiApplication>
+#include <QIcon>
 #include <QQuickStyle>
 #include <QQmlApplicationEngine>
 #include <QSurfaceFormat>
@@ -62,6 +63,21 @@ int main(int argc, char *argv[])
     QSurfaceFormat::setDefaultFormat(fmt);
 
     QGuiApplication app(argc, argv);
+
+    // The window and taskbar icon, on every platform from one place. Without it
+    // Qt supplies its own default - a cogwheel on Linux, which is what Gert saw.
+    // Windows only looked right by accident: the icon he liked belonged to the
+    // Start-menu shortcut the installer creates, so a window opened any other
+    // way had nothing either, and the executable itself still has no icon.
+    //
+    // After the QGuiApplication, not before it: the name and domain setters
+    // above are plain statics, but a QIcon reaches into platform integration,
+    // and the qml module's resources are registered by this point.
+    //
+    // Generated from the face by tools/make-icon.py, so the icon cannot drift
+    // away from the calculator it depicts.
+    QGuiApplication::setWindowIcon(
+        QIcon(QStringLiteral(":/qt/qml/Agape48/assets/icon.png")));
 
     QQmlApplicationEngine engine;
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
