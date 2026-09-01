@@ -140,7 +140,9 @@ Both ROMs ship in the binary, the 48GX and the 48SX, as Droid48 does. That is a 
 
 Agape48 reads and writes HP 48 binary objects - the format with the ASCII header `HPHP48-`. Both directions is a requirement, not a nice-to-have: it is how a calculator moves between Agape48, Emu48, Droid48, x48 and a real HP 48, and it is the only format all of them already agree on.
 
-Every emulator in this family reads that format. None of them writes it. That asymmetry is the gap Agape48 fills.
+Droid48 reads that format and cannot write it. Emu48 reads *and* writes it - `File > Load Object...` and `File > Save Object...` - but Emu48 runs only on Windows. So the gap is not that nobody writes the format; it is that no single program does both everywhere, and on Android nobody does both at all. That is what Agape48 fills.
+
+Verified against Emu48 1.6.4 on 2026sep01, both directions, with a third-party library as the control: `CF.LIB` imported into Agape48, exported straight back out, and loaded into Emu48, where it still works. 1205 of its 1206 bytes are identical to the original. The one that differs is byte 8, the ROM revision letter, which names the machine that wrote the file and is supposed to differ.
 
 ## One shell everywhere: Droid48
 

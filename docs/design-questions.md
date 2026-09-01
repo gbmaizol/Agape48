@@ -106,7 +106,9 @@ Not an open question - a decision Gert made on 2026aug26. Agape48 must both impo
 
 This is the state-integration story. It is what makes a calculator portable between Agape48, Emu48, Droid48, x48 and a real HP 48 over Kermit, and it is the format every one of those already agrees on.
 
-Every emulator in this family reads it. **None of them writes it.** Droid48's loader (`read_bin_file`) imports, and its only save is its own x48-format state files; Emu48 can save objects but cannot read x48 state. So there is no round trip anywhere in the ecosystem today. Doing both makes Agape48 the tool people use to move between all the others, which is a stronger differentiator than any skin.
+Droid48 reads it and cannot write it: its loader (`read_bin_file`) imports, and its only save is its own x48-format state files. **Emu48 reads *and* writes it** - `File > Load Object...` and `File > Save Object...`, sections 9.1 and 9.2 of its own help - but Emu48 runs only on Windows. So the gap is not that nobody writes the format; it is that no single program does both everywhere, and on Android nobody does both at all. Doing both on all three platforms is what makes Agape48 the tool people use to move between the others.
+
+**Corrected 2026sep01, from the Windows laptop.** This paragraph used to read "none of them writes it", which was wrong about Emu48 and contradicted its own next clause. The REQUIREMENT is unchanged - Gert's decision of 2026aug26 stands - but the reason for it is narrower than it was written, and the old wording should not have gone anywhere public. Dogfood windows-05 proved the interop in both directions against Emu48 1.6.4, including a third-party library round-tripped byte-identically apart from the revision letter.
 
 Note the trap in Droid48's loader, and do not copy it: when the `HPHP48-` header is absent it silently wraps the file's bytes as an HP 48 *string* object and pushes that instead of failing. The load reports success and the user gets something useless. Agape48 must reject a bad header loudly.
 
@@ -126,7 +128,7 @@ Decided by Gert on 2026aug27, superseding an earlier draft of this section that 
 
 ### The one addition: import and export to and from stack level 1
 
-The single capability Agape48 has that Droid48 does not. Import already exists upstream as `read_bin_file` (`binio.c:204`); export does not, anywhere in this family, which is the 2b differentiator.
+The single capability Agape48 has that Droid48 does not. Import already exists upstream as `read_bin_file` (`binio.c:204`); export does not exist in Droid48 at all, which is the 2b capability. Emu48 has both, on Windows only.
 
 Export is smaller than section 3 assumes, because the hard part is already vendored. `RPL_ObjectSize()` (`binio.c:53`) walks composite objects recursively to get an object's nibble length. `Read5(DSKTOP)` (`binio.c:183`) gets the pointer to stack level 1. The `HPHP48-` header is eight bytes - the seven ASCII characters plus one revision char - which is why the loader starts the object at nibble offset 16. So export is: peek level 1, size it, read the nibbles, pack pairs into bytes, prepend the header, write. The only missing primitive is `Nread`, the inverse of `Nwrite` (`binio.c:132`), which is a few lines. Roughly 60 lines in total.
 
