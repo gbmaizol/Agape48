@@ -59,7 +59,7 @@ cmake --build build -j
 
 `MinSizeRel` is the default; you have to ask for anything else. Configure prints every size knob it resolved. A clean clone builds with nothing else fetched - the Saturn core is vendored, not a submodule.
 
-**You need an HP 48 ROM to run it, and there is none in this repo** - a ROM image is copyrighted and `.gitignore` refuses them on purpose. Put a file called `rom` in the state folder, or point Settings at one. The state folder is printed at startup and is `QStandardPaths::AppDataLocation` until you change it:
+**You need an HP 48 ROM to run it, and there is none in this repo** - a ROM image is copyrighted and `.gitignore` refuses them on purpose. Put a file called `rom` in the state folder, or point Settings at one. The state folder is printed at startup and is `QStandardPaths::AppLocalDataLocation` until you change it:
 
 ```
 Linux    ~/.local/share/Agape48/Agape48/

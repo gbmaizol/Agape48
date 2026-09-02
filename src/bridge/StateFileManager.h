@@ -18,7 +18,9 @@
 // ---------------------------------------------------------------------------
 #pragma once
 
+#include <QHash>
 #include <QObject>
+#include <QPair>
 #include <QTimer>
 #include <QVariantMap>
 #include <QQmlEngine>
@@ -31,6 +33,8 @@
 // why the previous version of this line did not compile.
 struct x48_config_s;
 using x48_config_t = x48_config_s;
+
+class QFileSystemWatcher;
 
 class StateFileManager : public QObject
 {
@@ -71,6 +75,12 @@ public:
     // Called after a successful core save: records the new fingerprint so the
     // next external change is detectable.
     bool commit(quint64 fingerprint);
+
+    // The baseline for "did anybody else touch these files": the size and
+    // mtime of every state file as it is on disk right now. Called after our
+    // own writes and after a reload, so that whatever the watcher reports
+    // afterwards is somebody else's doing and not ours.
+    void noteStateOnDisk();
 
     bool hasExternalChange() const;
 
@@ -150,6 +160,14 @@ private:
     bool populateAndroidSaf(x48_config_t *cfg);
     void loadPersistedLocation();
     void beat();
+    // The other half of the sync rule Gert set on 2026aug30: a calculator can
+    // have its files changed underneath it while it is open - a sync client
+    // landing another machine's copy, or a file dropped in by hand - and
+    // racing with that is how a memory image gets torn in half. The watcher
+    // says when; Agape48Engine decides what to do about it.
+    void watchFiles();
+    void settle();
+    bool filesChangedOnDisk() const;
     void prepareInstances();
     QString freeInstanceName() const;
     bool busyAt(const QString &dir) const;
@@ -163,4 +181,13 @@ private:
     bool    m_held = false;
     QString m_heldPath;
     QTimer  m_heartbeat;
+
+    QFileSystemWatcher *m_watch = nullptr;
+    // A sync client lands a folder as a burst of separate files, so the first
+    // event is never the last one. Coalesce, then look once.
+    QTimer  m_settle;
+    // file name -> (size, mtime in ms). Size and mtime rather than a hash: the
+    // point is to tell OUR write apart from somebody else's, not to checksum
+    // 128 KB of RAM on every event.
+    QHash<QString, QPair<qint64, qint64>> m_stamp;
 };

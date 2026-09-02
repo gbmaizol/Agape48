@@ -9,6 +9,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QFileSystemWatcher>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QSysInfo>
@@ -55,6 +56,17 @@ const char *const kSafFiles[] = { "ram", "port1", "port2", "hp48" };
 // window that the same failure had opened.
 const char *const kMigrateFiles[] = { "rom", "ram", "hp48", "port1", "port2" };
 
+// kWatchedFiles is what a calculator IS: change any of them and the machine in
+// memory and the machine on disk are two different calculators. Deliberately
+// not kSafFiles, which is positional and must not be read for anything else.
+// The ROM is not here - it does not change, and a sync client re-landing an
+// identical ROM is not a reason to stop.
+const char *const kWatchedFiles[] = { "ram", "hp48", "port1", "port2" };
+
+// Long enough that a sync client landing four files is one event rather than
+// four, short enough to beat a person reaching for a key.
+constexpr int kSettleMs = 500;
+
 #ifdef Q_OS_ANDROID
 constexpr auto kSafClass = "dk/geeak/agape48/SafBridge";
 #endif
@@ -66,6 +78,9 @@ StateFileManager::StateFileManager(QObject *parent)
     m_heartbeat.setInterval(kHeartbeatMs);
     m_heartbeat.setTimerType(Qt::VeryCoarseTimer);
     connect(&m_heartbeat, &QTimer::timeout, this, &StateFileManager::beat);
+    m_settle.setSingleShot(true);
+    m_settle.setInterval(kSettleMs);
+    connect(&m_settle, &QTimer::timeout, this, &StateFileManager::settle);
     loadPersistedLocation();
 }
 
@@ -189,6 +204,17 @@ LockInfo readLock(const QString &path)
         else if (key == QLatin1String("seen"))    in.seen = val;
     }
     return in;
+}
+
+// Ours means this pid ON THIS MACHINE. pid alone was enough while both windows
+// were local; across a synced folder it is not - two machines number their
+// processes independently, and a collision is not impossible over a long
+// session. Getting this wrong means a window that has lost the calculator
+// carries on believing it holds it.
+bool lockIsOurs(const LockInfo &in)
+{
+    return in.present && in.pid == QCoreApplication::applicationPid()
+           && in.host == QSysInfo::machineHostName();
 }
 
 } // namespace
@@ -344,6 +370,7 @@ bool StateFileManager::openInstance(const QString &name)
         return false;               // lastError() already says why
     }
     QSettings().setValue(QLatin1String(kInstanceKey), m_instance);
+    noteStateOnDisk();              // different folder, different files to watch
     emit instanceChanged();
     return true;
 }
@@ -435,6 +462,7 @@ bool StateFileManager::claim(bool takeOver)
     m_held = true;
     m_heldPath = path;
     m_heartbeat.start();
+    noteStateOnDisk();      // the baseline: everything after this is somebody else
     return true;
 }
 
@@ -446,7 +474,7 @@ void StateFileManager::beat()
     if (!m_held || m_heldPath.isEmpty())
         return;
     const LockInfo in = readLock(m_heldPath);
-    if (!in.present || in.pid != QCoreApplication::applicationPid()) {
+    if (!lockIsOurs(in)) {
         // Somebody decided we were gone and took it. Stop pretending.
         m_held = false;
         m_heartbeat.stop();
@@ -461,6 +489,109 @@ void StateFileManager::beat()
                 .arg(in.host, in.started,
                      QDateTime::currentDateTimeUtc().toString(Qt::ISODate))
                 .toUtf8());
+}
+
+// --- the files changing underneath us ---------------------------------------
+//
+// Gert's rule, 2026aug30: a calculator whose files change while it is open
+// should go to sleep rather than race. The state on disk and the state in
+// memory have become two different calculators, and every way of resolving
+// that by hand is a guess - so stop, save nothing, and let ON decide, which
+// reads whatever is actually there.
+//
+// This also makes a take-over immediate instead of up to a minute late: the
+// lock file is inside the calculator's own folder, so it arrives with
+// everything else and the loser hears about it as soon as the sync lands.
+// beat() stays as the backstop for a folder no watcher can see.
+
+void StateFileManager::watchFiles()
+{
+    if (!m_watch) {
+        m_watch = new QFileSystemWatcher(this);
+        auto bump = [this] { m_settle.start(); };
+        connect(m_watch, &QFileSystemWatcher::fileChanged, this, bump);
+        connect(m_watch, &QFileSystemWatcher::directoryChanged, this, bump);
+    }
+    const QStringList watched = m_watch->files() + m_watch->directories();
+    if (!watched.isEmpty())
+        m_watch->removePaths(watched);
+
+    const QString dirPath = instanceDir();
+    if (dirPath.isEmpty() || !m_location.isLocalFile() || !QDir(dirPath).exists())
+        return;                         // SAF, or nothing opened yet
+
+    // The directory as well as the files. A sync client does not edit a file in
+    // place, it writes a new one and renames it over the top - and a watch on a
+    // path that gets unlinked is dropped and never fires again. The directory
+    // watch is what survives that, and every pass through here re-arms the
+    // per-file ones.
+    QStringList paths { dirPath };
+    const QDir dir(dirPath);
+    for (const char *name : kWatchedFiles) {
+        const QString f = dir.filePath(QLatin1String(name));
+        if (QFile::exists(f))
+            paths << f;
+    }
+    const QString lock = dir.filePath(QLatin1String(kLockName));
+    if (QFile::exists(lock))
+        paths << lock;
+    m_watch->addPaths(paths);
+}
+
+void StateFileManager::noteStateOnDisk()
+{
+    m_stamp.clear();
+    const QString dirPath = instanceDir();
+    if (!dirPath.isEmpty() && m_location.isLocalFile()) {
+        const QDir dir(dirPath);
+        for (const char *name : kWatchedFiles) {
+            const QFileInfo fi(dir.filePath(QLatin1String(name)));
+            m_stamp.insert(QLatin1String(name),
+                           fi.exists() ? qMakePair(fi.size(),
+                                                   fi.lastModified().toMSecsSinceEpoch())
+                                       : qMakePair(qint64(-1), qint64(-1)));
+        }
+    }
+    watchFiles();                       // a file may have just been created
+}
+
+bool StateFileManager::filesChangedOnDisk() const
+{
+    if (m_stamp.isEmpty())
+        return false;                   // no baseline yet: nothing to compare
+    const QString dirPath = instanceDir();
+    if (dirPath.isEmpty())
+        return false;
+    const QDir dir(dirPath);
+    for (const char *name : kWatchedFiles) {
+        const QFileInfo fi(dir.filePath(QLatin1String(name)));
+        const auto now = fi.exists()
+            ? qMakePair(fi.size(), fi.lastModified().toMSecsSinceEpoch())
+            : qMakePair(qint64(-1), qint64(-1));
+        if (m_stamp.value(QLatin1String(name), qMakePair(qint64(-1), qint64(-1))) != now)
+            return true;
+    }
+    return false;
+}
+
+void StateFileManager::settle()
+{
+    watchFiles();                       // re-arm before deciding anything
+
+    // The lock first: losing the calculator outranks the files changing, and it
+    // has its own message. Only meaningful while we think we hold it.
+    if (m_held && !m_heldPath.isEmpty() && !lockIsOurs(readLock(m_heldPath))) {
+        m_held = false;
+        m_heartbeat.stop();
+        emit lockLost();
+        return;
+    }
+
+    if (!filesChangedOnDisk())
+        return;                         // our own write, or only the lock moved
+    // Whatever is there now is the new truth, whether or not anyone acts on it.
+    noteStateOnDisk();
+    emit externalChangeDetected();
 }
 
 QVariantMap StateFileManager::lockHolder() const
@@ -614,6 +745,10 @@ bool StateFileManager::commit(quint64 fingerprint)
     }
     m_lastFingerprint = fingerprint;
     QSettings().setValue(QLatin1String(kFingerprintKey), fingerprint);
+    // We just wrote them, so this is what the files are supposed to look like.
+    // Without it the watcher reports our own save as an external change and the
+    // calculator puts itself to sleep every time it is saved.
+    noteStateOnDisk();
     return true;
 }
 

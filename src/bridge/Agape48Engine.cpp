@@ -196,8 +196,30 @@ Agape48Engine::Agape48Engine(QObject *parent)
                     "Press ON to take it back."));
     });
 
-    connect(m_state, &StateFileManager::externalChangeDetected,
-            this, [this] { if (!isRunning()) reloadState(); });
+    // The files changed underneath us. Gert's rule, and it is the right one:
+    // going to sleep is the only move that cannot lose anybody's work. The
+    // state on disk and the state in memory are two different calculators now,
+    // and there is no way to reconcile them that is not a guess - so stop,
+    // write NOTHING over what just arrived, and let ON read whatever is
+    // actually there.
+    connect(m_state, &StateFileManager::externalChangeDetected, this, [this] {
+        if (m_detached)
+            return;                 // not ours until somebody presses ON
+        if (!isRunning()) {
+            // Asleep in the window's own sense - suspended, or between ticks -
+            // but still ours. Take the newer version rather than clobbering it
+            // on the next save.
+            reloadState();
+            return;
+        }
+        stop();                     // no saveState(): theirs is the one on disk
+        m_state->release();
+        m_detached = true;
+        emit detachedChanged();
+        setError(tr("These files were changed by something else - a sync client, "
+                    "or another machine. The calculator went to sleep without "
+                    "saving. Press ON to open the version now on disk."));
+    });
 
     m_skin->load(QUrl(QStringLiteral("qrc:/qt/qml/Agape48/assets/skins/default/layout.json")));
 
@@ -851,6 +873,11 @@ bool Agape48Engine::reloadState()
         return false;
     }
     m_frameSerial = 0;
+    // What we just read IS the disk, so it is the new baseline. Without this
+    // the watcher still holds the pre-reload stamps and reports the change we
+    // have already acted on, which would put the calculator straight back to
+    // sleep after every ON.
+    m_state->noteStateOnDisk();
     return true;
 }
 
