@@ -182,6 +182,18 @@ Agape48Engine::Agape48Engine(QObject *parent)
             start();
     });
 
+    // Everything the state object had to say went nowhere. The banner and the
+    // settings strip both read the ENGINE's lastError, and StateFileManager
+    // has its own; start() and attach() copied it across by hand and nothing
+    // else did. So a refused folder move - "that calculator is already open",
+    // "there is no folder called X" - was silent, and the user was left with a
+    // path in the box and no calculator moved. One connection rather than a
+    // copy at every call site.
+    connect(m_state, &StateFileManager::lastErrorChanged, this, [this] {
+        if (!m_state->lastError().isEmpty())
+            setError(m_state->lastError());
+    });
+
     // An external sync client rewriting the state file under us is the normal
     // case, not the exceptional one - that is the whole point of BYO-sync.
     // Somebody took the calculator over. Treat it exactly like OFF: stop

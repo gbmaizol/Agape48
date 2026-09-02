@@ -18,6 +18,7 @@
 // ---------------------------------------------------------------------------
 #pragma once
 
+#include <QDir>
 #include <QHash>
 #include <QObject>
 #include <QPair>
@@ -170,6 +171,9 @@ private:
     bool filesChangedOnDisk() const;
     void prepareInstances();
     QString freeInstanceName() const;
+    // The same question asked of a folder that is not ours yet, which is what
+    // migrating onto somebody else's shelf needs.
+    static QString freeNameIn(const QDir &base);
     bool busyAt(const QString &dir) const;
     void persistLocation();
     void setError(const QString &what);

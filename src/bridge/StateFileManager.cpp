@@ -217,6 +217,20 @@ bool lockIsOurs(const LockInfo &in)
            && in.host == QSysInfo::machineHostName();
 }
 
+// A calculator, as opposed to an empty folder somebody made by hand: it has at
+// least one of the files a calculator is made of. An empty folder of the same
+// name is not something to step around.
+bool occupied(const QDir &shelf, const QString &calc)
+{
+    if (!shelf.exists(calc))
+        return false;
+    const QDir dir(shelf.filePath(calc));
+    for (const char *leaf : kWatchedFiles)
+        if (dir.exists(QLatin1String(leaf)))
+            return true;
+    return false;
+}
+
 } // namespace
 
 bool StateFileManager::busyAt(const QString &dirPath) const
@@ -231,9 +245,23 @@ bool StateFileManager::busyAt(const QString &dirPath) const
         && processAlive(in.pid);
 }
 
+// The whole shelf, not one folder. The lock moved into each calculator's own
+// folder when the shelf appeared, so asking about the shelf ROOT - which is
+// what this did - asks about a file that is never there any more, and
+// migrateTo() has been unguarded ever since. It writes into every calculator on
+// the shelf, so the question it needs answered is about every one of them.
 bool StateFileManager::isBusy(const QUrl &url) const
 {
-    return url.isLocalFile() && busyAt(url.toLocalFile());
+    if (!url.isLocalFile())
+        return false;
+    const QDir shelf(url.toLocalFile());
+    if (busyAt(shelf.absolutePath()))
+        return true;                    // a pre-shelf folder, still possible
+    const QStringList calcs = shelf.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QString &calc : calcs)
+        if (busyAt(shelf.filePath(calc)))
+            return true;
+    return false;
 }
 
 // --- calculators inside the state folder ------------------------------------
@@ -248,7 +276,11 @@ QString StateFileManager::instanceDir() const
 
 QString StateFileManager::freeInstanceName() const
 {
-    const QDir base(m_location.toLocalFile());
+    return freeNameIn(QDir(m_location.toLocalFile()));
+}
+
+QString StateFileManager::freeNameIn(const QDir &base)
+{
     for (int n = 1; n < 1000; ++n) {
         const QString name = tr("Calculator %1").arg(n);
         if (!base.exists(name))
@@ -782,6 +814,17 @@ bool StateFileManager::migrateTo(const QUrl &destination)
     const QDir from(m_location.toLocalFile());
     const QDir to(destination.toLocalFile());
 
+    // Same folder in, same folder out, and this has to come BEFORE the busy
+    // check below: pressing Enter on the path you are already on moves nothing,
+    // and the busy check now asks about every calculator on the shelf, so it
+    // would answer "already open" about this very window.
+    // Without the early return the loop below removes each
+    // destination file and then copies it from itself, which deletes the lot -
+    // pressing Enter twice on the same path wiped the calculator's memory.
+    if (QFileInfo(from.absolutePath()).canonicalFilePath()
+        == QFileInfo(to.absolutePath()).canonicalFilePath())
+        return true;
+
     // Before a single byte moves. setLocation() at the end of this function
     // would refuse a busy folder, but by then the copy has already been over
     // the top of the other instance's memory, which is the exact thing the
@@ -791,13 +834,6 @@ bool StateFileManager::migrateTo(const QUrl &destination)
                     "window. Close it, or choose a different state folder."));
         return false;
     }
-
-    // Same folder in, same folder out. Without this the loop below removes each
-    // destination file and then copies it from itself, which deletes the lot -
-    // pressing Enter twice on the same path wiped the calculator's memory.
-    if (QFileInfo(from.absolutePath()).canonicalFilePath()
-        == QFileInfo(to.absolutePath()).canonicalFilePath())
-        return true;
 
     // The folder has to exist. It used to be created here, so a typo in the
     // path silently made a folder and moved into it - dogfood #9: "folders
@@ -820,29 +856,59 @@ bool StateFileManager::migrateTo(const QUrl &destination)
         }
     }
     const QStringList calcs = from.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    QStringList landedAs;
     for (const QString &calc : calcs) {
-        if (!to.exists(calc) && !to.mkdir(calc)) {
-            setError(tr("Could not make %1 in the new folder.").arg(calc));
+        // A calculator of that name already on the shelf is SOMEBODY ELSE'S.
+        // Every machine calls its first calculator "Calculator 1", so two
+        // machines pointing at one shared folder is not a corner case, it is
+        // the normal one - and the loop below removes each destination file
+        // before copying, so the second machine to arrive would quietly put its
+        // memory where the first machine's was. Land beside it instead.
+        QString name = calc;
+        if (occupied(to, calc)) {
+            name = freeNameIn(to);
+            if (name.isEmpty()) {
+                setError(tr("The folder already has a calculator called %1, and "
+                            "there is no free name to put yours under.").arg(calc));
+                return false;
+            }
+            landedAs << tr("%1 arrived as %2").arg(calc, name);
+            if (m_instance == calc) {
+                // The open one has to follow its own files, or the next start
+                // opens the OTHER machine's calculator of that name.
+                m_instance = name;
+                QSettings().setValue(QLatin1String(kInstanceKey), m_instance);
+            }
+        }
+        if (!to.exists(name) && !to.mkdir(name)) {
+            setError(tr("Could not make %1 in the new folder.").arg(name));
             return false;
         }
-        for (const char *name : kMigrateFiles) {
-            if (qstrcmp(name, "rom") == 0)
+        for (const char *leaf : kMigrateFiles) {
+            if (qstrcmp(leaf, "rom") == 0)
                 continue;                       // shared, handled above
             const QString src = from.filePath(calc + QLatin1Char('/')
-                                              + QLatin1String(name));
+                                              + QLatin1String(leaf));
             if (!QFile::exists(src))
                 continue;
-            const QString dst = to.filePath(calc + QLatin1Char('/')
-                                            + QLatin1String(name));
+            const QString dst = to.filePath(name + QLatin1Char('/')
+                                            + QLatin1String(leaf));
             QFile::remove(dst);
             if (!QFile::copy(src, dst)) {
-                setError(tr("Could not copy %1 of %2.").arg(QLatin1String(name), calc));
+                setError(tr("Could not copy %1 of %2.").arg(QLatin1String(leaf), calc));
                 return false;
             }
         }
     }
     setLocation(destination);
     prepareInstances();
+    // Said after the move rather than asked before it: nothing was lost either
+    // way - the originals are still in the old folder - but the user has to be
+    // told which calculator is now which.
+    if (!landedAs.isEmpty())
+        setError(tr("That folder already had calculators with these names, so "
+                    "yours were put beside them: %1.")
+                     .arg(landedAs.join(QStringLiteral(", "))));
     return true;
 }
 
