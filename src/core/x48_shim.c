@@ -11,6 +11,10 @@
 #include "x48_shim.h"
 
 #include <stdio.h>
+#include <stdlib.h>     /* malloc/free - implicitly declared before 2026sep02,
+                         * which on a 64-bit build means a pointer truncated to
+                         * int if the heap ever reaches above 4 GB. It never did
+                         * here, but that is luck rather than design. */
 #include <string.h>
 #include <sys/stat.h>
 
@@ -275,6 +279,14 @@ bool x48_init(const x48_config_t *cfg)
         }
     }
     init_active_stuff();
+    /* The LCD buffer is NOT part of the saved state - the ROM redraws it from
+     * display memory whenever something changes, and a machine that was parked
+     * in SHUTDN when it was saved changes nothing on the way back. So without
+     * this the window keeps showing the LAST calculator it had: open somebody
+     * else's from the shelf and their stack is on your screen, right up until
+     * you press a key. update_display() paints the buffer from the machine we
+     * have just loaded, which is what the ROM would have done itself. */
+    update_display();
     agape48_emulate_begin();
 
     s_ready = true;
@@ -522,6 +534,7 @@ bool x48_reload_state(void)
         return false;
     }
     init_active_stuff();
+    update_display();               /* see the note in x48_init() */
     agape48_emulate_begin();
     detect_rom_revision();
     s_dirty = true;

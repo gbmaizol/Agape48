@@ -10,6 +10,7 @@
 #include <QObject>
 #include <QQmlEngine>
 #include <QString>
+#include <QDateTime>
 #include <QElapsedTimer>
 #include <QHash>
 #include <QSet>
@@ -72,6 +73,9 @@ class Agape48Engine : public QObject
     Q_PROPERTY(bool liveResize READ liveResize WRITE setLiveResize NOTIFY liveResizeChanged)
     Q_PROPERTY(QString logPath      READ logPath      CONSTANT)
 
+    // Counts down while a sleep request is outstanding; 0 when nothing is.
+    Q_PROPERTY(int waitSeconds READ waitSeconds NOTIFY waitSecondsChanged)
+
 public:
     explicit Agape48Engine(QObject *parent = nullptr);
     ~Agape48Engine() override;
@@ -96,6 +100,24 @@ public:
     void setSoundEnabled(bool on);
     void setDebugLogging(bool on);
     void setLiveResize(bool on);
+
+    // --- asking another instance for a calculator ---------------------------
+    // Writes the request, then waits for whoever has it to save and let go.
+    // takeWhenFree false is "go to sleep, I do not want it now" - the other
+    // machine stops holding it and nobody opens it.
+    //
+    // The wait has to be generous and it has to end: the request travels
+    // through the user's own sync folder, so a busy Dropbox can take a minute,
+    // and a machine that is switched off will never answer at all. When it
+    // does not, the dialog falls back to taking it over, which is what that
+    // button was always for.
+    Q_INVOKABLE void askForCalculator(const QString &instance, bool takeWhenFree = true);
+    Q_INVOKABLE void stopWaiting();
+    Q_INVOKABLE bool waitingForCalculator() const { return m_wait.isActive(); }
+    // Seconds left before the ask is written off, for the dialog to count down.
+    // Gert asked for the number to be on screen: a wait with no end in sight is
+    // the difference between "it is working" and "it has hung".
+    int waitSeconds() const { return m_waitSeconds; }
 
     // The live modifier state, not an event's cached copy. A mouse press on the
     // face arrives through MultiPointTouchArea, whose touch points carry no
@@ -133,7 +155,13 @@ public:
     bool isDetached() const { return m_detached; }
     Q_INVOKABLE bool attach(bool takeOver = false);
 
-    Q_INVOKABLE bool    openCalculator(const QString &name);
+    Q_INVOKABLE bool    openCalculator(const QString &name, bool takeOver = false);
+    // The unanswered case, in one entry point rather than three in QML. Which
+    // of the three it is depends on why this window does not have the
+    // calculator, and the dialog has no business knowing that: never started
+    // (it was busy when the window opened), started and handed over, or simply
+    // somebody else's.
+    Q_INVOKABLE bool    takeOverCalculator(const QString &name);
     Q_INVOKABLE QString newCalculator();
 
     Q_INVOKABLE bool hasStackObject() const;
@@ -199,6 +227,13 @@ signals:
     void liveResizeChanged();
 
     void frameReady();                      // LcdItem listens; fires only on change
+    void waitingChanged();
+    void waitSecondsChanged();
+    // Something worth saying that is not a fault. The banner has a quieter
+    // style for these; lastError is red and stays up four times as long.
+    void notice(const QString &text);
+    void otherLetGo(const QString &instance);
+    void sleepUnanswered(const QString &instance, const QString &host);
     void beep(int frequencyHz, int durationMs);
     void keyFeedback(const QString &keyId); // QML plays haptics/sound off this
     void detachedChanged();
@@ -207,11 +242,11 @@ signals:
     void attachRefused(const QVariantMap &holder);
 
     void romRequired();                     // no ROM yet - QML shows the picker
-    void stateFolderBusy();                 // another instance has it - same
 
 private:
     void tick();
     void setError(const QString &what);
+    void pollForRelease();
     bool lookupKey(const QString &keyId, int *row, int *mask) const;
     void markPressed(int row, int mask, bool down);
     void finishRelease(int row, int mask);
@@ -221,6 +256,15 @@ private:
     void logStartupFacts() const;
 
     QTimer            m_tick;
+    // Polled rather than watched: the calculator being waited for is often not
+    // the one this window has open, so its folder is not the one the watcher is
+    // pointed at. One stat a second for at most a minute and a half.
+    QTimer            m_wait;
+    QString           m_waitFor;
+    QString           m_waitHost;
+    bool              m_waitTake = true;
+    QDateTime         m_waitUntil;
+    int               m_waitSeconds = 0;
     x48_frame_t       m_frame {};
     quint64           m_frameSerial = 0;
     int               m_annunciators = 0;

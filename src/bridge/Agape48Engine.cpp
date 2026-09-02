@@ -36,6 +36,13 @@ constexpr int  kMinHoldMs      = 60;
 constexpr int  kCyclesPerTick  = 70000;
 constexpr int  kIdleIntervalMs = 100;
 
+// Waiting for another instance to answer a sleep request. Long enough for the
+// question and the answer to cross a sync folder - a busy Dropbox takes tens of
+// seconds - and short enough that a machine which is simply switched off does
+// not hold somebody at a dialog for ever.
+constexpr int  kSleepWaitSecs = 90;
+constexpr int  kSleepPollMs   = 1000;
+
 // The rate we fall back to while the Saturn is parked in SHUTDN, which is where
 // it spends nearly all of its life. It must not be zero. The tick used to stop
 // outright, and that broke waking: SHUTDN is not a halt, it is a wait, and the
@@ -178,8 +185,18 @@ Agape48Engine::Agape48Engine(QObject *parent)
     // making the user quit and reopen to get a calculator. migrateTo() and the
     // house button both land here.
     connect(m_state, &StateFileManager::locationChanged, this, [this] {
-        if (!m_ready)
+        if (!m_ready) {
             start();
+            return;
+        }
+        // The folder changed under a RUNNING calculator - Settings, the picker,
+        // or a folder dropped on the window. The core keeps the path it was
+        // initialised with in files_path, so without this it would carry on
+        // saving into the folder we just left, and the calculator in the new
+        // one would never be read at all. shutdownCore() saves first, into the
+        // old folder, which is where that calculator still lives.
+        shutdownCore();
+        start();
     });
 
     // Everything the state object had to say went nowhere. The banner and the
@@ -208,6 +225,23 @@ Agape48Engine::Agape48Engine(QObject *parent)
                     "Press ON to take it back."));
     });
 
+    // Somebody has asked for this calculator. This is the polite handover and
+    // it is better than being taken over, not just nicer: we still hold the
+    // lock here, so we can SAVE first, and what they pick up is everything
+    // that was done in this window. A take-over cannot do that - by the time
+    // the loser notices, the folder is not its to write.
+    connect(m_state, &StateFileManager::sleepRequested, this, [this](const QString &host) {
+        if (m_detached)
+            return;
+        saveState();                    // while it is still ours to save
+        stop();
+        m_state->release();
+        m_detached = true;
+        emit detachedChanged();
+        setError(tr("%1 asked for this calculator, so it was saved and handed "
+                    "over. Press ON to ask for it back.").arg(host));
+    });
+
     // The files changed underneath us. Gert's rule, and it is the right one:
     // going to sleep is the only move that cannot lose anybody's work. The
     // state on disk and the state in memory are two different calculators now,
@@ -232,6 +266,10 @@ Agape48Engine::Agape48Engine(QObject *parent)
                     "or another machine. The calculator went to sleep without "
                     "saving. Press ON to open the version now on disk."));
     });
+
+    m_wait.setInterval(kSleepPollMs);
+    m_wait.setTimerType(Qt::CoarseTimer);
+    connect(&m_wait, &QTimer::timeout, this, &Agape48Engine::pollForRelease);
 
     m_skin->load(QUrl(QStringLiteral("qrc:/qt/qml/Agape48/assets/skins/default/layout.json")));
 
@@ -310,7 +348,11 @@ bool Agape48Engine::start()
     // and wipe whatever the first had done. Dogfood #10 raised it, #13 settled
     // the shape of the answer.
     if (!m_state->claim()) {
-        emit stateFolderBusy();
+        // The dialog rather than the shelf: it names who has it and offers to
+        // ask them for it, and "Choose another…" opens the shelf from there.
+        // Before 2026sep02 this went straight to the shelf, which could only
+        // report the problem.
+        emit attachRefused(m_state->lockHolder());
         setError(m_state->lastError());
         return false;
     }
@@ -547,6 +589,10 @@ void Agape48Engine::logStartupFacts() const
         return;
     const QString dir = m_state->location().toLocalFile();
     qWarning().noquote() << "state folder :" << dir;
+    // The calculator, not just the shelf. With several on one shelf, "which
+    // folder" stopped being enough to answer "which calculator did it open".
+    qWarning().noquote() << "calculator   :" << m_state->instance();
+    qWarning().noquote() << "its folder   :" << m_state->instanceDir();
     qWarning().noquote() << "rom source   :" << (m_romSource.isEmpty()
                                                  ? QStringLiteral("(none chosen)")
                                                  : m_romSource.toLocalFile());
@@ -596,6 +642,105 @@ void Agape48Engine::shutdownCore()
     emit runningChanged();
 }
 
+// --- asking another instance for a calculator -------------------------------
+
+void Agape48Engine::askForCalculator(const QString &instance, bool takeWhenFree)
+{
+    const QString name = instance.isEmpty() ? m_state->instance() : instance;
+    const QVariantMap holder = m_state->lockHolderOf(name);
+    if (!m_state->requestSleep(name)) {
+        setError(m_state->lastError());
+        return;
+    }
+    const QString host = holder.value(QStringLiteral("host")).toString();
+    if (!takeWhenFree) {
+        // "Stop holding it" without "and give it to me": nothing to wait for,
+        // and no request to withdraw when this window's dialog closes.
+        emit notice(tr("Asked %1 to put %2 to sleep.")
+                        .arg(host.isEmpty() ? tr("the other one") : host, name));
+        return;
+    }
+    m_waitFor   = name;
+    m_waitHost  = host;
+    m_waitTake  = takeWhenFree;
+    m_waitUntil = QDateTime::currentDateTimeUtc().addSecs(kSleepWaitSecs);
+    m_waitSeconds = kSleepWaitSecs;
+    m_wait.start();
+    emit waitSecondsChanged();
+    emit waitingChanged();
+}
+
+bool Agape48Engine::takeOverCalculator(const QString &name)
+{
+    // Never started: there is nothing to attach TO. claim(true) first, because
+    // start()'s own claim does not take over, and then start reads the files.
+    if (!m_ready)
+        return m_state->claim(true) && start();
+    if (name.isEmpty() || name == m_state->instance())
+        return attach(true);
+    return openCalculator(name, true);
+}
+
+void Agape48Engine::stopWaiting()
+{
+    if (!m_wait.isActive())
+        return;
+    m_wait.stop();
+    m_state->withdrawSleepRequest(m_waitFor);
+    m_waitFor.clear();
+    m_waitSeconds = 0;
+    emit waitSecondsChanged();
+    emit waitingChanged();
+}
+
+void Agape48Engine::pollForRelease()
+{
+    if (m_waitFor.isEmpty()) {
+        m_wait.stop();
+        return;
+    }
+    const int left = int(QDateTime::currentDateTimeUtc().secsTo(m_waitUntil));
+    if (left != m_waitSeconds) {
+        m_waitSeconds = left < 0 ? 0 : left;
+        emit waitSecondsChanged();
+    }
+    if (!m_state->isHeldBySomebody(m_waitFor)) {
+        const QString name = m_waitFor;
+        m_wait.stop();
+        m_state->withdrawSleepRequest(name);   // answered; the question can go
+        m_waitFor.clear();
+        m_waitSeconds = 0;
+        emit waitSecondsChanged();
+        emit waitingChanged();
+        if (m_waitTake) {
+            // Three ways in, depending on why we did not have it. Never
+            // started (the calculator was busy when this window opened): just
+            // start. Ours but handed over: ON. Somebody else's: open it.
+            const bool got = !m_ready               ? start()
+                           : name == m_state->instance() ? attach()
+                                                         : openCalculator(name);
+            if (!got) {
+                // Somebody else was waiting too and was quicker. Back to the
+                // dialog with whoever holds it now, rather than a silent close.
+                emit attachRefused(m_state->lockHolderOf(name));
+                return;
+            }
+        }
+        emit otherLetGo(name);
+        return;
+    }
+    if (QDateTime::currentDateTimeUtc() >= m_waitUntil) {
+        const QString name = m_waitFor, host = m_waitHost;
+        m_wait.stop();
+        m_state->withdrawSleepRequest(name);
+        m_waitFor.clear();
+        m_waitSeconds = 0;
+        emit waitSecondsChanged();
+        emit waitingChanged();
+        emit sleepUnanswered(name, host);
+    }
+}
+
 // Take the calculator back. Claim first, then read what is on disk - the whole
 // point of handing it over is that somebody else may have used it since, and
 // theirs is the version that counts.
@@ -628,12 +773,12 @@ bool Agape48Engine::attach(bool takeOver)
     return true;
 }
 
-bool Agape48Engine::openCalculator(const QString &name)
+bool Agape48Engine::openCalculator(const QString &name, bool takeOver)
 {
     if (name.isEmpty() || name == m_state->instance())
         return true;
     shutdownCore();                       // saves into the folder we are leaving
-    if (!m_state->openInstance(name)) {
+    if (!m_state->openInstance(name, takeOver)) {
         setError(m_state->lastError());
         start();                          // openInstance put the old one back
         return false;
@@ -884,7 +1029,13 @@ bool Agape48Engine::reloadState()
         setError(QString::fromUtf8(x48_last_error()));
         return false;
     }
-    m_frameSerial = 0;
+    // NOT m_frameSerial = 0. LcdItem skips a frame whose serial it has already
+    // drawn, so a counter that restarts hands it a number it has seen: after a
+    // reload the first frame of the NEW calculator was dropped as a duplicate,
+    // and since a machine loaded in SHUTDN draws nothing more, the window went
+    // on showing the PREVIOUS calculator's screen until a key was pressed.
+    // Somebody else's stack on your screen, with your keys underneath it.
+    // The counter is monotonic for the life of the process now.
     // What we just read IS the disk, so it is the new baseline. Without this
     // the watcher still holds the pre-reload stamps and reports the change we
     // have already acted on, which would put the calculator straight back to

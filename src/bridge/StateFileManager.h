@@ -65,7 +65,9 @@ public:
     bool isDefault() const;
     QString lastError() const { return m_lastError; }
 
-    void setLocation(const QUrl &url);
+    // mustClaim false: switch even if the calculator there is somebody else's,
+    // which is what joining a shared folder means.
+    void setLocation(const QUrl &url, bool mustClaim = true);
 
     // --- used by Agape48Engine, not QML ------------------------------------
     // Fills either cfg->state_dir (desktop; the QByteArray keeps the bytes
@@ -105,6 +107,21 @@ public:
     // UTC and handed over as local QDateTime, because two machines' clocks
     // differ - especially a laptop that has been suspended.
     Q_INVOKABLE QVariantMap lockHolder() const;
+    Q_INVOKABLE QVariantMap lockHolderOf(const QString &instance) const;
+
+    // --- asking for a calculator somebody else has -------------------------
+    // The request is a file in that calculator's own folder, so it reaches
+    // another machine the same way everything else does - through whatever the
+    // user has syncing that folder. The answer is the lock file disappearing.
+    // Better than taking it over rather than merely politer: a take-over makes
+    // the loser drop the calculator without saving.
+    Q_INVOKABLE bool requestSleep(const QString &instance);
+    Q_INVOKABLE void withdrawSleepRequest(const QString &instance);
+    Q_INVOKABLE bool isHeldBySomebody(const QString &instance) const;
+
+    // True if that folder already holds somebody's calculator. Pointing at one
+    // that does means joining it, not copying over it.
+    Q_INVOKABLE bool shelfHasCalculators(const QUrl &shelf) const;
     bool isHeld() const { return m_held; }
 
     // True if a LIVE instance on this machine holds that folder. Used by
@@ -122,7 +139,9 @@ public:
 
     // Switch to another calculator. Releases the current one first, and comes
     // back false with lastError() set if the new one is held by somebody.
-    Q_INVOKABLE bool openInstance(const QString &name);
+    // takeOver is the answer of last resort, for a lock nobody will ever come
+    // back to clear: it claims the calculator whether or not somebody holds it.
+    Q_INVOKABLE bool openInstance(const QString &name, bool takeOver = false);
 
     // Make a fresh calculator and switch to it. Returns its name, or empty.
     Q_INVOKABLE QString createInstance();
@@ -131,6 +150,9 @@ public:
 
     // location/<instance>, which is what the core is given as its state_dir.
     QString instanceDir() const;
+
+    // location/<name>, for a calculator that is not the open one.
+    QString instancePath(const QString &instance) const;
 
 public slots:
     // Desktop: emits pickerRequested() so QML can show a folder chooser
@@ -151,6 +173,9 @@ signals:
     // Another instance decided we were gone and took the calculator. Only ever
     // fires after a take-over, which is always somebody's deliberate choice.
     void lockLost();
+    // Another instance asked for the calculator we are holding. Agape48Engine
+    // saves it, lets go, and says who asked.
+    void sleepRequested(const QString &byHost);
     void lastErrorChanged();
     void pickerRequested();
     void externalChangeDetected();
@@ -169,7 +194,9 @@ private:
     void watchFiles();
     void settle();
     bool filesChangedOnDisk() const;
-    void prepareInstances();
+    // Which calculator on that shelf to open. Takes the folder explicitly
+    // because joining one has to choose before m_location moves.
+    void prepareInstances(const QUrl &where = QUrl());
     QString freeInstanceName() const;
     // The same question asked of a folder that is not ours yet, which is what
     // migrating onto somebody else's shelf needs.

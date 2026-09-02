@@ -160,9 +160,22 @@ Window {
     function openSelected() {
         if (root.selected === "" || root.selected === root.engine.state.instance)
             return
-        if (root.engine.openCalculator(root.selected))
+        if (root.engine.openCalculator(root.selected)) {
             root.close()
-        else
-            root.refresh()      // it was taken; the list says by whom
+            return
+        }
+        // Somebody has it. The shelf can only report that; the handover dialog
+        // can do something about it - it offers to ask them for it, which is
+        // the whole point of asking rather than taking.
+        const name = root.selected
+        if (root.engine.state.isHeldBySomebody(name)) {
+            root.close()
+            root.busyCalculator(name, root.engine.state.lockHolderOf(name))
+        } else {
+            root.refresh()      // something else went wrong; the list says what
+        }
     }
+
+    // Picked one that is in use. Main.qml raises the handover dialog for it.
+    signal busyCalculator(string name, var holder)
 }

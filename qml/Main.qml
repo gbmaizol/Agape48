@@ -129,16 +129,13 @@ Window {
     Agape48Engine {
         id: engine
         onRomRequired: settings.open()
-        // The calculator you used last is open in another window. Show the
-        // shelf, not Settings: choosing another calculator or making a new one
-        // is what you want, and both are here.
-        onStateFolderBusy: picker.openPicker()
         // ON could not take the calculator back. Who has it, and what can be
         // done about it, rather than a dead window and no reason.
         onAttachRefused: (h) => handover.showFor(h)
         onBeep: (hz, ms) => feedback.beep(hz, ms)
         onKeyFeedback: (keyId) => feedback.tap()
         onLastErrorChanged: if (lastError) banner.show(lastError)
+        onNotice: (text) => banner.hint(text)
     }
 
     // "Customize keyboard…" mode: a plain click on the face opens that key's
@@ -332,12 +329,14 @@ Window {
         engine: engine
         transientParent: root
         onPickAnother: picker.openPicker()
+        onChangeFolder: settings.open()
     }
 
     CalculatorPickerWindow {
         id: picker
         engine: engine
         transientParent: root
+        onBusyCalculator: (name, holder) => handover.showFor(holder, name)
     }
 
     SettingsWindow {

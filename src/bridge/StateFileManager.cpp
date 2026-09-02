@@ -67,6 +67,16 @@ const char *const kWatchedFiles[] = { "ram", "hp48", "port1", "port2" };
 // four, short enough to beat a person reaching for a key.
 constexpr int kSettleMs = 500;
 
+// One instance asking another to save the calculator and let go. There is no
+// channel between two machines and there is not going to be one - the whole
+// premise is a folder somebody else syncs - so the request is a small file in
+// the calculator's own folder, and it travels exactly the way everything else
+// does. The answer is the lock file disappearing.
+constexpr auto kSleepName = "sleep-request";
+// A request nobody ever answered is rubbish after a while, and obeying one
+// found days later would put a calculator to sleep the moment it opened.
+constexpr int kSleepStaleMinutes = 10;
+
 #ifdef Q_OS_ANDROID
 constexpr auto kSafClass = "dk/geeak/agape48/SafBridge";
 #endif
@@ -133,7 +143,7 @@ bool StateFileManager::isDefault() const
     return m_location.isLocalFile() && m_location.toLocalFile() == def;
 }
 
-void StateFileManager::setLocation(const QUrl &url)
+void StateFileManager::setLocation(const QUrl &url, bool mustClaim)
 {
     if (m_location == url)
         return;
@@ -144,7 +154,12 @@ void StateFileManager::setLocation(const QUrl &url)
     const bool wasHeld = m_held;
     release();
     m_location = url;
-    if (wasHeld && !claim()) {
+    // mustClaim false is joining a shared folder: the calculator there may
+    // well be in use - that is the whole reason the sleep dialog exists - and
+    // bouncing back to the old folder would mean the user could never move to
+    // a shelf while anybody was using it. Land there unheld instead, and let
+    // start() report who has it.
+    if (mustClaim && wasHeld && !claim()) {
         m_location = previous;
         claim();
         return;                     // lastError() already says why
@@ -204,6 +219,33 @@ LockInfo readLock(const QString &path)
         else if (key == QLatin1String("seen"))    in.seen = val;
     }
     return in;
+}
+
+struct SleepReq {
+    bool    present = false;
+    qint64  pid = 0;
+    QString host;
+    QDateTime at;      // UTC
+};
+
+SleepReq readSleep(const QString &path)
+{
+    SleepReq r;
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return r;
+    r.present = true;
+    while (!f.atEnd()) {
+        const QString line = QString::fromUtf8(f.readLine()).trimmed();
+        const int eq = line.indexOf(QLatin1Char('='));
+        if (eq < 0)
+            continue;
+        const QString key = line.left(eq), val = line.mid(eq + 1);
+        if      (key == QLatin1String("pid"))  r.pid = val.toLongLong();
+        else if (key == QLatin1String("host")) r.host = val;
+        else if (key == QLatin1String("at"))   r.at = QDateTime::fromString(val, Qt::ISODate);
+    }
+    return r;
 }
 
 // Ours means this pid ON THIS MACHINE. pid alone was enough while both windows
@@ -292,13 +334,14 @@ QString StateFileManager::freeNameIn(const QDir &base)
 // Called once the location is settled. Three jobs: move a flat state folder
 // from before this existed into a calculator of its own, make sure there is at
 // least one calculator, and choose which one to open.
-void StateFileManager::prepareInstances()
+void StateFileManager::prepareInstances(const QUrl &where)
 {
-    if (!m_location.isLocalFile()) {
+    const QUrl look = where.isEmpty() ? m_location : where;
+    if (!look.isLocalFile()) {
         m_instance.clear();
         return;
     }
-    QDir base(m_location.toLocalFile());
+    QDir base(look.toLocalFile());
     if (!base.exists())
         return;
 
@@ -307,7 +350,7 @@ void StateFileManager::prepareInstances()
     // The ROM is NOT moved: one shared copy at the top is the point - it is
     // half a megabyte and every calculator wants the same one.
     if (base.exists(QStringLiteral("ram")) || base.exists(QStringLiteral("hp48"))) {
-        const QString name = freeInstanceName();
+        const QString name = freeNameIn(base);
         if (!name.isEmpty() && base.mkdir(name)) {
             static const char *const move[] = { "ram", "hp48", "port1", "port2",
                                                 kLockName };
@@ -322,7 +365,7 @@ void StateFileManager::prepareInstances()
 
     QStringList found = base.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
     if (found.isEmpty()) {
-        const QString name = freeInstanceName();
+        const QString name = freeNameIn(base);
         if (!name.isEmpty() && base.mkdir(name))
             found << name;
     }
@@ -383,7 +426,7 @@ QVariantList StateFileManager::instances() const
     return out;
 }
 
-bool StateFileManager::openInstance(const QString &name)
+bool StateFileManager::openInstance(const QString &name, bool takeOver)
 {
     if (name == m_instance)
         return true;
@@ -396,7 +439,7 @@ bool StateFileManager::openInstance(const QString &name)
     const bool wasHeld = m_held;
     release();
     m_instance = name;
-    if (wasHeld && !claim()) {
+    if (wasHeld && !claim(takeOver)) {
         m_instance = previous;
         claim();
         return false;               // lastError() already says why
@@ -474,9 +517,24 @@ bool StateFileManager::claim(bool takeOver)
     // it open - means nothing is reading the folder. Take it over, say nothing.
 
     if (!takeOver && in.present && !in.host.isEmpty() && in.host != here) {
-        // No way to ask another machine whether its copy is still running, and
-        // refusing would lock the user out of their own calculator whenever
-        // that machine is simply switched off. So: allow, and say so.
+        // Another machine has it. Until 2026sep02 this allowed the claim and
+        // merely warned, because there was no way to ask that machine anything
+        // and refusing would have locked the user out whenever it was simply
+        // switched off. There IS a way to ask now, so a lock that has checked
+        // in recently is refused: somebody is probably there to answer, and the
+        // dialog offers to ask them. Nobody is ever stuck - it can be taken
+        // over from that dialog either way.
+        const QDateTime seen =
+            QDateTime::fromString(in.seen.isEmpty() ? in.started : in.seen, Qt::ISODate);
+        const bool fresh = seen.isValid()
+            && seen.secsTo(QDateTime::currentDateTimeUtc()) < kQuietMinutes * 60;
+        if (fresh) {
+            setError(tr("%1 is open on %2, which checked in less than %3 minutes "
+                        "ago.").arg(m_instance, in.host).arg(kQuietMinutes));
+            return false;
+        }
+        // Quiet long enough that there is probably nobody to ask: allow, and
+        // say so, exactly as before.
         setError(tr("This calculator was left open on %1 (%2). If it really is "
                     "still open there, whichever one quits last wins.")
                      .arg(in.host, in.started));
@@ -494,8 +552,91 @@ bool StateFileManager::claim(bool takeOver)
     m_held = true;
     m_heldPath = path;
     m_heartbeat.start();
+    // A request left in the folder was addressed to whoever held it before us.
+    // Answering it now would put this calculator to sleep the moment it opened.
+    QFile::remove(dir.filePath(QLatin1String(kSleepName)));
     noteStateOnDisk();      // the baseline: everything after this is somebody else
     return true;
+}
+
+// --- asking for a calculator somebody else has -----------------------------
+//
+// Gert, 2026sep02: "give a warning - send a sleep command to the other one and
+// take it over?" It is a better answer than taking it over, and not only a
+// politer one: taking it over makes the loser drop the calculator WITHOUT
+// saving, because by then the folder is not its to write. Asking lets it save
+// first, so what the asker picks up is everything the other machine did.
+
+QString StateFileManager::instancePath(const QString &instance) const
+{
+    if (!m_location.isLocalFile() || instance.isEmpty())
+        return QString();
+    return QDir(m_location.toLocalFile()).filePath(instance);
+}
+
+bool StateFileManager::requestSleep(const QString &instance)
+{
+    const QString dir = instancePath(instance);
+    if (dir.isEmpty() || !QDir(dir).exists()) {
+        setError(tr("There is no calculator called %1.").arg(instance));
+        return false;
+    }
+    QFile f(QDir(dir).filePath(QLatin1String(kSleepName)));
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        setError(tr("Could not ask for %1: the folder is read-only.").arg(instance));
+        return false;
+    }
+    f.write(QStringLiteral("agape48-sleep 1\npid=%1\nhost=%2\nat=%3\n")
+                .arg(QCoreApplication::applicationPid())
+                .arg(QSysInfo::machineHostName(),
+                     QDateTime::currentDateTimeUtc().toString(Qt::ISODate))
+                .toUtf8());
+    return true;
+}
+
+void StateFileManager::withdrawSleepRequest(const QString &instance)
+{
+    const QString dir = instancePath(instance);
+    if (dir.isEmpty())
+        return;
+    const QString path = QDir(dir).filePath(QLatin1String(kSleepName));
+    const SleepReq r = readSleep(path);
+    // Only our own. Two machines can be waiting on the same calculator, and
+    // withdrawing somebody else's question would leave them waiting for ever.
+    if (r.present && r.pid == QCoreApplication::applicationPid()
+        && r.host == QSysInfo::machineHostName())
+        QFile::remove(path);
+}
+
+// "Is somebody still holding it" for the machine that is waiting. A lock from
+// another host cannot be checked for liveness at all, so it counts as held;
+// one from a dead process on this machine does not, or the wait would never
+// end after a crash.
+bool StateFileManager::isHeldBySomebody(const QString &instance) const
+{
+    const QString dir = instancePath(instance);
+    if (dir.isEmpty())
+        return false;
+    const LockInfo in = readLock(QDir(dir).filePath(QLatin1String(kLockName)));
+    if (!in.present || lockIsOurs(in))
+        return false;
+    return in.host != QSysInfo::machineHostName() || processAlive(in.pid);
+}
+
+// Does that folder already hold somebody's calculator? Pointing at a folder
+// that does is joining it, not moving in on top of it.
+bool StateFileManager::shelfHasCalculators(const QUrl &shelf) const
+{
+    if (!shelf.isLocalFile())
+        return false;
+    const QDir dir(shelf.toLocalFile());
+    if (!dir.exists())
+        return false;
+    const QStringList calcs = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const QString &calc : calcs)
+        if (occupied(dir, calc))
+            return true;
+    return false;
 }
 
 // Rewrites only the seen= line's file, whole and small, once a minute. A
@@ -619,6 +760,24 @@ void StateFileManager::settle()
         return;
     }
 
+    // Somebody has asked for this calculator. Only meaningful while we hold it,
+    // and only somebody else's request - ours would be a question to ourselves.
+    if (m_held) {
+        const QString path = QDir(instanceDir()).filePath(QLatin1String(kSleepName));
+        const SleepReq r = readSleep(path);
+        if (r.present && !(r.pid == QCoreApplication::applicationPid()
+                           && r.host == QSysInfo::machineHostName())) {
+            QFile::remove(path);        // letting go IS the answer
+            if (!r.at.isValid()
+                || r.at.secsTo(QDateTime::currentDateTimeUtc()) < kSleepStaleMinutes * 60) {
+                emit sleepRequested(r.host);
+                return;
+            }
+            // Older than the wait anybody would sit through: whoever asked has
+            // long since given up, and obeying now would look like a haunting.
+        }
+    }
+
     if (!filesChangedOnDisk())
         return;                         // our own write, or only the lock moved
     // Whatever is there now is the new truth, whether or not anyone acts on it.
@@ -628,8 +787,16 @@ void StateFileManager::settle()
 
 QVariantMap StateFileManager::lockHolder() const
 {
+    return lockHolderOf(m_instance);
+}
+
+// The same question about a calculator this window has NOT opened, which is
+// what the shelf needs: you pick one from the list, it is somebody else's, and
+// the dialog has to name them before it offers to do anything about it.
+QVariantMap StateFileManager::lockHolderOf(const QString &instance) const
+{
     QVariantMap out;
-    const QString dir = instanceDir();
+    const QString dir = instancePath(instance);
     if (dir.isEmpty())
         return out;
     const LockInfo in = readLock(QDir(dir).filePath(QLatin1String(kLockName)));
@@ -642,6 +809,7 @@ QVariantMap StateFileManager::lockHolder() const
     const qint64 quiet = seen.isValid()
         ? QDateTime::currentDateTimeUtc().secsTo(seen.toUTC()) / -60 : -1;
 
+    out.insert(QStringLiteral("calculator"), instance);
     out.insert(QStringLiteral("host"), in.host);
     out.insert(QStringLiteral("sameMachine"), in.host == QSysInfo::machineHostName());
     out.insert(QStringLiteral("alive"),
@@ -825,16 +993,6 @@ bool StateFileManager::migrateTo(const QUrl &destination)
         == QFileInfo(to.absolutePath()).canonicalFilePath())
         return true;
 
-    // Before a single byte moves. setLocation() at the end of this function
-    // would refuse a busy folder, but by then the copy has already been over
-    // the top of the other instance's memory, which is the exact thing the
-    // lock exists to prevent.
-    if (isBusy(destination)) {
-        setError(tr("That calculator is already open in another Agape48 "
-                    "window. Close it, or choose a different state folder."));
-        return false;
-    }
-
     // The folder has to exist. It used to be created here, so a typo in the
     // path silently made a folder and moved into it - dogfood #9: "folders
     // should be created by an explicit click, not by a typo."
@@ -843,6 +1001,45 @@ bool StateFileManager::migrateTo(const QUrl &destination)
                     "pick one, or to make one.").arg(to.absolutePath()));
         return false;
     }
+    // Gert, 2026sep02: "if the folder already contains a calculator, it just
+    // loads the calculator that's there. I think this would be much more
+    // harmonious." He is right, and it is the difference between joining a
+    // shared folder and moving in on top of whoever is already in it. Copying
+    // in was only ever the right answer for a folder with nothing in it.
+    //
+    // Your own calculator is not touched and not moved. It stays in the folder
+    // it was in, which is what makes this reversible: point back at that folder
+    // and there it is.
+    if (shelfHasCalculators(destination)) {
+        // The remembered name must NOT come with us. Every machine has a
+        // "Calculator 1", so carrying the name over is how a window opens the
+        // other machine's calculator believing it is its own.
+        const QString leaving = from.absolutePath();
+        // The remembered name must NOT come with us, and the new one has to be
+        // chosen BEFORE the switch: setLocation() releases the old lock and
+        // claims the new calculator on the spot, and it can only claim one it
+        // knows the name of.
+        QSettings().remove(QLatin1String(kInstanceKey));
+        m_instance.clear();
+        prepareInstances(destination);
+        setLocation(destination, /*mustClaim=*/false);
+        emit instanceChanged();
+        setError(tr("That folder already has calculators in it, so %1 opened "
+                    "instead of moving yours in. Yours is untouched, in %2.")
+                     .arg(m_instance, QDir::toNativeSeparators(leaving)));
+        return true;
+    }
+
+    // Nothing below this line runs for a folder that already has calculators in
+    // it, so this guard is now about the copy alone - which is the only thing
+    // that can hurt anybody. A calculator being open is not a reason to refuse
+    // to JOIN a shelf; it is the reason the sleep dialog exists.
+    if (isBusy(destination)) {
+        setError(tr("A calculator in that folder is open in another Agape48 "
+                    "window. Close it, or choose a different state folder."));
+        return false;
+    }
+
     // The shelf moves, not one calculator: the shared ROM at the top, and every
     // calculator subfolder with it. kMigrateFiles is still the per-calculator
     // list and is used inside the loop.
