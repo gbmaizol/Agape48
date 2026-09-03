@@ -42,6 +42,11 @@ constexpr int  kIdleIntervalMs = 100;
 // not hold somebody at a dialog for ever.
 constexpr int  kSleepWaitSecs = 90;
 constexpr int  kSleepPollMs   = 1000;
+// How long the calculator is given to switch ITSELF off when another machine
+// asks for it. Three taps at one tick each is a fraction of a second, so this
+// is not a budget - it is the point at which we conclude the ROM is never going
+// to answer and hand the calculator over anyway.
+constexpr int  kSleepOffGraceMs = 5000;
 
 // The rate we fall back to while the Saturn is parked in SHUTDN, which is where
 // it spends nearly all of its life. It must not be zero. The tick used to stop
@@ -230,16 +235,46 @@ Agape48Engine::Agape48Engine(QObject *parent)
     // lock here, so we can SAVE first, and what they pick up is everything
     // that was done in this window. A take-over cannot do that - by the time
     // the loser notices, the folder is not its to write.
+    // Gert, 2026sep03: "make sure that for handing over, the calculator's
+    // auto-sleep function has the same effect as pressing the green shift
+    // followed by ON."
+    //
+    // He is right, and it is not only tidiness. Until now this saved and let go
+    // WITHOUT switching the Saturn off, so the machine written to disk was one
+    // frozen mid-instruction rather than one parked in SHUTDN - a state no HP 48
+    // ever reaches by itself, and a state nothing else in this program produces.
+    // Two things follow from that. The screen did not blank, which is report
+    // both-03 lines 16 and 26: "the 'sleeping' calculator failed to blank its
+    // screen, so I doubted it was really sleeping". And Android, which is next,
+    // suspends and kills the process whenever it likes - so the on-disk state
+    // has to be one that loads cleanly from cold, which is exactly the OFF
+    // state and exactly what attach() and the first-frame path already assume.
+    //
+    // So press the key rather than emulate its consequences. The screen going
+    // off is ALREADY the hand-over path - see tick() - so this does not repeat
+    // that logic, it joins it. One way to hand a calculator over, whether the
+    // person or the other machine asked for it.
     connect(m_state, &StateFileManager::sleepRequested, this, [this](const QString &host) {
         if (m_detached)
             return;
-        saveState();                    // while it is still ours to save
-        stop();
-        m_state->release();
-        m_detached = true;
-        emit detachedChanged();
-        setError(tr("%1 asked for this calculator, so it was saved and handed "
-                    "over. Press ON to ask for it back.").arg(host));
+        m_sleepFor = host;
+        m_sleepAskedAt = m_clock.elapsed();
+        if (!m_ready || m_displayOff) {
+            // Already off, or never started: there is no key to press, and the
+            // screen will not change to tell us it worked.
+            handOver();
+            return;
+        }
+        // ON with a shift latched is not ON, which is the whole point here: OFF
+        // is printed on the key in the right shift's colour. A latched LEFT
+        // shift would give CONT instead, so cancel that first - pressing a
+        // shift while it is active is what cancels it - and only latch the
+        // right one if the user has not already done it themselves.
+        QStringList seq;
+        if (m_annunciators & X48_ANN_LEFT)     seq << QStringLiteral("SHL");
+        if (!(m_annunciators & X48_ANN_RIGHT)) seq << QStringLiteral("SHR");
+        seq << QStringLiteral("ON");
+        queueTaps(seq);
     });
 
     // The files changed underneath us. Gert's rule, and it is the right one:
@@ -470,12 +505,8 @@ void Agape48Engine::tick()
             // release something we had only just claimed.
             // ...and not while we are part-way through switching it on for
             // the user, or attach() would hand back what it has just taken.
-            if (off && !m_detached && m_sawFirstFrame && m_tapQueue.isEmpty()) {
-                saveState();
-                m_state->release();
-                m_detached = true;
-                emit detachedChanged();
-            }
+            if (off && !m_detached && m_sawFirstFrame && m_tapQueue.isEmpty())
+                handOver();
         }
         const int ann = m_frame.annunciators;
         if (ann != m_annunciators) {
@@ -524,12 +555,43 @@ void Agape48Engine::tick()
         releaseKey(k);          // the 60 ms latch holds it down long enough
     }
 
+    // A ROM that does not answer OFF must not leave the other machine waiting
+    // out its ninety seconds while this window sits here still holding the lock.
+    // It is not hypothetical: a brand-new calculator stops on "Try To Recover
+    // Memory?" and no key gets past it, which is the one defect this program
+    // still has. Give the keystroke a few seconds to do it properly, then hand
+    // the calculator over the blunt way rather than not at all.
+    if (!m_sleepFor.isEmpty() && !m_detached && m_sleepAskedAt != 0
+        && m_clock.elapsed() - m_sleepAskedAt > kSleepOffGraceMs) {
+        qWarning("the calculator did not switch itself off when %s asked for "
+                 "it, so it was handed over without doing so",
+                 qUtf8Printable(m_sleepFor));
+        handOver();
+    }
+
     const bool asleep = x48_is_asleep() && m_releasePending.isEmpty()
                                         && m_tapQueue.isEmpty();
     setTickRate(asleep ? kIdleIntervalMs : kTickIntervalMs);
 }
 
 // The timer never stops while the calculator is on; only its rate changes.
+// Save it, let go of it, and stop pretending it is ours. The one place that
+// happens, whether the user switched the calculator off or another machine
+// asked for it.
+void Agape48Engine::handOver()
+{
+    saveState();
+    m_state->release();
+    m_detached = true;
+    m_sleepAskedAt = 0;
+    emit detachedChanged();
+    if (!m_sleepFor.isEmpty()) {
+        setError(tr("%1 asked for this calculator, so it was saved and handed "
+                    "over. Press ON to ask for it back.").arg(m_sleepFor));
+        m_sleepFor.clear();
+    }
+}
+
 void Agape48Engine::setTickRate(int ms)
 {
     if (m_tick.interval() != ms)

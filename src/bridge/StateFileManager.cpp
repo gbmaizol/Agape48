@@ -707,6 +707,7 @@ bool StateFileManager::requestSleep(const QString &instance)
     // When nobody is owed, handoverComplete() stays out of the way and the wait
     // ends the moment the lock does, exactly as it did before any of this.
     const LockInfo held = readLock(QDir(dir).filePath(QLatin1String(kLockName)));
+    m_askedRecord = digestOfFile(QDir(dir).filePath(QLatin1String(kContentsName)));
     m_askedFor = instance;
     m_expectAnswer = held.present
                      && (held.host != QSysInfo::machineHostName()
@@ -731,6 +732,7 @@ void StateFileManager::withdrawSleepRequest(const QString &instance)
     if (instance == m_askedFor) {
         m_askedFor.clear();
         m_expectAnswer = false;
+        m_askedRecord.clear();
     }
 }
 
@@ -771,9 +773,27 @@ bool StateFileManager::handoverComplete(const QString &instance) const
     if (dir.isEmpty())
         return true;
     const QDir d(dir);
-    const Contents c = readContents(d.filePath(QLatin1String(kContentsName)));
-    if (!c.present || c.answers != instanceTag())
-        return false;                   // not written yet, or not for us
+    const QString record = d.filePath(QLatin1String(kContentsName));
+    const Contents c = readContents(record);
+    if (!c.present)
+        return false;                   // nothing has been written yet
+    // Addressed to us: an answer, and the fast path.
+    //
+    // Not addressed to us, but DIFFERENT from the record that was there when we
+    // asked: something has been written to this calculator since, which is what
+    // a machine that quit rather than answered leaves behind. Its record still
+    // describes the files it saved, so once they match, they are whole and they
+    // are new, and there is nothing left to wait for. Without this the holder
+    // closing its window instead of answering costs the full 90 seconds for a
+    // calculator that is free and freshly saved.
+    //
+    // Same record as when we asked is NOT good enough, and this is the case
+    // Windows raised: a record that lands after the memory still describes the
+    // previous save and is perfectly self-consistent. Treating that as an
+    // arrival loads the calculator as it was before the handover - silently,
+    // with no error, which is worse than the defect this exists to fix.
+    if (c.answers != instanceTag() && digestOfFile(record) == m_askedRecord)
+        return false;
     return contentsMatch(d, c);
 }
 

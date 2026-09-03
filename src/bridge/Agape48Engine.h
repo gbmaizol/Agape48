@@ -253,6 +253,9 @@ private:
     void setTickRate(int ms);
     void queueTaps(const QStringList &keys);
     void shutdownCore();
+    // Save, release, detach: the single way a calculator leaves this window,
+    // whether the user switched it off or another machine asked for it.
+    void handOver();
     void logStartupFacts() const;
 
     QTimer            m_tick;
@@ -276,6 +279,11 @@ private:
     bool              m_displayOff = false;
     bool              m_detached = false;
     bool              m_sawFirstFrame = false;
+    // Who asked for this calculator, held from the moment the request arrives
+    // until the machine has actually switched itself off and been handed over.
+    // Empty at every other time, so it doubles as "a hand-over is in progress".
+    QString           m_sleepFor;
+    qint64            m_sleepAskedAt = 0;
 
     // A key has to stay down long enough for the ROM's keyboard scan to see
     // it. A tap shorter than that was simply lost - and worst of all when the
