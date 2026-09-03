@@ -119,6 +119,28 @@ public:
     Q_INVOKABLE void withdrawSleepRequest(const QString &instance);
     Q_INVOKABLE bool isHeldBySomebody(const QString &instance) const;
 
+    // Has the calculator we asked for actually ARRIVED, or only been let go of?
+    //
+    // Gert, dogfood both-03 line 19: "Because the handover file is the smallest,
+    // it came first, so Linux thought they were all updated. The handover should
+    // come with a hash, and the calculator that's taking over should wait for a
+    // full match, meaning that all the files arrived, before considering the
+    // takeover complete and loading the memory."
+    //
+    // The lock is 96 bytes and the memory is 131,072, so through a sync client
+    // the lock's DELETION lands well before the files it was protecting. The
+    // waiter saw it go, read the folder, and got a new hp48 against a stale ram
+    // - which is a calculator whose objects do not parse, and is why an
+    // "External" appeared on his stack.
+    //
+    // So the answer is not the lock going. The answer is a "contents" file
+    // naming the request it answers and carrying a sha256 of every file the
+    // releasing machine wrote, and this returns true only when that file is
+    // there, is addressed to US, and every digest in it matches the bytes on
+    // disk. It is deliberately generous when nobody owes us anything: see the
+    // definition.
+    Q_INVOKABLE bool handoverComplete(const QString &instance) const;
+
     // True if that folder already holds somebody's calculator. Pointing at one
     // that does means joining it, not copying over it.
     Q_INVOKABLE bool shelfHasCalculators(const QUrl &shelf) const;
@@ -207,6 +229,18 @@ private:
 
     QUrl    m_location;
     QString m_instance;
+    // The request we are answering by letting go, as "<host>/<pid>", so the
+    // machine that asked can tell OUR handover from a save that happened to
+    // land at the same moment. Set when the request is honoured, written into
+    // the contents file, and cleared the moment it has been.
+    QString m_answering;
+    // The other side of the same conversation: what we are waiting for, and
+    // whether anybody is actually there to answer. Decided when the request
+    // goes out, while the lock is still readable - afterwards it is gone, and
+    // "the lock vanished" cannot tell a saved handover from a dead process's
+    // leftovers.
+    QString m_askedFor;
+    bool    m_expectAnswer = false;
     quint64 m_lastFingerprint = 0;
     QString m_lastError;
     bool    m_held = false;

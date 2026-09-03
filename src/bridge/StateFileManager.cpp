@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -271,6 +272,105 @@ bool occupied(const QDir &shelf, const QString &calc)
         if (dir.exists(QLatin1String(leaf)))
             return true;
     return false;
+}
+
+// --- what is IN the folder, as opposed to who holds it ----------------------
+//
+// A sync client delivers a folder one file at a time, cheapest first, and the
+// lock is the cheapest thing in it. So the machine waiting for a handover sees
+// the lock go while the memory it was protecting is still crossing, reads the
+// folder, and gets half of one calculator and half of another. Gert found it
+// in dogfood both-03 line 19 and asked for exactly this: the handover comes
+// with a hash, and the taker waits for a full match before loading.
+//
+// HASHES, not sizes or mtimes, and that is measured rather than assumed. ram
+// is always exactly 131,072 bytes, so size tells nobody anything; and Dropbox
+// truncates sub-second mtimes in the Windows-to-Linux direction only, so a
+// writer that recorded 15:23:05.025 would be waited on for ever by a receiver
+// that can only ever see 15:23:05.000. Content is the only thing that survives
+// the crossing intact.
+constexpr auto kContentsName = "contents";
+
+QString digestOfFile(const QString &path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly))
+        return QString();
+    QCryptographicHash h(QCryptographicHash::Sha256);
+    if (!h.addData(&f))
+        return QString();
+    return QString::fromLatin1(h.result().toHex());
+}
+
+// Who this instance is, in the one form both sides of a handover can compare.
+// host AND pid: two machines number their processes independently, and the
+// whole point of the tag is to be unmistakably ours.
+QString instanceTag()
+{
+    return QSysInfo::machineHostName() + QLatin1Char('/')
+           + QString::number(QCoreApplication::applicationPid());
+}
+
+struct Contents {
+    bool    present = false;
+    QString by;
+    QString answers;                    // "<host>/<pid>" this handover is for
+    QHash<QString, QString> digest;     // leaf name -> sha256, hex
+};
+
+Contents readContents(const QString &path)
+{
+    Contents c;
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return c;
+    c.present = true;
+    while (!f.atEnd()) {
+        const QString line = QString::fromUtf8(f.readLine()).trimmed();
+        const int eq = line.indexOf(QLatin1Char('='));
+        if (eq < 0)
+            continue;
+        const QString key = line.left(eq), val = line.mid(eq + 1);
+        if      (key == QLatin1String("by"))      c.by = val;
+        else if (key == QLatin1String("answers")) c.answers = val;
+        else if (key == QLatin1String("at"))      ;   // for a human reading it
+        else                                      c.digest.insert(key, val);
+    }
+    return c;
+}
+
+// answering is empty for an ordinary save. It is only filled in when this write
+// IS the answer to somebody's request, which is what lets the asker tell the
+// handover it is waiting for apart from a save that happened to land at the
+// same moment - a stale contents file cannot carry a tag written after it.
+bool writeContents(const QDir &dir, const QString &answering)
+{
+    QString body = QStringLiteral("agape48-contents 1\nby=%1\nat=%2\n")
+                       .arg(QSysInfo::machineHostName(),
+                            QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
+    if (!answering.isEmpty())
+        body += QStringLiteral("answers=%1\n").arg(answering);
+    for (const char *leaf : kWatchedFiles) {
+        const QString d = digestOfFile(dir.filePath(QLatin1String(leaf)));
+        if (!d.isEmpty())
+            body += QStringLiteral("%1=%2\n").arg(QLatin1String(leaf), d);
+    }
+    QFile f(dir.filePath(QLatin1String(kContentsName)));
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return false;                   // read-only folder: populate() says so
+    f.write(body.toUtf8());
+    return true;
+}
+
+// Only what the record actually claims. A port1 the record says nothing about
+// is a card this machine has and the writer never had, which is not a torn
+// delivery and must not be treated as one - the wait would never end.
+bool contentsMatch(const QDir &dir, const Contents &c)
+{
+    for (auto it = c.digest.cbegin(); it != c.digest.cend(); ++it)
+        if (digestOfFile(dir.filePath(it.key())) != it.value())
+            return false;
+    return true;
 }
 
 } // namespace
@@ -555,6 +655,11 @@ bool StateFileManager::claim(bool takeOver)
     // A request left in the folder was addressed to whoever held it before us.
     // Answering it now would put this calculator to sleep the moment it opened.
     QFile::remove(dir.filePath(QLatin1String(kSleepName)));
+    // Holding it again settles both halves of the last conversation: we owe
+    // nobody a handover, and nobody owes us one.
+    m_answering.clear();
+    m_askedFor.clear();
+    m_expectAnswer = false;
     noteStateOnDisk();      // the baseline: everything after this is somebody else
     return true;
 }
@@ -591,6 +696,21 @@ bool StateFileManager::requestSleep(const QString &instance)
                 .arg(QSysInfo::machineHostName(),
                      QDateTime::currentDateTimeUtc().toString(Qt::ISODate))
                 .toUtf8());
+    f.close();
+
+    // Is there anybody there to answer? It has to be decided HERE, while the
+    // lock can still be read: once it is gone, "the lock vanished" cannot tell
+    // a machine that saved and handed over from a crash that left a lock nobody
+    // was ever going to clear. Same test isHeldBySomebody() makes - a lock from
+    // another host counts, one from a dead process on this machine does not.
+    //
+    // When nobody is owed, handoverComplete() stays out of the way and the wait
+    // ends the moment the lock does, exactly as it did before any of this.
+    const LockInfo held = readLock(QDir(dir).filePath(QLatin1String(kLockName)));
+    m_askedFor = instance;
+    m_expectAnswer = held.present
+                     && (held.host != QSysInfo::machineHostName()
+                         || processAlive(held.pid));
     return true;
 }
 
@@ -606,6 +726,12 @@ void StateFileManager::withdrawSleepRequest(const QString &instance)
     if (r.present && r.pid == QCoreApplication::applicationPid()
         && r.host == QSysInfo::machineHostName())
         QFile::remove(path);
+    // Answered, timed out or given up on - either way nobody owes us anything
+    // now, and a stale expectation would gate the NEXT wait on this folder.
+    if (instance == m_askedFor) {
+        m_askedFor.clear();
+        m_expectAnswer = false;
+    }
 }
 
 // "Is somebody still holding it" for the machine that is waiting. A lock from
@@ -621,6 +747,34 @@ bool StateFileManager::isHeldBySomebody(const QString &instance) const
     if (!in.present || lockIsOurs(in))
         return false;
     return in.host != QSysInfo::machineHostName() || processAlive(in.pid);
+}
+
+// The lock going is not the handover finishing. See the header for why, and
+// requestSleep() for how we know whether an answer is owed at all.
+//
+// Deliberately true when nobody owes us anything: this gate exists to stop a
+// half-delivered folder being read, not to become a new way of never opening a
+// calculator. If no request of ours is outstanding, or the machine we asked was
+// already dead, this says yes and the wait ends on the lock as it always did.
+//
+// When an answer IS owed, all three have to hold: the record is there, it names
+// this instance as the one it was written for, and every file it claims matches
+// the bytes on disk. The middle one is what a generation counter would be for -
+// a contents file that arrives AFTER the memory, still describing the previous
+// save, would otherwise look perfectly consistent and load the wrong calculator
+// in silence. It cannot carry our tag, because it was written before we asked.
+bool StateFileManager::handoverComplete(const QString &instance) const
+{
+    if (!m_expectAnswer || instance != m_askedFor)
+        return true;
+    const QString dir = instancePath(instance);
+    if (dir.isEmpty())
+        return true;
+    const QDir d(dir);
+    const Contents c = readContents(d.filePath(QLatin1String(kContentsName)));
+    if (!c.present || c.answers != instanceTag())
+        return false;                   // not written yet, or not for us
+    return contentsMatch(d, c);
 }
 
 // Does that folder already hold somebody's calculator? Pointing at a folder
@@ -778,6 +932,10 @@ void StateFileManager::settle()
             QFile::remove(path);        // letting go IS the answer
             if (!r.at.isValid()
                 || r.at.secsTo(QDateTime::currentDateTimeUtc()) < kSleepStaleMinutes * 60) {
+                // Whose question this is, so that what we write on the way out
+                // is addressed to them and cannot be mistaken for an older
+                // save that happens to be sitting in the folder.
+                m_answering = r.host + QLatin1Char('/') + QString::number(r.pid);
                 emit sleepRequested(r.host);
                 return;
             }
@@ -839,8 +997,22 @@ void StateFileManager::release()
     // Only if it is still ours. Another instance may have decided we were dead
     // and taken it over, and deleting its claim would undo the whole point.
     const LockInfo in = readLock(m_heldPath);
-    if (in.present && in.pid == QCoreApplication::applicationPid())
+    if (in.present && in.pid == QCoreApplication::applicationPid()) {
+        // Handing over on request: say what is in the folder BEFORE saying the
+        // folder is free. Both files then travel, and whichever arrives first
+        // the asker is safe - the record without the memory does not match, and
+        // the memory without the record is not addressed to them.
+        //
+        // Only when a request is being answered. Quitting normally, and going
+        // to sleep because somebody else's files landed, both come through here
+        // too, and neither is anybody's cue to read the folder. Writing then
+        // would be one more file into a synced folder for nothing - and in the
+        // second case it would put our name on bytes we did not write.
+        if (!m_answering.isEmpty())
+            writeContents(QFileInfo(m_heldPath).dir(), m_answering);
         QFile::remove(m_heldPath);
+    }
+    m_answering.clear();
     m_held = false;
     m_heldPath.clear();
     m_heartbeat.stop();
@@ -957,6 +1129,14 @@ bool StateFileManager::commit(quint64 fingerprint)
     // Without it the watcher reports our own save as an external change and the
     // calculator puts itself to sleep every time it is saved.
     noteStateOnDisk();
+    // And the same thing said in a form that survives a sync client: sizes and
+    // mtimes are a local baseline, digests are what another machine can check.
+    // If this save is the one answering a request, it carries the answer, and
+    // release() then has nothing left to write.
+    if (!instanceDir().isEmpty() && m_location.isLocalFile()) {
+        writeContents(QDir(instanceDir()), m_answering);
+        m_answering.clear();
+    }
     return true;
 }
 

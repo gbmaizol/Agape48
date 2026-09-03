@@ -35,6 +35,8 @@ ram
 port1
 port2
 in-use
+sleep-request
+contents
 
 # src/core/x48/ is a vendored copy, not a submodule - it belongs in the repo.
 

@@ -712,7 +712,12 @@ void Agape48Engine::pollForRelease()
         m_waitSeconds = left < 0 ? 0 : left;
         emit waitSecondsChanged();
     }
-    if (!m_state->isHeldBySomebody(m_waitFor)) {
+    // Not "has it been let go of" - "has it ARRIVED". The lock is 96 bytes and
+    // the memory beside it is 131,072, so through a sync client the lock's
+    // deletion lands first and the folder is still half the previous
+    // calculator. That is dogfood both-03 line 19, and the "External" object on
+    // Gert's stack in line 8 is what reading it looked like.
+    if (!m_state->isHeldBySomebody(m_waitFor) && m_state->handoverComplete(m_waitFor)) {
         const QString name = m_waitFor;
         m_wait.stop();
         m_state->withdrawSleepRequest(name);   // answered; the question can go
