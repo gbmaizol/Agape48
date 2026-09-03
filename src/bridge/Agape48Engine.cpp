@@ -1089,10 +1089,25 @@ bool Agape48Engine::saveState()
     // the calculator was switched off.
     if (!m_state->isHeld() && m_state->location().isLocalFile())
         return false;
+    // Main.qml's onActiveChanged calls suspend(), which is stop() + this, so
+    // every alt-tab writes 131,072 bytes of RAM into what is usually a synced
+    // folder. Dogfood both-03 line 8: "the Dropbox update is taking forever, as
+    // if the other calculator in Linux keeps touching the memory files ...
+    // Should Agape48 refrain from changing the RAM files while nothing changes
+    // on the calculator's stack?" It should. Measured on his machine: the log's
+    // "emulation stopped" at 15:23:05.022, ram's mtime 15:23:05.025.
+    //
+    // Nothing is committed on the skip, deliberately: we did not write, so the
+    // stamp the watcher already holds still describes what is on disk. Setting
+    // it here would be claiming a write that did not happen.
+    const quint64 digest = x48_ram_digest();
+    if (digest != 0 && digest == m_savedRamDigest)
+        return true;
     if (!x48_save_state()) {
         setError(QString::fromUtf8(x48_last_error()));
         return false;
     }
+    m_savedRamDigest = digest;
     return m_state->commit(x48_state_fingerprint());
 }
 
@@ -1116,6 +1131,12 @@ bool Agape48Engine::reloadState()
     // have already acted on, which would put the calculator straight back to
     // sleep after every ON.
     m_state->noteStateOnDisk();
+    // Forget what we last wrote. Only a save we actually performed may set this,
+    // never a load: baselining it from freshly-read memory would let a
+    // calculator whose "ram" file does not exist yet - a new one - skip its
+    // first save and never create the file at all. One redundant write after a
+    // reload is the cheap side of that trade.
+    m_savedRamDigest = 0;
     return true;
 }
 

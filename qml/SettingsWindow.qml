@@ -39,6 +39,24 @@ Window {
     // Main.qml asks this to decide whether the keypad may take the keyboard.
     readonly property bool opened: visible
 
+    // A path in the state folder field is not the state folder until Enter, and
+    // the field goes on showing it either way. Dogfood both-03 line 1 is Gert
+    // reading the shelf path back out of that field and concluding, reasonably,
+    // that he had set it: "Now I know I should have pressed ENTER." Nothing
+    // moved, no message said so, and the field agreed with him. A field that
+    // lies about where the calculator's memory is is worse than an empty one.
+    //
+    // An empty field is NOT pending: clearing it and closing is a discard, and
+    // nagging about that would be noise.
+    readonly property bool statePending: stateField.text.trim() !== ""
+                                         && stateField.text.trim() !== engine.state.displayName
+
+    // Deliberately not shown while he is still typing - only once he has walked
+    // away from the window or tried to close it, which is what he asked for:
+    // "The setting window, upon loosing focus would cause the help text to
+    // become red and bold."
+    property bool warnUnsaved: false
+
     function open() {
         if (transientParent) {
             x = transientParent.x + (transientParent.width - width) / 2
@@ -46,7 +64,23 @@ Window {
         }
         show(); raise(); requestActivate()
     }
-    function close() { hide() }
+    // Every way out goes through here - the Close button, Esc, and the title
+    // bar's X via onClosing - so the confirmation cannot be walked around by
+    // picking a different exit.
+    function close() {
+        if (statePending) { warnUnsaved = true; unsavedDialog.open(); return }
+        hide()
+    }
+
+    onActiveChanged: if (!active && statePending) warnUnsaved = true
+
+    onClosing: (event) => {
+        if (statePending) {
+            event.accepted = false
+            warnUnsaved = true
+            unsavedDialog.open()
+        }
+    }
 
     title: qsTr("Agape48 settings")
     flags: Qt.Dialog
@@ -67,6 +101,39 @@ Window {
         id: folderPicker
         title: qsTr("Where should the calculator's memory live?")
         onAccepted: root.engine.state.migrateTo(selectedFolder)
+    }
+
+    // "Save" and "Discard" rather than OK and Cancel, in his words: "Clicking
+    // 'Close' before pressing ENTER should also make it red and bold, and ask
+    // for confirmation, with options 'Save'   'Discard'."
+    Dialog {
+        id: unsavedDialog
+        anchors.centerIn: parent
+        modal: true
+        title: qsTr("The state folder has not been applied")
+        standardButtons: Dialog.Save | Dialog.Discard
+        Label {
+            width: 340
+            wrapMode: Text.WordWrap
+            color: "#e8e8e8"; font.pixelSize: 12
+            text: qsTr("Save moves the calculator's memory to %1. Discard leaves "
+                       + "it where it is now.")
+                      .arg(stateField.text.trim())
+        }
+        // A refused move leaves this window open with the red banner saying
+        // why, rather than closing as though it had worked.
+        onAccepted: {
+            if (root.engine.state.migrateTo(root.pathToUrl(stateField.text))) {
+                stateField.text = root.engine.state.displayName
+                root.warnUnsaved = false
+                root.hide()
+            }
+        }
+        onDiscarded: {
+            stateField.text = root.engine.state.displayName
+            root.warnUnsaved = false
+            root.hide()
+        }
     }
 
     FileDialog {
@@ -218,7 +285,14 @@ Window {
                 width: parent.width - homeButton.width - browseButton.width - parent.spacing * 2
                 text: root.engine.state.displayName
                 placeholderText: qsTr("a folder to keep the calculator's memory in")
-                onAccepted: root.engine.state.migrateTo(root.pathToUrl(text))
+                onAccepted: {
+                    // Re-sync only on success: a rejected path stays in the box
+                    // so it can be corrected, with the banner saying what was
+                    // wrong with it.
+                    if (root.engine.state.migrateTo(root.pathToUrl(text)))
+                        text = root.engine.state.displayName
+                    root.warnUnsaved = false
+                }
             }
             Button {
                 id: browseButton
@@ -233,7 +307,13 @@ Window {
         Label {
             width: parent.width
             wrapMode: Text.WordWrap
-            color: "#7d7d7d"; font.pixelSize: 11
+            // Red and bold once the path in the field is not the one in use and
+            // he has looked away from it. The sentence is already the
+            // instruction, so it does not need rewording to become a warning.
+            readonly property bool unsaved: root.warnUnsaved && root.statePending
+            color: unsaved ? "#ff8a80" : "#7d7d7d"
+            font.pixelSize: 11
+            font.bold: unsaved
             text: qsTr("Press Enter to move the calculator's memory there. Put it "
                        + "inside a synced folder to carry the machine between "
                        + "computers. You can also drop a folder on this window.")

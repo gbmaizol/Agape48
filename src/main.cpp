@@ -1,8 +1,11 @@
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QQuickStyle>
 #include <QQmlApplicationEngine>
+#include <QSettings>
 #include <QSurfaceFormat>
+#include <QUrl>
 
 #ifdef Q_OS_WIN
 #include <fcntl.h>
@@ -46,12 +49,53 @@ int main(int argc, char *argv[])
 #endif
 #endif
 
+    // A dogfood build must not share the installed app's profile. On Linux that
+    // is a throwaway HOME and costs nothing; on Windows QSettings lives in
+    // HKCU\Software\<org>\<app> and no environment variable moves it, so the only
+    // lever is the application NAME - which also moves AppLocalDataLocation, and
+    // with it the default state folder and the log. One switch isolates all
+    // three.
+    //
+    // Gert, 2026sep03, after both-03 had been run against an installed build:
+    // "For the next dogfood report, let's work with a dogfood build rather than
+    // making an installation right away." Before this, testing a build on this
+    // machine meant writing his live settings - which is exactly what got
+    // blocked, correctly, earlier the same day.
+    //
+    // Parsed by hand, and before the QGuiApplication: setApplicationName has to
+    // run before anything touches QSettings or QStandardPaths, and
+    // QCommandLineParser needs the application object that does not exist yet.
+    QString profile = QStringLiteral("Agape48");
+    QString stateSeed;
+    for (int i = 1; i < argc; ++i) {
+        const QString arg = QString::fromLocal8Bit(argv[i]);
+        const bool hasNext = (i + 1 < argc);
+        if (arg == QLatin1String("--profile") && hasNext)
+            profile = QString::fromLocal8Bit(argv[++i]);
+        else if (arg.startsWith(QLatin1String("--profile=")))
+            profile = arg.mid(10);
+        else if (arg == QLatin1String("--state") && hasNext)
+            stateSeed = QString::fromLocal8Bit(argv[++i]);
+        else if (arg.startsWith(QLatin1String("--state=")))
+            stateSeed = arg.mid(8);
+    }
+    // The profile name becomes a registry key AND a directory name, so it has to
+    // be one harmless path segment. A path here would silently scatter settings
+    // and a calculator's memory somewhere nobody chose, so refuse rather than
+    // sanitise it into something that was not asked for.
+    if (profile.isEmpty() || profile.contains(QLatin1Char('/'))
+        || profile.contains(QLatin1Char('\\')) || profile.contains(QLatin1Char(':'))
+        || profile == QLatin1String(".") || profile == QLatin1String("..")) {
+        qWarning("agape48: --profile must be a single name, not a path");
+        return 2;
+    }
+
     // Agape: "HP" spoken in Brazilian Portuguese is "aga-pe".
     // Pinned, per the Quick Controls decision of 2026aug28: Basic is the
     // style that does not drag in a platform theme, and the sheet has to
     // look the same next to the calculator face on every platform.
     QQuickStyle::setStyle(QStringLiteral("Basic"));
-    QGuiApplication::setApplicationName(QStringLiteral("Agape48"));
+    QGuiApplication::setApplicationName(profile);
     QGuiApplication::setApplicationVersion(QStringLiteral(AGAPE48_VERSION));
     QGuiApplication::setOrganizationName(QStringLiteral("Agape48"));
     QGuiApplication::setOrganizationDomain(QStringLiteral("agape48.local"));
@@ -63,6 +107,20 @@ int main(int argc, char *argv[])
     QSurfaceFormat::setDefaultFormat(fmt);
 
     QGuiApplication app(argc, argv);
+
+    // --state seeds the profile's state folder, exactly as typing it into
+    // Settings would, so a fresh dogfood profile can start pointed at a folder
+    // that already has a ROM in it instead of coming up with no calculator.
+    //
+    // Persisted rather than applied for one run only: changing the state folder
+    // in the UI is itself something the dogfood reports test, and a run-only
+    // override would silently undo it on the next launch. The key belongs to
+    // StateFileManager, which reads it at construction - hence before the engine.
+    if (!stateSeed.isEmpty()) {
+        QSettings().setValue(
+            QStringLiteral("state/location"),
+            QUrl::fromLocalFile(QFileInfo(stateSeed).absoluteFilePath()).toString());
+    }
 
     // The window and taskbar icon, on every platform from one place. Without it
     // Qt supplies its own default - a cogwheel on Linux, which is what Gert saw.

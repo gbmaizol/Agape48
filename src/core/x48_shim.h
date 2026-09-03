@@ -116,6 +116,11 @@ bool        x48_reload_state(void);      /* re-read after an external sync wrote
  * Cheap: size + mtime + a hash of the first and last page. */
 uint64_t    x48_state_fingerprint(void);
 
+/* Digest of the RAM that would be written, for skipping a save that would
+ * change nothing. 0 means "no opinion". See the comment on the definition for
+ * why the fingerprint above cannot be used for this. */
+uint64_t    x48_ram_digest(void);
+
 /* --- object interchange ------------------------------------------------- */
 
 /* The HP 48 binary transfer format: "HPHP48-" plus a revision letter, then the

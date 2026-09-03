@@ -284,6 +284,10 @@ private:
     // Empty at every other time, so it doubles as "a hand-over is in progress".
     QString           m_sleepFor;
     qint64            m_sleepAskedAt = 0;
+    // Digest of the RAM at the last save this process actually performed, so a
+    // save that would write identical bytes can be skipped. Set only by a real
+    // write; 0 means "unknown, write anyway". See saveState().
+    quint64           m_savedRamDigest = 0;
 
     // A key has to stay down long enough for the ROM's keyboard scan to see
     // it. A tap shorter than that was simply lost - and worst of all when the

@@ -506,6 +506,40 @@ bool x48_save_state(void)
     return true;
 }
 
+/* A content digest of the calculator's RAM, over exactly the nibbles
+ * write_files() writes - write_mem_file(fnam, saturn.ram, opt_gx ? RAM_SIZE_GX
+ * : RAM_SIZE_SX) - so an unchanged digest means the "ram" file would come out
+ * byte for byte identical.
+ *
+ * This exists because x48_state_fingerprint() cannot answer the question. That
+ * one stats the hp48 file and returns (size << 32) ^ mtime, so it describes the
+ * DISK. What the caller needs before writing 131,072 bytes into a synced folder
+ * is whether the MACHINE changed, and RAM is the only saved thing that does not
+ * move while nothing is being entered - the CPU state in hp48 ticks over even
+ * on an idle calculator.
+ *
+ * FNV-1a: about 130 kB of sequential reads, well under a millisecond, against a
+ * write of the same size plus whatever the sync client then does with it.
+ *
+ * Returns 0 for "no opinion" - no calculator, or no RAM allocated. Since 0 is
+ * also a legal digest value, a real digest of 0 is reported as 1 rather than
+ * silently meaning "don't know".
+ */
+uint64_t x48_ram_digest(void)
+{
+    const unsigned char *p = (const unsigned char *)saturn.ram;
+    long                 n = opt_gx ? RAM_SIZE_GX : RAM_SIZE_SX;
+    uint64_t             h = 14695981039346656037ULL;   /* FNV-1a offset basis */
+
+    if (!s_ready || p == NULL)
+        return 0;
+    while (n-- > 0) {
+        h ^= (uint64_t)*p++;
+        h *= 1099511628211ULL;                          /* FNV-1a prime */
+    }
+    return h != 0 ? h : 1;
+}
+
 bool x48_reload_state(void)
 {
     const char *why;
