@@ -93,18 +93,38 @@ Item {
             color: root.engine.skin.lcdBackground
 
             Text {
-                anchors { fill: parent; margins: 6 }
-                text: qsTr("The chosen memory is in use by another device.")
+                // In the UPPER part of the glass, not centred on it. Once the
+                // text went to 4x it collided with the error banner, which
+                // both-04's other note puts across the centre of the screen -
+                // the banner covered the first of the two lines. An HP 48 puts
+                // its own status messages at the top of the display, so this is
+                // the machine's own idiom rather than a compromise, and a
+                // transient banner underneath it now reads as a second line of
+                // explanation instead of a lid.
+                anchors {
+                    left: parent.left; right: parent.right; top: parent.top
+                    margins: 6
+                }
+                // 0.36, not 0.45: at 0.45 the banner's top edge clipped the
+                // descenders of the second line. Measured off a capture.
+                height: parent.height * 0.36
+                verticalAlignment: Text.AlignTop
+                // Broken across two lines deliberately, and four times the size
+                // it was. Gert, both-04 line 7: "the text is way too small. It
+                // should be 4x as large, divided in two lines." It was small
+                // because Text.Fit only ever SHRINKS - pixelSize is its ceiling,
+                // not its target - and the ceiling was 13. The default skin's
+                // LCD is 786x384 face pixels, so 52 fits with room to spare.
+                text: qsTr("The chosen memory is in use\nby another device.")
                 color: root.engine.skin.lcdPixelColor
                 wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                // The rect is small and its size comes from the skin, so let the
-                // text shrink to fit rather than elide the one sentence that
+                // Fit stays as the safety net for a skin whose glass is smaller
+                // than this one's, rather than eliding the sentence that
                 // explains why the machine is not responding.
                 fontSizeMode: Text.Fit
-                font.pixelSize: 13
-                minimumPixelSize: 6
+                font.pixelSize: 52
+                minimumPixelSize: 12
             }
         }
 

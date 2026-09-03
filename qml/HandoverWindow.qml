@@ -149,7 +149,15 @@ Window {
                     onClicked: root.engine.askForCalculator(root.calculator, true)
                 }
                 Button {
-                    text: qsTr("Sleep")
+                    // "Sleep" alone never said WHO sleeps, and it sits beside a
+                    // Yes that means "sleep it AND take it". Gert, both-04
+                    // line 8: "if I click on 'Sleep', I expect the Linux Agape48
+                    // to sleep, but instead it requests the Windows Agape48 to
+                    // sleep instead." The behaviour is the designed one - the
+                    // question above it says "send a sleep command to the other
+                    // one" - so the label is what was wrong, and naming the
+                    // difference from Yes is what fixes it.
+                    text: qsTr("Sleep, don't take")
                     // Ask, and leave it. "Stop holding it" without "give it to
                     // me now" - the calculator ends up free for whoever wants it.
                     onClicked: { root.engine.askForCalculator(root.calculator, false); root.close() }
