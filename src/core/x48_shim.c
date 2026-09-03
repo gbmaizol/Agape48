@@ -300,7 +300,20 @@ void x48_shutdown(void)
 {
     if (!s_ready)
         return;
-    write_files();
+    /* Deliberately does NOT write the files, which it did until 2026sep03.
+     *
+     * Whether this calculator may be written is a question only the caller can
+     * answer - it depends on whether we still hold the lock on its folder - and
+     * saveState() is where that decision lives. A write down here happens
+     * behind that decision's back, and it did: with saveState() correctly
+     * refusing to touch a calculator handed to another machine, this line
+     * wrote it anyway. Measured on a local shelf, the marker planted at sha
+     * f42e0e7c... came back as this process's memory the moment the window
+     * closed, with saveState() having already declined.
+     *
+     * Both callers save first and then shut down, so nothing is lost by this:
+     * Agape48Engine::shutdownCore() and ~Agape48Engine() each call saveState()
+     * on the line above their x48_shutdown(). One policy, one place. */
     s_ready = false;
 }
 

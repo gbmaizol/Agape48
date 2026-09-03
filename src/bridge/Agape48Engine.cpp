@@ -313,13 +313,35 @@ Agape48Engine::Agape48Engine(QObject *parent)
     // an order this object does not control, and a lock left behind is a lock
     // the next start has to reason about. A crash still leaves one, which is
     // exactly what the dead-pid check in claim() is for.
-    connect(qApp, &QCoreApplication::aboutToQuit, this, [this] { m_state->release(); });
+    //
+    // SAVE BEFORE RELEASING, which is new on 2026sep03 and is an ordering fix
+    // rather than a tidy-up. The save on quit used to happen in the destructor,
+    // which runs AFTER this - so every ordinary quit wrote the calculator into a
+    // folder it had already unlocked. On one machine that is invisible. On a
+    // shared shelf it is a race: the other machine can claim the calculator in
+    // that window and our save then lands on top of its work.
+    connect(qApp, &QCoreApplication::aboutToQuit, this, [this] {
+        saveState();                    // while it is still ours to save
+        m_state->release();
+    });
 }
 
 Agape48Engine::~Agape48Engine()
 {
     if (m_ready) {
-        x48_save_state();
+        // saveState(), not x48_save_state(): this is the second of the two sites
+        // that went straight to the core and so skipped the "never write a
+        // calculator we do not hold" guard. MEASURED: hand a calculator to the
+        // other machine, let it work, then close the window you handed it from,
+        // and this line wrote the stale memory back over the new owner's work.
+        // The marker planted on disk, sha f42e0e7c..., came back as this
+        // process's sha 89e83ca8... the moment the window closed.
+        //
+        // By the time we get here aboutToQuit has usually saved and released
+        // already, so on an ordinary quit this is a no-op twice over - not held,
+        // and the digest matches. It still matters for the paths that reach the
+        // destructor without aboutToQuit.
+        saveState();
         x48_shutdown();
     }
     m_state->release();
@@ -701,8 +723,25 @@ void Agape48Engine::shutdownCore()
 {
     if (!m_ready)
         return;
-    x48_save_state();
-    m_state->commit(x48_state_fingerprint());
+    // saveState() rather than x48_save_state() + commit() directly, which is
+    // what this did until 2026sep03. Going straight to the core skipped
+    // saveState()'s own guard - "never write a calculator we do not hold" - and
+    // a clean quit is the most ordinary action there is.
+    //
+    // MEASURED, on a shared shelf with the other machine holding the calculator:
+    // a window that had already handed it over wrote its stale RAM back over the
+    // new owner's work on close. The marker planted on disk, sha 03ee02fb..., was
+    // replaced by this process's in-memory copy, sha 219c3880..., at 17:11:13.
+    // Hand a calculator to the other machine, let it work, then close the window
+    // you handed it from, and the other machine's work is gone. That is precisely
+    // the clobber the lock exists to prevent, arrived at by the one path that did
+    // not consult it.
+    //
+    // Two things follow for free: the RAM digest applies here too, so a quit that
+    // would write identical bytes writes nothing at all; and commit() runs, so
+    // the contents record beside the files describes the files rather than
+    // trailing them.
+    saveState();
     x48_shutdown();
     m_ready = false;
     m_tapQueue.clear();
