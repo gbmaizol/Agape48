@@ -56,12 +56,12 @@ Window {
 
         Label {
             text: qsTr("Calculators in this state folder")
-            color: "#f0f0f0"; font.pixelSize: 16; font.weight: Font.DemiBold
+            color: "#f0f0f0"; font.pixelSize: TextSizes.dialogTitle; font.weight: Font.DemiBold
         }
         Label {
             width: parent.width
             text: root.engine.state.displayName
-            color: "#7d7d7d"; font.pixelSize: 11
+            color: "#7d7d7d"; font.pixelSize: TextSizes.dialogHint
             elide: Text.ElideMiddle
         }
 
@@ -94,7 +94,7 @@ Window {
                         Label {
                             text: modelData.current ? qsTr("%1   — this window").arg(modelData.name)
                                                     : modelData.name
-                            color: "#e8e8e8"; font.pixelSize: 13
+                            color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
                         }
                         Label {
                             // "in use" is a fact on this machine, where the pid
@@ -107,7 +107,7 @@ Window {
                                      ? qsTr("left open on %1 since %2").arg(modelData.heldBy).arg(modelData.heldSince)
                                      : qsTr("last used %1").arg(Qt.formatDateTime(modelData.lastUsed, "yyyy-MM-dd HH:mm")))
                             color: modelData.inUse ? "#e8a55a" : "#7d7d7d"
-                            font.pixelSize: 11
+                            font.pixelSize: TextSizes.dialogHint
                         }
                     }
                 }

@@ -91,14 +91,14 @@ Window {
 
             Label {
                 text: qsTr("%1 is in use").arg(root.calculator)
-                color: "#f0f0f0"; font.pixelSize: 16; font.weight: Font.DemiBold
+                color: "#f0f0f0"; font.pixelSize: TextSizes.dialogTitle; font.weight: Font.DemiBold
             }
 
             // --- what is going on -------------------------------------------
             Label {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: "#d0d0d0"; font.pixelSize: 13
+                color: "#d0d0d0"; font.pixelSize: TextSizes.dialogBody
                 text: {
                     if (root.phase === "waiting")
                         return qsTr("Asked %1 to put it to sleep. Waiting for it to save and let go — %2 seconds. On one machine that takes about a second; across a synced folder it takes as long as the sync does, and a machine that is switched off or offline never answers at all.")
@@ -123,7 +123,7 @@ Window {
                 wrapMode: Text.WordWrap
                 visible: root.phase !== "waiting" && root.holder.sameMachine === false
                 color: root.phase === "unanswered" || root.probablyGone ? "#e8a55a" : "#7d7d7d"
-                font.pixelSize: 11
+                font.pixelSize: TextSizes.dialogHint
                 text: root.phase === "unanswered"
                       ? qsTr("Taking it over now does not ask and does not wait. If that machine really is still using it, it loses whatever it has done since its last save, and whichever quits last wins.")
                       : qsTr("Asking is the safe one: it saves over there before it lets go, so you get everything they did.")

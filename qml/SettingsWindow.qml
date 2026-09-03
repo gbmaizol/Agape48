@@ -115,7 +115,7 @@ Window {
         Label {
             width: 340
             wrapMode: Text.WordWrap
-            color: "#e8e8e8"; font.pixelSize: 12
+            color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
             text: qsTr("Save moves the calculator's memory to %1. Discard leaves "
                        + "it where it is now.")
                       .arg(stateField.text.trim())
@@ -180,13 +180,13 @@ Window {
                 id: errorText
                 anchors { fill: parent; margins: 8 }
                 text: root.engine.lastError
-                color: "#ffdad6"; font.pixelSize: 12; wrapMode: Text.WordWrap
+                color: "#ffdad6"; font.pixelSize: TextSizes.dialogBody; wrapMode: Text.WordWrap
             }
         }
 
         Label {
             text: qsTr("HP 48 ROM")
-            color: "#9a9a9a"; font.pixelSize: 12
+            color: "#9a9a9a"; font.pixelSize: TextSizes.dialogHint
         }
         Row {
             width: parent.width
@@ -218,7 +218,7 @@ Window {
 
         Label {
             text: qsTr("State folder")
-            color: "#9a9a9a"; font.pixelSize: 12
+            color: "#9a9a9a"; font.pixelSize: TextSizes.dialogHint
         }
         Row {
             width: parent.width
@@ -312,7 +312,7 @@ Window {
             // instruction, so it does not need rewording to become a warning.
             readonly property bool unsaved: root.warnUnsaved && root.statePending
             color: unsaved ? "#ff8a80" : "#7d7d7d"
-            font.pixelSize: 11
+            font.pixelSize: TextSizes.dialogHint
             font.bold: unsaved
             text: qsTr("Press Enter to move the calculator's memory there. Put it "
                        + "inside a synced folder to carry the machine between "
@@ -336,7 +336,7 @@ Window {
             Label {
                 anchors.verticalCenter: parent.verticalCenter
                 text: qsTr("Resize the window live, without an outline")
-                color: "#e8e8e8"; font.pixelSize: 13
+                color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
             }
         }
 
@@ -357,14 +357,14 @@ Window {
             Label {
                 anchors.verticalCenter: parent.verticalCenter
                 text: qsTr("Debug logging")
-                color: "#e8e8e8"; font.pixelSize: 13
+                color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
             }
         }
         Label {
             width: parent.width
             visible: logSwitch.checked
             text: root.engine.logPath
-            color: "#7d7d7d"; font.pixelSize: 11
+            color: "#7d7d7d"; font.pixelSize: TextSizes.dialogHint
             elide: Text.ElideMiddle
         }
 
@@ -376,9 +376,20 @@ Window {
                 text: qsTr("Close")
                 onClicked: root.close()
             }
+            // Its own window rather than a page in here, because half of what
+            // it tunes is drawn on the calculator and this window covers it.
+            Button {
+                text: qsTr("Advanced…")
+                onClicked: advanced.open()
+            }
         }
     }
 
+    }
+
+    AdvancedWindow {
+        id: advanced
+        transientParent: root
     }
 
     // A folder dropped on the window is the cheapest folder picker there is,

@@ -172,7 +172,7 @@ Window {
         Text {
             id: modeText
             anchors { fill: parent; margins: 9 }
-            color: "#dce8f5"; font.pixelSize: 12; wrapMode: Text.WordWrap
+            color: "#dce8f5"; font.pixelSize: TextSizes.banner; wrapMode: Text.WordWrap
             text: qsTr("Click a key to change its keyboard shortcut. Click here, or press Esc, when you are done.")
         }
         MouseArea { anchors.fill: parent; onClicked: root.customizing = false }
@@ -285,7 +285,7 @@ Window {
         Text {
             anchors.centerIn: parent
             text: "\u22ee"
-            color: "#e8e8e8"; font.pixelSize: 17
+            color: "#e8e8e8"; font.pixelSize: TextSizes.dialogTitle
         }
         MouseArea {
             id: menuMouse
@@ -385,7 +385,7 @@ Window {
         Text {
             id: text
             anchors { fill: parent; margins: 12 }
-            color: "white"; wrapMode: Text.WordWrap; font.pixelSize: 13
+            color: "white"; wrapMode: Text.WordWrap; font.pixelSize: TextSizes.banner
         }
         // Same on a deliberate dismissal, or the error the user just waved away
         // reappears the next time Settings is opened.

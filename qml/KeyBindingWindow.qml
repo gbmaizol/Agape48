@@ -126,7 +126,7 @@ Window {
 
         Label {
             text: qsTr("Keys that press %1").arg(root.keyLabel)
-            color: "#f0f0f0"; font.pixelSize: 16; font.weight: Font.DemiBold
+            color: "#f0f0f0"; font.pixelSize: TextSizes.dialogTitle; font.weight: Font.DemiBold
         }
 
         // --- what is bound now ------------------------------------------------
@@ -151,14 +151,14 @@ Window {
                               ? qsTr("%1   (always ON, cannot be changed)").arg(bindingRow.modelData.label)
                               : bindingRow.modelData.label
                         color: bindingRow.modelData.locked ? "#7d7d7d" : "#e8e8e8"
-                        font.pixelSize: 13
+                        font.pixelSize: TextSizes.dialogBody
                     }
                 }
             }
             Label {
                 visible: root.rows.length === 0
                 text: qsTr("No key on the keyboard presses this one.")
-                color: "#7d7d7d"; font.pixelSize: 12
+                color: "#7d7d7d"; font.pixelSize: TextSizes.dialogHint
             }
         }
 
@@ -193,7 +193,7 @@ Window {
                             .arg(root.labelOf(root.pendingOwner))
                     color: (root.pendingOwner !== "" || root.refused !== "")
                            ? "#e88a8a" : "#d0d0d0"
-                    font.pixelSize: 13
+                    font.pixelSize: TextSizes.dialogBody
                     width: root.width - 56
                     wrapMode: Text.WordWrap
                 }

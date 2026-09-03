@@ -123,7 +123,7 @@ Item {
                 // than this one's, rather than eliding the sentence that
                 // explains why the machine is not responding.
                 fontSizeMode: Text.Fit
-                font.pixelSize: 52
+                font.pixelSize: TextSizes.screenMessage
                 minimumPixelSize: 12
             }
         }

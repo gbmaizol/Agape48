@@ -95,10 +95,12 @@ set(AGAPE48_QML_FILES
     qml/KeyBindingWindow.qml
     qml/CalculatorPickerWindow.qml
     qml/HandoverWindow.qml
+    qml/AdvancedWindow.qml
     qml/Agape48Keymap.qml
+    qml/TextSizes.qml
 )
 
-set_source_files_properties(qml/Agape48Keymap.qml
+set_source_files_properties(qml/Agape48Keymap.qml qml/TextSizes.qml
     PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(agape48
