@@ -728,6 +728,14 @@ void StateFileManager::noteStateOnDisk()
     watchFiles();                       // a file may have just been created
 }
 
+// INEQUALITY, deliberately, and it must stay that way. A file a sync client
+// lands carries the WRITER's mtime, which can be OLDER than our own last write
+// to that path - two machines' clocks differ, and Dropbox preserves the mtime
+// exactly (measured across the two laptops on 2026sep03). "Newer than ours"
+// would therefore ignore an arriving calculator from a machine whose clock runs
+// slow, silently, which is the one failure this whole mechanism exists to
+// prevent. The question here is "is this still the file we wrote", never "is
+// this more recent".
 bool StateFileManager::filesChangedOnDisk() const
 {
     if (m_stamp.isEmpty())
