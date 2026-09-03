@@ -26,6 +26,17 @@ Item {
             ? Math.min(width / faceSize.width, height / faceSize.height)
             : 1
 
+    // The LCD's vertical centre in THIS item's coordinates, so anything that has
+    // to sit over the calculator's screen can be put there without knowing how
+    // the face is scaled. Exposed rather than anchored to because QML anchors
+    // only reach parents and siblings, and the LCD is neither from outside here.
+    // The face is centred and scaled about its own centre, so a point maps
+    // through that centre rather than through the origin.
+    readonly property real lcdCenterY:
+        face.y + face.height / 2
+        + (engine.skin.lcdRect.y + engine.skin.lcdRect.height / 2
+           - face.height / 2) * scaleFactor
+
     Item {
         id: face
         width: root.faceSize.width

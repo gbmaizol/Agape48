@@ -360,7 +360,15 @@ Window {
         // claimed is not an error and goes after three seconds, as asked.
         function show(msg) { isError = true;  text.text = msg; opacity = 1; hideTimer.interval = 12000; hideTimer.restart() }
         function hint(msg) { isError = false; text.text = msg; opacity = 1; hideTimer.interval = 3000;  hideTimer.restart() }
-        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        // Over the centre of the calculator's SCREEN since 2026sep03, on Gert's
+        // instruction. Along the bottom it lay across the bottom two rows of
+        // keys; the top is still not available, for the reason above; and the
+        // screen is where he is already looking. It also lands on a blank LCD
+        // in the case that matters most - a calculator handed to the other
+        // machine has nothing on its screen to cover.
+        anchors { left: parent.left; right: parent.right }
+        y: Math.max(0, Math.min(root.height - height,
+                                calculator.lcdCenterY - height / 2))
         height: text.implicitHeight + 24
         color: banner.isError ? "#8c1d18" : "#33383f"
         opacity: 0
