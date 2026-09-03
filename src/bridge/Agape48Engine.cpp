@@ -406,6 +406,14 @@ void Agape48Engine::suspend()
 
 void Agape48Engine::resumeFromBackground()
 {
+    // No calculator at all - it was in use when this window opened, or there is
+    // no ROM. Do NOT retry the claim here: getting a calculator is a deliberate
+    // act, and start() emits attachRefused when it cannot, so retrying on every
+    // window activation threw the in-use dialog on top of whatever the user had
+    // opened to deal with it. "Choose another…" opened the shelf and the dialog
+    // landed straight back on top of it.
+    if (!m_ready)
+        return;
     // Cheap fingerprint check first: if a sync client touched the file while we
     // were away, take its version rather than clobbering it on next save.
     if (m_state->hasExternalChange())
