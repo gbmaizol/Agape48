@@ -241,11 +241,6 @@ private:
     // leftovers.
     QString m_askedFor;
     bool    m_expectAnswer = false;
-    // The contents record as it stood at the moment we asked, by digest, or
-    // empty if there was none. Anything different means SOMETHING has been
-    // written to that calculator since - which is how a holder that quit
-    // rather than answered still gets us out of the wait.
-    QString m_askedRecord;
     quint64 m_lastFingerprint = 0;
     QString m_lastError;
     bool    m_held = false;

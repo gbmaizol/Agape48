@@ -707,7 +707,6 @@ bool StateFileManager::requestSleep(const QString &instance)
     // When nobody is owed, handoverComplete() stays out of the way and the wait
     // ends the moment the lock does, exactly as it did before any of this.
     const LockInfo held = readLock(QDir(dir).filePath(QLatin1String(kLockName)));
-    m_askedRecord = digestOfFile(QDir(dir).filePath(QLatin1String(kContentsName)));
     m_askedFor = instance;
     m_expectAnswer = held.present
                      && (held.host != QSysInfo::machineHostName()
@@ -732,7 +731,6 @@ void StateFileManager::withdrawSleepRequest(const QString &instance)
     if (instance == m_askedFor) {
         m_askedFor.clear();
         m_expectAnswer = false;
-        m_askedRecord.clear();
     }
 }
 
@@ -773,28 +771,35 @@ bool StateFileManager::handoverComplete(const QString &instance) const
     if (dir.isEmpty())
         return true;
     const QDir d(dir);
-    const QString record = d.filePath(QLatin1String(kContentsName));
-    const Contents c = readContents(record);
+    const Contents c = readContents(d.filePath(QLatin1String(kContentsName)));
     if (!c.present)
         return false;                   // nothing has been written yet
-    // Addressed to us: an answer, and the fast path.
+    if (!contentsMatch(d, c))
+        return false;                   // half a delivery: the defect itself
+    // And it has to have been written FOR US. Nothing else will do, and two
+    // weaker rules were tried and thrown away before this one.
     //
-    // Not addressed to us, but DIFFERENT from the record that was there when we
-    // asked: something has been written to this calculator since, which is what
-    // a machine that quit rather than answered leaves behind. Its record still
-    // describes the files it saved, so once they match, they are whole and they
-    // are new, and there is nothing left to wait for. Without this the holder
-    // closing its window instead of answering costs the full 90 seconds for a
-    // calculator that is free and freshly saved.
+    // Both were attempts to spare the asker a ninety-second wait when the
+    // holder quits rather than answering, by accepting a record that merely
+    // looked new: first "different from the record we snapshotted when we
+    // asked", then "the files have moved since we asked". Both accept a save
+    // the holder made BEFORE our request, and that is reachable rather than
+    // theoretical - a machine catching up on sync has an out-of-date record on
+    // disk at the moment it asks, so the holder's EARLIER save arrives
+    // afterwards, is perfectly self-consistent, and satisfies either rule. The
+    // asker then picks up the calculator as it was some seconds before it
+    // asked, and whatever was typed in between is quietly gone.
     //
-    // Same record as when we asked is NOT good enough, and this is the case
-    // Windows raised: a record that lands after the memory still describes the
-    // previous save and is perfectly self-consistent. Treating that as an
-    // arrival loads the calculator as it was before the handover - silently,
-    // with no error, which is worse than the defect this exists to fix.
-    if (c.answers != instanceTag() && digestOfFile(record) == m_askedRecord)
-        return false;
-    return contentsMatch(d, c);
+    // Which is exactly the promise this mechanism exists to keep. Report
+    // both-03 line 18: "Whatever you typed on Windows before asking is THERE.
+    // That is the whole point of asking rather than taking."
+    //
+    // A wait that is too long is visible, has a countdown on it and a button
+    // that ends it. A calculator quietly rolled back a few seconds is neither.
+    // The tag is the only thing on disk that says "this is the save you asked
+    // for", so the tag is the whole test - and a holder that quits instead of
+    // answering costs the asker the full ninety seconds, deliberately.
+    return c.answers == instanceTag();
 }
 
 // Does that folder already hold somebody's calculator? Pointing at a folder
