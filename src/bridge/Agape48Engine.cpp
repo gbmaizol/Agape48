@@ -437,6 +437,9 @@ bool Agape48Engine::start()
     }
 
     m_ready = true;
+    // Whatever the next frame shows is the calculator as it was saved, not as
+    // anybody just left it. Spent by the first frame in tick().
+    m_freshLoad = true;
     setError(QString());
     emit readyChanged();
     m_tick.start();
@@ -499,16 +502,46 @@ void Agape48Engine::tick()
         // the real reason was x48_take_frame() skipping a frame in which only
         // display.on had changed. That is fixed at the source now.
         const bool off = m_frame.height == 0;
-        if (!m_sawFirstFrame) {
+        // THE FIRST FRAME AFTER A LOAD SAYS HOW THE CALCULATOR WAS LEFT. It
+        // never says what the person at the keyboard just did, and the two were
+        // being confused in two different places.
+        //
+        // This used to key off m_sawFirstFrame, which is set once per PROCESS.
+        // That was true enough while a calculator was only ever loaded at
+        // startup. It stopped being true when the state folder could be changed
+        // under a running window, and it became actively destructive once a
+        // hand-over started switching the Saturn genuinely off (69c6345),
+        // because from then on every calculator picked up from another machine
+        // loads with a blank screen:
+        //
+        //   at startup      "loaded off" fell into the first branch, which
+        //                   released the lock. Right for a calculator found
+        //                   lying switched off; wrong for one just handed over.
+        //   mid-session     m_sawFirstFrame was ALREADY true, so the load fell
+        //                   through to the transition branch below and looked
+        //                   exactly like the user pressing OFF - so handOver()
+        //                   fired and SAVED and released a calculator we had
+        //                   only just opened. That is both-04 line 8, "ram
+        //                   keeps syncing forever": his log shows the state
+        //                   folder change at 21:31:22.276 and "screen off"
+        //                   106 ms later, with nobody having touched a key.
+        //
+        // So the question is not "have we ever drawn a frame", it is "is this
+        // the frame that came with the load". One flag, set by start(), spent
+        // here.
+        if (m_freshLoad) {
+            m_freshLoad = false;
             m_sawFirstFrame = true;
             m_displayOff = off;
-            m_detached = off;          // loaded switched off: nobody holds it
             if (off) {
+                // Found switched off, and nobody asked us to wake it: hold no
+                // lock on a calculator we are not using. wakeAcquired() is what
+                // clears m_freshLoad ahead of us when somebody DID ask.
+                m_detached = true;
                 m_state->release();
                 emit detachedChanged();
             }
-        }
-        if (off != m_displayOff) {
+        } else if (off != m_displayOff) {
             m_displayOff = off;
             qWarning(off ? "screen off - the calculator has been switched off "
                            "(OFF is green-shift ON, and Ctrl is the green "
@@ -521,13 +554,11 @@ void Agape48Engine::tick()
             // over by accident at the same moment, and Esc puts it straight
             // back.
             //
-            // Not on the first frame of a run, though: a calculator saved in
-            // the off state loads as off, and that is not somebody switching
-            // it off - it is how they left it. Acting on it would save and
-            // release something we had only just claimed.
-            // ...and not while we are part-way through switching it on for
-            // the user, or attach() would hand back what it has just taken.
-            if (off && !m_detached && m_sawFirstFrame && m_tapQueue.isEmpty())
+            // A load can no longer reach this branch at all - see m_freshLoad
+            // above - so this is a real transition: the machine was on and now
+            // it is not. Still not while we are part-way through switching it
+            // on for the user, or attach() would hand back what it just took.
+            if (off && !m_detached && m_tapQueue.isEmpty())
                 handOver();
         }
         const int ann = m_frame.annunciators;
@@ -597,6 +628,34 @@ void Agape48Engine::tick()
 }
 
 // The timer never stops while the calculator is on; only its rate changes.
+// The opposite of handOver(), and it exists because handOver() changed.
+//
+// Since a hand-over switches the Saturn OFF, every calculator that arrives by
+// being asked for arrives with a blank screen - and two separate pieces of
+// machinery read that blank frame as something it is not. The first-frame rule
+// in tick() reads "loaded off" as "nobody is using this, let go of the lock",
+// which is right for a calculator found lying switched off and exactly wrong
+// for one we have just been handed: it released the lock it had spent ninety
+// seconds waiting for. And switching calculators mid-session does not hit that
+// rule at all, so it simply left a dead screen with nobody pressing ON.
+//
+// Gert, both-04 line 3: "The screen starts off, with 'The chosen memory is in
+// use by another device.' ... It should turn on instead, right after taking
+// over."
+//
+// So: the blank first frame is expected here rather than evidence of anything.
+// Say so, and press ON. Same three flags attach() sets, for the same reason.
+void Agape48Engine::wakeAcquired()
+{
+    m_freshLoad = false;        // the blank frame is expected, not a verdict
+    m_detached = false;
+    m_displayOff = true;
+    m_sawFirstFrame = true;
+    setError(QString());
+    emit detachedChanged();
+    queueTaps({ QStringLiteral("ON") });
+}
+
 // Save it, let go of it, and stop pretending it is ours. The one place that
 // happens, whether the user switched the calculator off or another machine
 // asked for it.
@@ -830,9 +889,20 @@ void Agape48Engine::pollForRelease()
             // Three ways in, depending on why we did not have it. Never
             // started (the calculator was busy when this window opened): just
             // start. Ours but handed over: ON. Somebody else's: open it.
-            const bool got = !m_ready               ? start()
-                           : name == m_state->instance() ? attach()
-                                                         : openCalculator(name);
+            bool got;
+            if (!m_ready) {
+                // Never started - the calculator was busy when this window
+                // opened, which is the commonest way in and the one both-04
+                // line 3 came through. start() alone would load the machine
+                // the other side just switched off and leave it dark.
+                got = start();
+                if (got)
+                    wakeAcquired();
+            } else if (name == m_state->instance()) {
+                got = attach();                 // wakes it itself
+            } else {
+                got = openCalculator(name);     // wakes it itself
+            }
             if (!got) {
                 // Somebody else was waiting too and was quicker. Back to the
                 // dialog with whoever holds it now, rather than a silent close.
@@ -878,12 +948,7 @@ bool Agape48Engine::attach(bool takeOver)
     // still off - reloading does not turn it on. Press ON for real: it wakes
     // the machine and makes the ROM repaint, which is the same thing an import
     // needs and the same queue does it.
-    m_detached = false;
-    m_displayOff = true;
-    m_sawFirstFrame = true;
-    setError(QString());
-    emit detachedChanged();
-    queueTaps({ QStringLiteral("ON") });
+    wakeAcquired();
     return true;
 }
 
@@ -897,7 +962,14 @@ bool Agape48Engine::openCalculator(const QString &name, bool takeOver)
         start();                          // openInstance put the old one back
         return false;
     }
-    return start();
+    if (!start())
+        return false;
+    // Picking a calculator off the shelf is asking for it, so wake it. Every
+    // calculator on a shared shelf is now saved switched off, because that is
+    // what handing one over does - without this the shelf hands back a dead
+    // screen and waits for a keypress nobody knows to make.
+    wakeAcquired();
+    return true;
 }
 
 QString Agape48Engine::newCalculator()

@@ -256,6 +256,11 @@ private:
     // Save, release, detach: the single way a calculator leaves this window,
     // whether the user switched it off or another machine asked for it.
     void handOver();
+
+    // ...and the other direction. A calculator we ASKED for arrives switched
+    // off, because handing one over is switching it off. Somebody has to press
+    // ON, and it should not be the person who just waited for it.
+    void wakeAcquired();
     void logStartupFacts() const;
 
     QTimer            m_tick;
@@ -279,6 +284,10 @@ private:
     bool              m_displayOff = false;
     bool              m_detached = false;
     bool              m_sawFirstFrame = false;
+    // Set by start(), spent by the first frame after it. That frame shows the
+    // calculator as it was SAVED, so it must never be read as the user having
+    // just switched the machine off - see tick().
+    bool              m_freshLoad = false;
     // Who asked for this calculator, held from the moment the request arrives
     // until the machine has actually switched itself off and been handed over.
     // Empty at every other time, so it doubles as "a hand-over is in progress".
