@@ -51,7 +51,7 @@ class StateFileManager : public QObject
 
     // Which calculator inside the state folder is open. The state folder is a
     // shelf, not a calculator: it holds one shared ROM and a subfolder per
-    // calculator, each with its own ram, hp48, ports and in-use lock. Two
+    // calculator, each with its own ram, hp48, ports and en-uzo lock. Two
     // calculators at once is two subfolders, and the one-instance-per-folder
     // rule from 2026aug30 now applies per calculator rather than per shelf.
     Q_PROPERTY(QString instance READ instance NOTIFY instanceChanged)
@@ -90,7 +90,7 @@ public:
     // --- one calculator, one instance --------------------------------------
     // The state folder IS the calculator, so it is opened by one instance at a
     // time, the way a word processor opens a document. claim() writes an
-    // "in-use" file naming this process and this machine; a second instance
+    // "en-uzo" file naming this process and this machine; a second instance
     // finds it and is turned away. Two calculators at once is two folders,
     // which the folder picker already does. Gert asked for this on 2026aug30
     // after two copies pointed at one folder quietly ate each other's memory -

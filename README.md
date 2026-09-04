@@ -24,7 +24,7 @@ Agape48/
 │   └── bridge/                 the C++ side
 │       ├── Agape48Engine.*     QML facade: tick, keys, state, clipboard
 │       ├── LcdItem.*           QQuickItem drawing the pixel buffer
-│       ├── StateFileManager.*  bring-your-own-sync: paths, SAF, the in-use lock
+│       ├── StateFileManager.*  bring-your-own-sync: paths, SAF, the en-uzo lock
 │       └── SkinModel.*         skin + layout, JSON
 ├── qml/
 │   ├── Main.qml                window, error banner, ⋮ menu, frameless move/resize
@@ -66,7 +66,7 @@ Linux    ~/.local/share/Agape48/Agape48/
 Windows  %LOCALAPPDATA%\Agape48\Agape48\
 ```
 
-The Windows one is `AppLocalDataLocation` on purpose, not `AppDataLocation`. The two are the same directory on Linux and Android and two different ones on Windows, where `AppDataLocation` is `AppData\Roaming` — a folder a domain-joined machine's policy may sync between the user's computers by itself. This one holds a ROM, a memory image and an `in-use` file naming a single host, so roaming it would carry a calculator between machines behind the back of the lock that exists to stop exactly that. Carrying it between machines is what the user-chosen synced folder is for; it should not also happen by accident.
+The Windows one is `AppLocalDataLocation` on purpose, not `AppDataLocation`. The two are the same directory on Linux and Android and two different ones on Windows, where `AppDataLocation` is `AppData\Roaming` — a folder a domain-joined machine's policy may sync between the user's computers by itself. This one holds a ROM, a memory image and an `en-uzo` file naming a single host, so roaming it would carry a calculator between machines behind the back of the lock that exists to stop exactly that. Carrying it between machines is what the user-chosen synced folder is for; it should not also happen by accident.
 
 Two things that bite on Windows and not on Linux:
 

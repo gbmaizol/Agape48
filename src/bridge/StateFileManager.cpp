@@ -117,7 +117,7 @@ void StateFileManager::persistLocation()
 // AppLocalData, not AppData. They are the same directory on Linux and Android
 // and two different ones on Windows: AppDataLocation is AppData\Roaming, which
 // a domain-joined machine's policy may sync between the user's computers all by
-// itself. This folder holds a 512 KB ROM, a 128 KB memory image and an "in-use"
+// itself. This folder holds a 512 KB ROM, a 128 KB memory image and an "en-uzo"
 // file naming one host and one pid - roaming it would carry a calculator
 // between machines behind the back of the very lock that exists to stop two
 // machines sharing one, and with none of the conflict handling the state folder
@@ -173,7 +173,7 @@ void StateFileManager::setLocation(const QUrl &url, bool mustClaim)
 
 namespace {
 
-constexpr auto kLockName = "in-use";
+constexpr auto kLockName = "en-uzo";
 
 bool processAlive(qint64 pid)
 {
