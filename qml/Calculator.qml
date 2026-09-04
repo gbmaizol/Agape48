@@ -127,6 +127,22 @@ Item {
             color: root.engine.skin.lcdBackground
 
             Text {
+                // Only when somebody else really is holding the memory. The
+                // rectangle above blanks the glass whenever this window is not
+                // driving the machine, which is right; this sentence used to
+                // follow it, which was not. Gert, 2026sep04: "it seems to be
+                // showing even when no other calculator is even running to use
+                // the memory" - and it was, because a calculator that was saved
+                // switched off, or that you switched off yourself, releases the
+                // lock and comes up detached with nobody else in the picture.
+                // detached says WE do not hold it; this says SOMEBODY ELSE
+                // does, and only the second one is what the words claim.
+                //
+                // A lock left behind by a machine that died stays on disk and
+                // still counts, which is his instruction: "If another host died
+                // and left the lock on, keep showing the locked screen as is
+                // with the phrase on it. Otherwise screen blank as normal."
+                visible: root.engine.memoryHeldElsewhere
                 // In the UPPER part of the glass, not centred on it. Once the
                 // text went to 4x it collided with the error banner, which
                 // both-04's other note puts across the centre of the screen -

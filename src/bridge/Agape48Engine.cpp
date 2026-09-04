@@ -306,6 +306,27 @@ Agape48Engine::Agape48Engine(QObject *parent)
     m_wait.setTimerType(Qt::CoarseTimer);
     connect(&m_wait, &QTimer::timeout, this, &Agape48Engine::pollForRelease);
 
+    // The same cadence the countdown already uses, for the same reason: a
+    // detached window has stopped the core and has nothing else that would tell
+    // it the other machine let go. One small file read a second, and only while
+    // detached - reading never writes, so this cannot restart the Dropbox churn
+    // that both-03 line 8 is about.
+    m_lockWatch.setInterval(kSleepPollMs);
+    m_lockWatch.setTimerType(Qt::CoarseTimer);
+    connect(&m_lockWatch, &QTimer::timeout, this, &Agape48Engine::pollLockHolder);
+    connect(this, &Agape48Engine::detachedChanged, this, [this] {
+        if (m_detached) {
+            pollLockHolder();           // answer now, not in a second's time
+            m_lockWatch.start();
+        } else {
+            m_lockWatch.stop();
+            if (m_heldElsewhere) {      // ours again; nobody else can hold it
+                m_heldElsewhere = false;
+                emit memoryHeldElsewhereChanged();
+            }
+        }
+    });
+
     m_skin->load(QUrl(QStringLiteral("qrc:/qt/qml/Agape48/assets/skins/default/layout.json")));
 
     // Let go of the state folder on the way out. aboutToQuit rather than the
@@ -859,6 +880,25 @@ void Agape48Engine::stopWaiting()
     m_waitSeconds = 0;
     emit waitSecondsChanged();
     emit waitingChanged();
+}
+
+// Is anyone else holding the memory we are pointed at? isHeldBySomebody() is
+// the same test the shelf and the take-over dialog make: a lock file that is
+// present, is not ours, and either names another machine or names a process on
+// this one that is still alive.
+//
+// A lock left behind by a machine that was switched off stays on disk for ever
+// and still reads as held. That is deliberate here - Gert, 2026sep04: "If
+// another host died and left the lock on, keep showing the locked screen as is
+// with the phrase on it." An offline machine and a dead one are the same file,
+// so the screen tells you what is written rather than guessing which it was.
+void Agape48Engine::pollLockHolder()
+{
+    const bool held = m_state->isHeldBySomebody(m_state->instance());
+    if (held == m_heldElsewhere)
+        return;
+    m_heldElsewhere = held;
+    emit memoryHeldElsewhereChanged();
 }
 
 void Agape48Engine::pollForRelease()

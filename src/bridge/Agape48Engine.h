@@ -153,6 +153,18 @@ public:
     // you get. Gert's design, 2026aug31.
     Q_PROPERTY(bool detached READ isDetached NOTIFY detachedChanged)
     bool isDetached() const { return m_detached; }
+
+    // Whether SOMEBODY ELSE is holding the memory this window is pointed at -
+    // a live lock file that is not ours. A different question from detached,
+    // which only says WE are not holding it, and the difference is the whole
+    // of Gert's 2026sep04 report: a calculator you left switched off comes up
+    // detached with nobody else involved at all, and the screen said "in use by
+    // another device" over an empty shelf. Polled while detached, because a
+    // window that is not running the machine has no other way to notice the
+    // other side letting go.
+    Q_PROPERTY(bool memoryHeldElsewhere READ memoryHeldElsewhere
+                                        NOTIFY memoryHeldElsewhereChanged)
+    bool memoryHeldElsewhere() const { return m_heldElsewhere; }
     Q_INVOKABLE bool attach(bool takeOver = false);
 
     Q_INVOKABLE bool    openCalculator(const QString &name, bool takeOver = false);
@@ -237,6 +249,7 @@ signals:
     void beep(int frequencyHz, int durationMs);
     void keyFeedback(const QString &keyId); // QML plays haptics/sound off this
     void detachedChanged();
+    void memoryHeldElsewhereChanged();
     // Could not take the calculator back: QML shows who has it and what can be
     // done about it. The map is StateFileManager::lockHolder().
     void attachRefused(const QVariantMap &holder);
@@ -247,6 +260,7 @@ private:
     void tick();
     void setError(const QString &what);
     void pollForRelease();
+    void pollLockHolder();
     bool lookupKey(const QString &keyId, int *row, int *mask) const;
     void markPressed(int row, int mask, bool down);
     void finishRelease(int row, int mask);
@@ -268,6 +282,7 @@ private:
     // the one this window has open, so its folder is not the one the watcher is
     // pointed at. One stat a second for at most a minute and a half.
     QTimer            m_wait;
+    QTimer            m_lockWatch;
     QString           m_waitFor;
     QString           m_waitHost;
     bool              m_waitTake = true;
@@ -283,6 +298,7 @@ private:
     bool              m_liveResize    = false;
     bool              m_displayOff = false;
     bool              m_detached = false;
+    bool              m_heldElsewhere = false;
     bool              m_sawFirstFrame = false;
     // Set by start(), spent by the first frame after it. That frame shows the
     // calculator as it was SAVED, so it must never be read as the user having
