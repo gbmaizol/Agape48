@@ -72,6 +72,40 @@ Item {
             height: root.engine.skin.lcdRect.height
             pixelColor: root.engine.skin.lcdPixelColor
             backgroundColor: root.engine.skin.lcdBackground
+
+            // Free resizing puts a fractional number of device pixels on every
+            // HP 48 dot, and nearest-neighbour then rounds each dot's two edges
+            // on its own account: at two and a half pixels to the dot, one stem
+            // of an H comes out two pixels wide and the other three. Gert,
+            // 2026sep04: "this looks like very poor rendering." The dots being
+            // small is not the complaint - the dots being DIFFERENT SIZES is.
+            //
+            // So enlarge in two steps instead of one. Draw the matrix into a
+            // layer at a whole number of pixels per dot - the smallest whole
+            // number that is still big enough - and let the final draw shrink
+            // that by the fraction left over. Step one is exact, so no dot is
+            // favoured over its neighbour; step two is never more than 2:1, so
+            // it only ever softens a dot's edge and never reaches its middle.
+            // Every stem then weighs the same, which is the thing the eye was
+            // objecting to.
+            //
+            // The GPU does both from the same 8.4 KB upload the item already
+            // sends: one extra pass the size of the glass, on frames that
+            // changed. Nothing here scales with the window.
+            readonly property int cols: root.engine.skin.lcdZoom > 0
+                ? Math.round(width  / root.engine.skin.lcdZoom) : 0
+            readonly property int rows: root.engine.skin.lcdZoom > 0
+                ? Math.round(height / root.engine.skin.lcdZoom) : 0
+            // The small tolerance keeps a scale that is already whole from
+            // being rounded up to the next one and then shrunk back by 6/7 for
+            // no reason: at exactly 6 device pixels to the dot this is 6, the
+            // second step is 1:1, and the result is what it is today.
+            readonly property int perDot: Math.max(1, Math.ceil(
+                root.engine.skin.lcdZoom * root.scaleFactor
+                    * Screen.devicePixelRatio - 0.02))
+            layer.enabled: cols > 0 && rows > 0
+            layer.smooth: true
+            layer.textureSize: Qt.size(cols * perDot, rows * perDot)
         }
 
         // A window that no longer holds its calculator goes on showing the last
