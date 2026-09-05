@@ -175,6 +175,10 @@ public:
     // somebody else's.
     Q_INVOKABLE bool    takeOverCalculator(const QString &name);
     Q_INVOKABLE QString newCalculator();
+    // Renaming goes through the engine, not straight to the state file
+    // manager, because the C core holds the folder's path from start()
+    // and has to be put down while the folder moves. See the definition.
+    Q_INVOKABLE bool    renameCalculator(const QString &name, const QString &to);
 
     Q_INVOKABLE bool hasStackObject() const;
     // The banner times out but lastError did not, so a failed import was still
@@ -245,7 +249,15 @@ signals:
     // style for these; lastError is red and stays up four times as long.
     void notice(const QString &text);
     void otherLetGo(const QString &instance);
-    void sleepUnanswered(const QString &instance, const QString &host);
+    // The ask ran out of time, and WHY it did decides what the dialog may
+    // offer. reason is one of:
+    //   "held"      they still hold the lock and have said nothing
+    //   "arriving"  they let go and their memory is still coming over
+    //   "letgo"     they let go, but nothing addressed to us arrived
+    // Emitted again, without raising the window a second time, whenever
+    // the reason changes - because it does, and used not to.
+    void sleepUnanswered(const QString &instance, const QString &host,
+                         const QString &reason);
     void beep(int frequencyHz, int durationMs);
     void keyFeedback(const QString &keyId); // QML plays haptics/sound off this
     void detachedChanged();
@@ -288,6 +300,9 @@ private:
     bool              m_waitTake = true;
     QDateTime         m_waitUntil;
     int               m_waitSeconds = 0;
+    // Empty until the countdown runs out; then whichever of held /
+    // arriving / letgo is true right now, re-tested on every poll.
+    QString           m_waitWhy;
     x48_frame_t       m_frame {};
     quint64           m_frameSerial = 0;
     int               m_annunciators = 0;

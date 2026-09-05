@@ -127,7 +127,10 @@ Window {
                 id: renameButton
                 text: qsTr("Rename")
                 onClicked: {
-                    if (root.engine.state.renameInstance(root.selected, nameField.text)) {
+                    // The engine, not state.renameInstance(): renaming the one
+                    // that is open has to put the C core down first, or it goes
+                    // on saving into the old name and the folder comes back.
+                    if (root.engine.renameCalculator(root.selected, nameField.text)) {
                         root.selected = nameField.text.trim()
                         root.refresh()
                     }

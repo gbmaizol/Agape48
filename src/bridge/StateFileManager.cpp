@@ -562,6 +562,28 @@ QString StateFileManager::createInstance()
         setError(tr("Could not make a new calculator."));
         return QString();
     }
+    // A new calculator starts as a copy of the one you are looking at. Gert,
+    // both-05 line 37: "It also would be great if the new calculator was always
+    // a clone of the calculator that's open when it's created."
+    //
+    // An empty folder makes the ROM build RAM from nothing, and that is the one
+    // path that still ends at "Try To Recover Memory?" with no key getting past
+    // it - the entry this report and the three before it all say to keep away
+    // from. A clone starts from a memory image that is known to work.
+    //
+    // The caller has already saved and put the core down, so these are the
+    // bytes the open calculator actually has. The lock and the contents record
+    // are deliberately left behind: one names a process that does not hold this
+    // folder, and the other describes files in a different one.
+    const QString from = instanceDir();
+    if (!from.isEmpty() && QDir(from).exists()) {
+        const QDir src(from), dst(base.filePath(name));
+        for (const char *leaf : { "ram", "hp48", "port1", "port2" }) {
+            const QString one = src.filePath(QLatin1String(leaf));
+            if (QFile::exists(one))
+                QFile::copy(one, dst.filePath(QLatin1String(leaf)));
+        }
+    }
     return openInstance(name) ? name : QString();
 }
 
@@ -578,9 +600,22 @@ bool StateFileManager::renameInstance(const QString &from, const QString &to)
         setError(tr("There is already a calculator called %1.").arg(clean));
         return false;
     }
+    // Let go of the folder before moving it. Windows will not move a directory
+    // that anything holds a handle on, and the file-system watcher holds one on
+    // this very folder - ReadDirectoryChangesW keeps the directory itself open,
+    // which is the whole point of watching it. MEASURED, 2026sep05: with the
+    // watch armed, base.rename() returns false every time and the calculator
+    // keeps its old name with no complaint the user can see. Linux does not
+    // care, which is why this only ever showed up here.
+    if (m_watch) {
+        const QStringList watched = m_watch->files() + m_watch->directories();
+        if (!watched.isEmpty())
+            m_watch->removePaths(watched);
+    }
     // Renaming the folder we are holding is fine - the lock file travels with
     // it and still names this process - but the remembered name has to follow.
     if (!base.rename(from, clean)) {
+        watchFiles();                   // nothing moved: watch what is still there
         setError(tr("Could not rename %1.").arg(from));
         return false;
     }
@@ -591,6 +626,7 @@ bool StateFileManager::renameInstance(const QString &from, const QString &to)
         QSettings().setValue(QLatin1String(kInstanceKey), m_instance);
         emit instanceChanged();
     }
+    watchFiles();                       // the folder it watches has a new name
     return true;
 }
 
@@ -765,17 +801,23 @@ bool StateFileManager::isHeldBySomebody(const QString &instance) const
 // in silence. It cannot carry our tag, because it was written before we asked.
 bool StateFileManager::handoverComplete(const QString &instance) const
 {
+    return handoverState(instance) == Complete;
+}
+
+StateFileManager::HandoverState
+StateFileManager::handoverState(const QString &instance) const
+{
     if (!m_expectAnswer || instance != m_askedFor)
-        return true;
+        return Complete;
     const QString dir = instancePath(instance);
     if (dir.isEmpty())
-        return true;
+        return Complete;
     const QDir d(dir);
     const Contents c = readContents(d.filePath(QLatin1String(kContentsName)));
     if (!c.present)
-        return false;                   // nothing has been written yet
+        return Nothing;                 // nothing has been written yet
     if (!contentsMatch(d, c))
-        return false;                   // half a delivery: the defect itself
+        return Arriving;                // half a delivery: the defect itself
     // And it has to have been written FOR US. Nothing else will do, and two
     // weaker rules were tried and thrown away before this one.
     //
@@ -799,7 +841,12 @@ bool StateFileManager::handoverComplete(const QString &instance) const
     // The tag is the only thing on disk that says "this is the save you asked
     // for", so the tag is the whole test - and a holder that quits instead of
     // answering costs the asker the full ninety seconds, deliberately.
-    return c.answers == instanceTag();
+    //
+    // The digest test above comes FIRST on purpose. A folder whose files do not
+    // match its own record is torn whoever wrote it, so Arriving outranks the
+    // tag: NotOurs means "readable, just not the save we asked for", and
+    // anything that is not readable must not be dressed up as merely untagged.
+    return c.answers == instanceTag() ? Complete : NotOurs;
 }
 
 // Does that folder already hold somebody's calculator? Pointing at a folder

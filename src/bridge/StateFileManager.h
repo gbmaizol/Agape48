@@ -141,6 +141,23 @@ public:
     // definition.
     Q_INVOKABLE bool handoverComplete(const QString &instance) const;
 
+    // The same question, answered with WHY rather than with no. One false hid
+    // three quite different situations, and the wait dialog reported the worst
+    // of them for all three - dogfood both-05 line 15, where the countdown ran
+    // out, the other machine let go eight seconds later, and the screen went on
+    // offering "Take it over" for a folder whose ram was still the one from
+    // before the handover.
+    //
+    //   Complete  nothing is owed, or the record is here, whole, and ours
+    //   Arriving  the record describes files that are NOT all here yet. Half a
+    //             delivery. Nothing may read this folder, by any route.
+    //   NotOurs   whole and readable, but written before we asked, or for
+    //             somebody else. Taking it costs their last few seconds.
+    //   Nothing   they let go and wrote no record at all
+    enum HandoverState { Complete, Arriving, NotOurs, Nothing };
+    Q_ENUM(HandoverState)
+    HandoverState handoverState(const QString &instance) const;
+
     // True if that folder already holds somebody's calculator. Pointing at one
     // that does means joining it, not copying over it.
     Q_INVOKABLE bool shelfHasCalculators(const QUrl &shelf) const;

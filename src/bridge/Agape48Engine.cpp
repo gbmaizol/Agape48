@@ -854,6 +854,7 @@ void Agape48Engine::askForCalculator(const QString &instance, bool takeWhenFree)
     m_waitTake  = takeWhenFree;
     m_waitUntil = QDateTime::currentDateTimeUtc().addSecs(kSleepWaitSecs);
     m_waitSeconds = kSleepWaitSecs;
+    m_waitWhy.clear();
     m_wait.start();
     emit waitSecondsChanged();
     emit waitingChanged();
@@ -861,6 +862,23 @@ void Agape48Engine::askForCalculator(const QString &instance, bool takeWhenFree)
 
 bool Agape48Engine::takeOverCalculator(const QString &name)
 {
+    // Never read a folder we can SEE is half delivered, whichever button was
+    // pressed to get here. Two of them offer this, and both-05 line 15 is what
+    // pressing one of them costs: Gert took a calculator whose contents record
+    // named a ram that had not arrived, and got the memory from before the
+    // handover instead of the one he had waited a minute and a half for.
+    //
+    // Only bites while a request of OURS is outstanding for this calculator -
+    // that is the one window in which a delivery is known to be in flight, and
+    // handoverState() says Complete outside it. So it can never wedge somebody
+    // out of a folder in the ordinary case, and "Stop waiting" is the way out
+    // of the extraordinary one.
+    const QString which = name.isEmpty() ? m_state->instance() : name;
+    if (m_state->handoverState(which) == StateFileManager::Arriving) {
+        setError(tr("%1's memory is still on its way. Taking it now would read "
+                    "half of it.").arg(which));
+        return false;
+    }
     // Never started: there is nothing to attach TO. claim(true) first, because
     // start()'s own claim does not take over, and then start reads the files.
     if (!m_ready)
@@ -878,6 +896,7 @@ void Agape48Engine::stopWaiting()
     m_state->withdrawSleepRequest(m_waitFor);
     m_waitFor.clear();
     m_waitSeconds = 0;
+    m_waitWhy.clear();
     emit waitSecondsChanged();
     emit waitingChanged();
 }
@@ -917,12 +936,15 @@ void Agape48Engine::pollForRelease()
     // deletion lands first and the folder is still half the previous
     // calculator. That is dogfood both-03 line 19, and the "External" object on
     // Gert's stack in line 8 is what reading it looked like.
-    if (!m_state->isHeldBySomebody(m_waitFor) && m_state->handoverComplete(m_waitFor)) {
+    const bool held = m_state->isHeldBySomebody(m_waitFor);
+    const StateFileManager::HandoverState arrival = m_state->handoverState(m_waitFor);
+    if (!held && arrival == StateFileManager::Complete) {
         const QString name = m_waitFor;
         m_wait.stop();
         m_state->withdrawSleepRequest(name);   // answered; the question can go
         m_waitFor.clear();
         m_waitSeconds = 0;
+        m_waitWhy.clear();
         emit waitSecondsChanged();
         emit waitingChanged();
         if (m_waitTake) {
@@ -953,16 +975,36 @@ void Agape48Engine::pollForRelease()
         emit otherLetGo(name);
         return;
     }
-    if (QDateTime::currentDateTimeUtc() >= m_waitUntil) {
-        const QString name = m_waitFor, host = m_waitHost;
-        m_wait.stop();
-        m_state->withdrawSleepRequest(name);
-        m_waitFor.clear();
-        m_waitSeconds = 0;
-        emit waitSecondsChanged();
-        emit waitingChanged();
-        emit sleepUnanswered(name, host);
-    }
+    if (QDateTime::currentDateTimeUtc() < m_waitUntil)
+        return;
+
+    // Past the deadline, and the wait does NOT end here. That it used to is the
+    // whole of both-05 line 15.
+    //
+    // MEASURED, from the two machines' own timestamps. The countdown ran out at
+    // 21:32:2x with the other machine still holding the lock, so "has not
+    // answered" was true when it was painted. At 21:33:59 that machine saved
+    // and let go, at 21:34:07 the release landed here - and the dialog said the
+    // same thing at 21:56, twenty-four minutes later, because nothing was left
+    // running to repaint it. "Take it over" was still the first button, for a
+    // folder whose ram was by then a whole session out of date.
+    //
+    // So the timer keeps going and the reason is re-tested every second. The
+    // request is not withdrawn either: we ARE still asking, and withdrawing it
+    // would also clear the expectation that lets handoverState() tell a
+    // half-delivered folder from a whole one. Both end together, in
+    // stopWaiting(), which is what every way out of the dialog calls.
+    //
+    // This does not introduce a wait with no end. The dialog was already up for
+    // ever with no end; it is merely alive now instead of dead.
+    const QString why = held ? QStringLiteral("held")
+                      : arrival == StateFileManager::Arriving
+                            ? QStringLiteral("arriving")
+                            : QStringLiteral("letgo");
+    if (why == m_waitWhy)
+        return;
+    m_waitWhy = why;
+    emit sleepUnanswered(m_waitFor, m_waitHost, why);
 }
 
 // Take the calculator back. Claim first, then read what is on disk - the whole
@@ -1020,6 +1062,42 @@ QString Agape48Engine::newCalculator()
         setError(m_state->lastError());
     start();
     return made;
+}
+
+// Renaming the calculator we have OPEN is not a folder operation, whatever it
+// looks like from the shelf.
+//
+// cfg.state_dir is filled once, by populate() inside start(), and the C core
+// keeps that path for the life of the session. Move the folder underneath it
+// and the next save - a lost focus, a quit, opening another calculator - writes
+// ram and hp48 back to the path the core was born with, MAKING THE FOLDER AGAIN
+// under its old name. Gert, both-05 line 37: "there were not two, but 3:
+// 'Windows Box', 'Linux Box' and 'Calculator 1' ... It seems the rename erased
+// the files from the folder upon renaming it, but not every time."
+//
+// Nothing was erased. The renamed folder held whatever was on disk at the
+// moment it moved, and the memory went on being saved beside it under the dead
+// name. "Not every time" is simply whether a save happened afterwards.
+//
+// So the core goes down before the folder moves and comes back up after, which
+// is what openCalculator() already does for the same reason. Renaming one we do
+// not have open never involved the core at all.
+bool Agape48Engine::renameCalculator(const QString &name, const QString &to)
+{
+    if (name != m_state->instance()) {
+        if (m_state->renameInstance(name, to))
+            return true;
+        setError(m_state->lastError());
+        return false;
+    }
+    const bool wasRunning = m_ready;
+    shutdownCore();                       // saves into the folder that is moving
+    const bool ok = m_state->renameInstance(name, to);
+    if (!ok)
+        setError(m_state->lastError());
+    if (wasRunning)
+        start();                          // reads from wherever it is now
+    return ok;
 }
 
 bool Agape48Engine::hasStackObject() const
