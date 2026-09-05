@@ -112,8 +112,17 @@ Window {
         modal: true
         title: qsTr("The state folder has not been applied")
         standardButtons: Dialog.Save | Dialog.Discard
+        // Explicit, not implicit. A Dialog with standardButtons sizes itself
+        // from the widest of its content, header and footer - and the footer is
+        // a DialogButtonBox whose own implicitWidth depends on the width it is
+        // handed, so the two chase each other and Qt logs "Binding loop
+        // detected for property implicitWidth" several times a second for as
+        // long as the dialog is open. Pinning the width breaks the cycle; the
+        // label wraps into whatever it is given. Bounded by the window so it
+        // cannot grow wider than the thing it belongs to.
+        width: Math.min(420, root.width - 40)
         Label {
-            width: 340
+            width: parent.width
             wrapMode: Text.WordWrap
             color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
             text: qsTr("Save moves the calculator's memory to %1. Discard leaves "
@@ -293,6 +302,20 @@ Window {
                         text = root.engine.state.displayName
                     root.warnUnsaved = false
                 }
+                // Losing the BOX, not the window. The window's onActiveChanged
+                // above is the same rule and it fires on Windows - both-05 line
+                // 32 is "Now it works. Pass." there - but never on Linux, where
+                // this window is a transient child of the calculator window and
+                // Qt goes on calling it active while the parent has the focus.
+                // Instrumented before believing it: over a whole session the
+                // handler fired twice and said active=true both times.
+                //
+                // The field is the better question anyway. "Click away" is
+                // something you do to a box, which is also how Gert put it, and
+                // it makes the two machines agree instead of one of them being
+                // right by accident. Both are kept: whichever notices first.
+                onActiveFocusChanged: if (!activeFocus && root.statePending)
+                                          root.warnUnsaved = true
             }
             Button {
                 id: browseButton

@@ -11,6 +11,24 @@
       1438
     ]
   },
+  "nameplate": {
+    "rect": [
+      204,
+      20,
+      445,
+      21
+    ],
+    "pixelSize": 17,
+    "bold": true,
+    "color": "#c6aa60",
+    "maxChars": 20,
+    "font": [
+      "DejaVu Sans Condensed",
+      "Liberation Sans Narrow",
+      "Arial Narrow",
+      "Helvetica Neue Condensed"
+    ]
+  },
   "lcd": {
     "rect": [
       34,

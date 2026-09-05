@@ -124,7 +124,10 @@ Window {
 
                 SizeRow {
                     label: qsTr("Messages over the calculator")
-                    note: qsTr("The red error strip and the blue notices. Press ⋮ → Save memory now to see one.")
+                    // Not "Save memory now": saving emits no notice, so that
+                    // sentence sent him looking for a banner that never comes.
+                    // These two do, and one of each colour.
+                    note: qsTr("The red error strip and the blue notices. ⋮ → Import file to stack… shows a blue one; a folder that does not exist, typed into State folder, shows a red one.")
                     value: TextSizes.banner
                     fallback: TextSizes.defaultBanner
                     onMoved: (v) => TextSizes.banner = v

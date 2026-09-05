@@ -167,6 +167,16 @@ bool SkinModel::loadJson(const QByteArray &data, const QUrl &base)
             { QStringLiteral("image"), img.isEmpty() ? QUrl() : base.resolved(QUrl(img)) },
         });
     }
+    // Optional: a skin with nothing to say here simply omits it, and the
+    // nameplate is not drawn. Passed through as it is written rather than
+    // unpacked into properties of its own - it is one block that belongs to one
+    // Text item, and every field of it is the skin's business, not ours.
+    const QJsonObject plate = root.value(QStringLiteral("nameplate")).toObject();
+    if (!plate.isEmpty()) {
+        m_nameplate = plate.toVariantMap();
+        m_nameplate.insert(QStringLiteral("rect"),
+                           rectFromJson(plate.value(QStringLiteral("rect"))));
+    }
     return true;
 }
 
@@ -179,6 +189,7 @@ void SkinModel::clear()
     m_lcdZoom = 2;
     m_keys.clear();
     m_annunciators.clear();
+    m_nameplate.clear();
 }
 
 void SkinModel::setError(const QString &what)

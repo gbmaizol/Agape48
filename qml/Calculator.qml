@@ -64,6 +64,56 @@ Item {
             cache: true
         }
 
+        // The open calculator's name, printed between the two words the skin
+        // has already printed on itself. Gert, both-05 line 37: "I'd like the
+        // first 20 letters of the name of the current calculator to be shown
+        // between the 'HEWLETT-PACKARD' and the '48GX' at the top, same font,
+        // center-aligned in the middle."
+        //
+        // Everything about it - where, how big, what colour, how many letters,
+        // which font - comes from the skin, because tools/makeface.py is what
+        // lettered the two words either side of it and is the only thing that
+        // knows what it did. A skin that omits the block gets no nameplate and
+        // no error. Inside `face`, so it scales with everything else.
+        //
+        // Deliberately NOT hidden while the calculator is asleep: a blank green
+        // screen is exactly when "which calculator is this window on" is worth
+        // being able to read.
+        Text {
+            readonly property var plate: root.engine.skin.nameplate
+            readonly property rect box: plate && plate.rect ? plate.rect
+                                                            : Qt.rect(0, 0, 0, 0)
+            x: box.x; y: box.y
+            width: box.width; height: box.height
+            visible: box.width > 0 && text.length > 0
+            text: (root.engine.state.instance || "")
+                      .slice(0, plate && plate.maxChars ? plate.maxChars : 20)
+            color: plate && plate.color ? plate.color : "#c6aa60"
+            // The skin names the face's font and then its nearest substitutes,
+            // because the face is lettered in DejaVu Sans Condensed and a stock
+            // Windows has none of it. QML's font value type only takes ONE
+            // family - `families` is a C++ QFont property and does not exist
+            // here - so the list is resolved against what is actually installed
+            // and the first hit wins. Empty means "whatever Qt would have
+            // chosen", which is the right answer when none of them is present.
+            readonly property string faceFont: {
+                const want = plate && plate.font ? plate.font : []
+                const have = Qt.fontFamilies()
+                for (let i = 0; i < want.length; ++i)
+                    if (have.indexOf(want[i]) >= 0)
+                        return want[i]
+                return ""
+            }
+            font.family: faceFont
+            font.bold: plate ? plate.bold === true : true
+            font.pixelSize: plate && plate.pixelSize ? plate.pixelSize : 17
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            // The band is 445 px and twenty capital Ws are 338, so this is a
+            // safety net for a narrower skin rather than something that fires.
+            elide: Text.ElideRight
+        }
+
         LcdItem {
             engine: root.engine
             x: root.engine.skin.lcdRect.x

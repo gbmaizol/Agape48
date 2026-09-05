@@ -21,6 +21,7 @@
 #include <QSize>
 #include <QUrl>
 #include <QVariantList>
+#include <QVariantMap>
 
 class SkinModel : public QObject
 {
@@ -40,6 +41,10 @@ class SkinModel : public QObject
     Q_PROPERTY(QColor  lcdBackground   READ lcdBackground   NOTIFY changed)
     Q_PROPERTY(QVariantList keys          READ keys          NOTIFY changed)
     Q_PROPERTY(QVariantList annunciators  READ annunciators  NOTIFY changed)
+    // Where the open calculator's name is written, between the two words this
+    // skin has printed on itself. Empty for a skin that does not want one, and
+    // Calculator.qml draws nothing in that case.
+    Q_PROPERTY(QVariantMap  nameplate     READ nameplate     NOTIFY changed)
     Q_PROPERTY(QString lastError       READ lastError       NOTIFY lastErrorChanged)
 
 public:
@@ -78,6 +83,7 @@ public:
     int lcdZoom() const { return m_lcdZoom; }
     QColor lcdPixelColor() const { return m_lcdPixelColor; }
     QColor lcdBackground() const { return m_lcdBackground; }
+    QVariantMap nameplate() const { return m_nameplate; }
     QVariantList keys() const { return m_keys; }
     QVariantList annunciators() const { return m_annunciators; }
     QString lastError() const { return m_lastError; }
@@ -108,5 +114,6 @@ private:
     QColor  m_lcdBackground { 0x9f, 0xbf, 0x7a };
     QVariantList m_keys;
     QVariantList m_annunciators;
+    QVariantMap  m_nameplate;
     QString m_lastError;
 };

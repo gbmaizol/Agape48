@@ -426,6 +426,29 @@ def main():
     d.text((FACE_W - EDGE - 34, TOP_MARGIN + 6), "48GX",
            font=f(FONT_B, C["font_brand_model"]), fill=BRAND, anchor="ra")
 
+    # The nameplate band, measured here and written into layout.json for QML to
+    # draw the open calculator's name into at run time. Gert, both-05 line 37:
+    # "I'd like the first 20 letters of the name of the current calculator to be
+    # shown between the 'HEWLETT-PACKARD' and the '48GX' at the top, same font,
+    # center-aligned in the middle."
+    #
+    # Not baked, because the name changes while the program runs. Not hardcoded
+    # in Calculator.qml either: every other number about this face comes from
+    # here, and a second skin would put its own nameplate somewhere else.
+    #
+    # Symmetric about the face's centre line, so "centred in the middle" is
+    # literally true rather than centred on whatever gap happens to be left, and
+    # so it cannot reach either printed word. 445 px at this size, which takes
+    # twenty capital Ws with room over.
+    plate_top = TOP_MARGIN + 8
+    plate_font = f(FONT_B, C["font_brand_maker"])
+    gap = 16
+    left = EDGE + 6 + d.textlength("HEWLETT·PACKARD", font=plate_font) + gap
+    right = (FACE_W - EDGE - 34
+             - d.textlength("48GX", font=f(FONT_B, C["font_brand_model"])) - gap)
+    half = min(FACE_W / 2 - left, right - FACE_W / 2)
+    ascent, descent = plate_font.getmetrics()
+
     # LCD bezel, glass and the annunciator strip above it. The bezel hugs the
     # glass rather than spanning the body: dogfood #3 showed a wide black frame
     # around a small screen, which is not what a 48GX looks like.
@@ -565,6 +588,22 @@ def main():
                   "nothing. \"cap\" is the drawn key, which is what the pressed "
                   "highlight covers."),
         "face": {"image": "face.png", "size": [FACE_W, FACE_H]},
+        # Drawn by QML, not by this script - see the band's own comment above.
+        # "font" is a list because the face is lettered in DejaVu Sans
+        # Condensed, which is not on a stock Windows; the alternatives are the
+        # nearest condensed grotesques that are, and Qt walks the list. Naming
+        # the family rather than shipping the file keeps 600 KB out of a binary
+        # whose size is a stated requirement.
+        "nameplate": {
+            "rect": [round(FACE_W / 2 - half), plate_top,
+                     round(2 * half), ascent + descent],
+            "pixelSize": C["font_brand_maker"],
+            "bold": True,
+            "color": "#%02x%02x%02x" % BRAND,
+            "maxChars": 20,
+            "font": ["DejaVu Sans Condensed", "Liberation Sans Narrow",
+                     "Arial Narrow", "Helvetica Neue Condensed"],
+        },
         "lcd": {"rect": [lcd_x, lcd_y, LCD_W, LCD_H], "zoom": LCD_ZOOM,
                 "pixelColor": LCD_PIXEL, "background": LCD_BG},
         "annunciators": anns,
