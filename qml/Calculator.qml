@@ -68,7 +68,8 @@ Item {
         // has already printed on itself. Gert, both-05 line 37: "I'd like the
         // first 20 letters of the name of the current calculator to be shown
         // between the 'HEWLETT-PACKARD' and the '48GX' at the top, same font,
-        // center-aligned in the middle."
+        // center-aligned in the middle." Then both-06 line 20, having seen it:
+        // "Looks great! Increate the limit to 30!"
         //
         // Everything about it - where, how big, what colour, how many letters,
         // which font - comes from the skin, because tools/makeface.py is what
@@ -87,7 +88,7 @@ Item {
             width: box.width; height: box.height
             visible: box.width > 0 && text.length > 0
             text: (root.engine.state.instance || "")
-                      .slice(0, plate && plate.maxChars ? plate.maxChars : 20)
+                      .slice(0, plate && plate.maxChars ? plate.maxChars : 30)
             color: plate && plate.color ? plate.color : "#c6aa60"
             // The skin names the face's font and then its nearest substitutes,
             // because the face is lettered in DejaVu Sans Condensed and a stock
@@ -109,8 +110,19 @@ Item {
             font.pixelSize: plate && plate.pixelSize ? plate.pixelSize : 17
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
-            // The band is 445 px and twenty capital Ws are 338, so this is a
-            // safety net for a narrower skin rather than something that fires.
+            // Thirty letters, and all thirty of them shown. The band is 445 px
+            // and thirty letters of a name anyone would type measure about 275,
+            // but thirty capital Ws measure 506 - and on Windows, where none of
+            // the condensed families exist and the fallback is wider, the
+            // margin is thinner still. Fit only ever SHRINKS, so an ordinary
+            // name is untouched at 17 and only a freakishly wide one gives up
+            // any size. Cutting letters he asked to see would be the wrong way
+            // round.
+            fontSizeMode: Text.HorizontalFit
+            minimumPixelSize: 12
+            // Below 12 px it would be unreadable anyway, so the last resort is
+            // still to cut. A skin with a narrower band than this one's is the
+            // only thing that reaches it.
             elide: Text.ElideRight
         }
 

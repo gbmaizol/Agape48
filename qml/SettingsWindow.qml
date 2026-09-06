@@ -121,13 +121,57 @@ Window {
         // label wraps into whatever it is given. Bounded by the window so it
         // cannot grow wider than the thing it belongs to.
         width: Math.min(420, root.width - 40)
-        Label {
+        // The path gets a box of its own, and the sentence stops running
+        // through it. A path is ONE WORD as far as Text is concerned - there is
+        // nothing in "/home/gert/Dropbox/Claude/Agape48Emulator/TestShelf" that
+        // WordWrap is allowed to break - so a deep one simply ran off the side
+        // of the dialog. Gert, both-06 line 26: "the folder name needs to be in
+        // a special container, because this time it was going outside the
+        // dialog instead of wrapping." WrapAnywhere is what breaks a word; the
+        // frame is what makes it read as a path rather than as prose.
+        Column {
             width: parent.width
-            wrapMode: Text.WordWrap
-            color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
-            text: qsTr("Save moves the calculator's memory to %1. Discard leaves "
-                       + "it where it is now.")
-                      .arg(stateField.text.trim())
+            spacing: 8
+
+            Label {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
+                text: qsTr("Save moves the calculator's memory to:")
+            }
+
+            Rectangle {
+                width: parent.width
+                // The label's own height, not the other way round, so nothing
+                // here can chase itself: its width comes from this rectangle,
+                // whose width comes from the dialog.
+                height: pathLabel.height + 12
+                color: "#141414"
+                border.color: "#3a3a3a"
+                radius: 3
+
+                Label {
+                    id: pathLabel
+                    x: 6; y: 6
+                    width: parent.width - 12
+                    wrapMode: Text.WrapAnywhere
+                    // Four lines is about 220 characters at this width, which
+                    // is longer than any path either machine can make. Past
+                    // that it is cut, because a dialog taller than the window
+                    // it belongs to would hide its own buttons.
+                    maximumLineCount: 4
+                    elide: Text.ElideRight
+                    color: "#8fc9ff"; font.pixelSize: TextSizes.dialogBody
+                    text: stateField.text.trim()
+                }
+            }
+
+            Label {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
+                text: qsTr("Discard leaves it where it is now.")
+            }
         }
         // A refused move leaves this window open with the red banner saying
         // why, rather than closing as though it had worked.

@@ -430,7 +430,8 @@ def main():
     # draw the open calculator's name into at run time. Gert, both-05 line 37:
     # "I'd like the first 20 letters of the name of the current calculator to be
     # shown between the 'HEWLETT-PACKARD' and the '48GX' at the top, same font,
-    # center-aligned in the middle."
+    # center-aligned in the middle." Twenty became thirty once he had seen it -
+    # both-06 line 20: "Looks great! Increate the limit to 30!"
     #
     # Not baked, because the name changes while the program runs. Not hardcoded
     # in Calculator.qml either: every other number about this face comes from
@@ -438,8 +439,10 @@ def main():
     #
     # Symmetric about the face's centre line, so "centred in the middle" is
     # literally true rather than centred on whatever gap happens to be left, and
-    # so it cannot reach either printed word. 445 px at this size, which takes
-    # twenty capital Ws with room over.
+    # so it cannot reach either printed word. 445 px at this size. Thirty
+    # letters of a name anyone would type measure about 275 of that; thirty
+    # capital Ws measure 506, so QML shrinks a name that wide to fit rather than
+    # eating letters it was told to show.
     plate_top = TOP_MARGIN + 8
     plate_font = f(FONT_B, C["font_brand_maker"])
     gap = 16
@@ -600,7 +603,7 @@ def main():
             "pixelSize": C["font_brand_maker"],
             "bold": True,
             "color": "#%02x%02x%02x" % BRAND,
-            "maxChars": 20,
+            "maxChars": 30,
             "font": ["DejaVu Sans Condensed", "Liberation Sans Narrow",
                      "Arial Narrow", "Helvetica Neue Condensed"],
         },

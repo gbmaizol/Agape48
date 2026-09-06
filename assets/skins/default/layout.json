@@ -21,7 +21,7 @@
     "pixelSize": 17,
     "bold": true,
     "color": "#c6aa60",
-    "maxChars": 20,
+    "maxChars": 30,
     "font": [
       "DejaVu Sans Condensed",
       "Liberation Sans Narrow",
