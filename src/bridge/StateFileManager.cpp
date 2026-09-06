@@ -1153,7 +1153,13 @@ bool StateFileManager::populateAndroidSaf(x48_config_t *cfg)
     // SafBridge.openFd() does buildDocumentUriUsingTree + createDocument if
     // missing + openFileDescriptor("rw") + ParcelFileDescriptor.detachFd(),
     // so the fd outlives the Java object and the C core can keep it.
-    int *slots[] = { &cfg->fd_ram, &cfg->fd_port1, &cfg->fd_port2, &cfg->fd_state };
+    // NOT called "slots". Qt defines `slots` as an empty macro unless
+    // QT_NO_KEYWORDS, so `int *slots[]` expands to `int *[]` and clang reads
+    // the brackets as an empty structured binding: "decomposition declaration
+    // cannot be declared with type 'int *'". This file only ever compiled on
+    // desktop, where the block is #ifdef'd out, so the first Android build was
+    // the first time anything read it.
+    int *fdSlots[] = { &cfg->fd_ram, &cfg->fd_port1, &cfg->fd_port2, &cfg->fd_state };
     for (int i = 0; i < 4; ++i) {
         const jint fd = QJniObject::callStaticMethod<jint>(
             kSafClass, "openFd",
@@ -1166,7 +1172,7 @@ bool StateFileManager::populateAndroidSaf(x48_config_t *cfg)
                          .arg(QLatin1String(kSafFiles[i])));
             return false;
         }
-        *slots[i] = int(fd);
+        *fdSlots[i] = int(fd);
     }
     return true;
 #else

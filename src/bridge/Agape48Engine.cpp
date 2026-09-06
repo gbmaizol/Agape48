@@ -441,6 +441,37 @@ bool Agape48Engine::start()
     cfg.fd_ram = cfg.fd_port1 = cfg.fd_port2 = cfg.fd_state = -1;
     cfg.throttle = true;
 
+    // A ROM chosen on Android does not arrive as a file. Android's document
+    // picker hands back a content:// document, which has no POSIX path at all:
+    // toLocalFile() is empty, and the C core has nothing to fopen(). Qt's own
+    // QFile does understand content://, so copy the bytes once into the state
+    // folder under the name x48 already looks for, and from the next line down
+    // this is the ordinary "a ROM sits beside the state" case that every
+    // platform takes. Costs 512 KB in the app's own folder and turns the one
+    // gesture an Android user has - pick a file from Downloads or Dropbox -
+    // into a ROM the emulator can start from.
+    if (!m_romSource.isEmpty() && !m_romSource.isLocalFile()
+        && m_state->location().isLocalFile()) {
+        const QString dest =
+            m_state->location().toLocalFile() + QLatin1String("/rom");
+        if (!QFileInfo::exists(dest)) {
+            QFile in(m_romSource.toString());
+            QFile out(dest);
+            if (!in.open(QIODevice::ReadOnly)
+                || !out.open(QIODevice::WriteOnly | QIODevice::Truncate)
+                || out.write(in.readAll()) <= 0) {
+                out.remove();
+                setError(tr("Could not copy the chosen ROM into %1.")
+                             .arg(m_state->location().toLocalFile()));
+                return false;
+            }
+        }
+        // Deliberately not through setRomSource(): what gets remembered should
+        // be the document the user picked, not a copy of it we made.
+        m_romSource = QUrl::fromLocalFile(dest);
+        emit romSourceChanged();
+    }
+
     const QByteArray romPath = m_romSource.toLocalFile().toUtf8();
     cfg.rom_path = romPath.constData();
 

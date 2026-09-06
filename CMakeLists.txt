@@ -176,6 +176,21 @@ if(ANDROID)
         QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/platform/android"
         QT_ANDROID_MIN_SDK_VERSION    26
         QT_ANDROID_TARGET_SDK_VERSION 35
+        # Compiled against 36, still TARGETING 35, and the two are different
+        # questions: compileSdk only says which APIs the code may name, while
+        # targetSdk is what opts the app in to a platform's new runtime
+        # behaviour. Qt 6.12's gradle template depends on androidx.core 1.17.0,
+        # which refuses to be compiled against anything below 36; nothing about
+        # this app wants Android 16's behaviour changes yet.
+        QT_ANDROID_COMPILE_SDK_VERSION 36
+        # dk.geeak.agape48, not org.qtproject.example.agape48: the Java in
+        # platform/android/src has always been in that package, and SafBridge is
+        # reached by that name from StateFileManager.cpp.
+        QT_ANDROID_PACKAGE_NAME       "dk.geeak.agape48"
+        # Without this the launcher shows a blank icon - measured on the first
+        # APK. The drawable is assets/icon.png, copied into the package source
+        # dir because res/ is what aapt reads.
+        QT_ANDROID_APP_ICON           "@drawable/icon"
         QT_ANDROID_VERSION_NAME       "${PROJECT_VERSION}"
         QT_ANDROID_VERSION_CODE       1
         QT_ANDROID_APP_NAME           "Agape48"

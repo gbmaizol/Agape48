@@ -1,0 +1,94 @@
+<?xml version="1.0"?>
+<!--
+  Qt's own template, with three deliberate differences. Compare against
+    <qt-android>/src/android/templates/AndroidManifest.xml
+  after a Qt bump.
+
+  1. NO "%%INSERT_PERMISSIONS" MARKER, and that is the whole point of this file
+     existing. androiddeployqt does not read the code to decide what an app may
+     do; it unions the permissions declared by every Qt module it deploys and
+     pastes them in at that marker. Qt Network is linked transitively by Qt
+     Quick, so a calculator that has never opened a socket was asking for
+     INTERNET, ACCESS_NETWORK_STATE, READ_EXTERNAL_STORAGE and
+     WRITE_EXTERNAL_STORAGE - measured on the first APK this project ever
+     built. Gert, 2026sep06: "Remember to request the required permissions for
+     the APK, but make them be requested to the system as they become required.
+     For example, only if the user desires to change to a folder outside the
+     sandbox to integrate Dropbox, and so on." With the marker gone the union is
+     pasted nowhere and the app ships asking for nothing at all.
+
+     Nothing is lost by it. The calculator's own memory lives in the app's
+     private folder, which needs no permission; a folder outside it is reached
+     through the Storage Access Framework, which grants per folder at the moment
+     the user picks one and is not a manifest permission either. The one thing
+     that would need a real permission is a legacy /sdcard path, which this app
+     deliberately does not use.
+
+     One permission does still appear in the built manifest, and it is not ours
+     to remove: androidx.core declares
+     "<applicationId>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION", a signature
+     permission scoped to this app that exists so its own broadcast receivers
+     are not exported. It grants nothing to the app, is never shown to the user
+     and never prompts. Deleting it with tools:node="remove" would only break
+     androidx's own receiver registration.
+
+  2. package, and a launcher icon. Qt's default is org.qtproject.example.<app>,
+     which would put this calculator in the same namespace as Qt's examples and
+     next to a blank icon in the launcher. The Java in src/ has always been
+     dk.geeak.agape48; this makes the package agree with it.
+
+  3. android:screenOrientation is left at "unspecified" on purpose - a 48GX in
+     landscape is a genuine question for the dogfood round rather than something
+     to decide here.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="dk.geeak.agape48"
+    android:installLocation="auto"
+    android:versionCode="-- %%INSERT_VERSION_CODE%% --"
+    android:versionName="-- %%INSERT_VERSION_NAME%% --">
+    <!-- %%INSERT_FEATURES -->
+    <supports-screens
+        android:anyDensity="true"
+        android:largeScreens="true"
+        android:normalScreens="true"
+        android:smallScreens="true" />
+    <application
+        android:name="org.qtproject.qt.android.bindings.QtApplication"
+        android:hardwareAccelerated="true"
+        android:label="-- %%INSERT_APP_NAME%% --"
+        android:icon="@drawable/icon"
+        android:enableOnBackInvokedCallback="true"
+        android:allowBackup="true"
+        android:fullBackupOnly="false">
+        <activity
+            android:name="org.qtproject.qt.android.bindings.QtActivity"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
+            android:label="-- %%INSERT_APP_NAME%% --"
+            android:launchMode="singleTop"
+            android:screenOrientation="unspecified"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="-- %%INSERT_APP_LIB_NAME%% --" />
+
+            <meta-data
+                android:name="android.app.arguments"
+                android:value="-- %%INSERT_APP_ARGUMENTS%% --" />
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.qtprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/qtprovider_paths"/>
+        </provider>
+    </application>
+</manifest>

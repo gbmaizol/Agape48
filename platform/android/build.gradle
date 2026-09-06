@@ -1,23 +1,103 @@
-// Qt fills the buildscript/repositories/dependencies blocks in from its own
-// template; only the size-relevant bits are set here.
-android {
-    compileSdk 35
-    defaultConfig {
-        minSdk 26
-        targetSdk 35
-        // One ABI. Multi-ABI multiplies the packaged .so payload; publish an
-        // App Bundle if you ever need more than arm64-v8a.
-        ndk { abiFilters 'arm64-v8a' }
+// Qt's own template, with two changes at the bottom. androiddeployqt copies
+// this file over its template rather than merging with it, so everything the
+// template does has to be here too - the buildscript block, the source sets and
+// the properties androiddeployqt writes into gradle.properties. Re-check it
+// against
+//   <qt-android>/src/android/templates/build.gradle
+// after a Qt bump; a template that has moved on and a copy that has not is how
+// this file broke the first Android build of the project.
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
     }
-    buildTypes {
-        release {
-            minifyEnabled true          // R8 on the Java side (SafBridge + Qt's loader)
-            shrinkResources true
-            proguardFiles 'proguard-rules.pro'
+
+    dependencies {
+        //noinspection AndroidGradlePluginVersion
+        classpath 'com.android.tools.build:gradle:9.2.1'
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+apply plugin: qtGradlePluginType
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
+    //noinspection GradleDependency
+    implementation 'androidx.core:core:1.17.0'
+}
+
+android {
+    // androidPackageName, androidCompileSdkVersion, androidBuildToolsVersion,
+    // androidNdkVersion, qtAndroidDir, qtGradlePluginType, qtMinSdkVersion,
+    // qtTargetSdkVersion and qtTargetAbiList all come from gradle.properties,
+    // which androiddeployqt writes from the CMake target properties. The ABI
+    // list is the one place the size rule shows up here: QT_ANDROID_ABIS is
+    // arm64-v8a alone in CMakeLists.txt, and this line is what carries it.
+    namespace = androidPackageName
+    compileSdkVersion androidCompileSdkVersion
+    buildToolsVersion androidBuildToolsVersion
+    ndkVersion = androidNdkVersion
+
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+            java.srcDirs = [qtAndroidDir + '/src', 'src', 'java']
+            kotlin.srcDirs = [qtAndroidDir + '/src', 'src', 'kotlin']
+            aidl.srcDirs = [qtAndroidDir + '/src', 'src', 'aidl']
+            res.srcDirs = [qtAndroidDir + '/res', 'res']
+            resources.srcDirs = ['resources']
+            renderscript.srcDirs = ['src']
+            assets.srcDirs = ['assets']
+            jniLibs.srcDirs = ['libs']
+       }
+    }
+
+    tasks.withType(JavaCompile) {
+        options.compilerArgs += ['-Xlint:all']
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    aaptOptions {
+        // Do not compress Qt binary resources file
+        noCompress 'rcc'
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = legacyPackaging.toBoolean()
         }
     }
-    packagingOptions {
-        // Qt ships these for the debug bridge; nothing needs them in release.
-        exclude 'lib/**/libQt6QmlDebug*.so'
+
+    defaultConfig {
+        minSdkVersion qtMinSdkVersion
+        targetSdkVersion qtTargetSdkVersion
+        ndk.abiFilters = qtTargetAbiList.split(",")
+    }
+
+    // --- the two changes ---------------------------------------------------
+    buildTypes {
+        release {
+            // OFF, deliberately, and this is the whole of the argument for it.
+            // R8 with proguard-rules.pro is worth well under a megabyte of Java
+            // on an APK whose weight is Qt's .so files, and it is the one knob
+            // here that can produce an APK which builds, installs and then dies
+            // on a class it renamed. Nothing on this laptop can run an arm64
+            // APK to find that out - there is no emulator image and the phone
+            // is not attached - so the first APK anyone sees is the one on
+            // Gert's device. Turn it on, with proguard-rules.pro, once a build
+            // has been proven there.
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles 'proguard-rules.pro'
+        }
     }
 }

@@ -98,7 +98,20 @@ if(AGAPE48_CORE_OPTIMIZE_FOR_SPEED AND NOT MSVC)
 endif()
 
 # x48 is decades-old C. Do not let its warnings drown ours.
+#
+# The last one is not a matter of taste: the Android NDK's clang adds
+# -Werror=format-security of its own accord, and rpl.c trips it six times with
+#
+#     sprintf(p, hp48_trans_tbl[c].trans);
+#
+# which is a table lookup where a literal is expected. Absorbed here rather than
+# in the vendored file, the same way Windows' two POSIX gaps are - see
+# VENDORING.md. It is latent rather than live: every "trans" string in
+# hp48char.h is an HP 48 character name and not one of them contains a percent
+# sign, so nothing today reaches the undefined behaviour. If one ever does, the
+# fix is "%s" at all six sites and not this line.
 if(NOT MSVC)
     target_compile_options(agape48_x48core PRIVATE
-        -Wno-unused-parameter -Wno-sign-compare -Wno-implicit-fallthrough)
+        -Wno-unused-parameter -Wno-sign-compare -Wno-implicit-fallthrough
+        -Wno-error=format-security)
 endif()
