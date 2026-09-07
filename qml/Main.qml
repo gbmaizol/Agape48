@@ -416,10 +416,28 @@ Window {
         // Clearing the engine's error too, not just hiding the strip: the
         // settings window shows lastError, so a failed import was still on
         // display there long after the banner had gone. Dogfood #15 line 20.
+        //
+        // But NOT WHEN THERE IS NO CALCULATOR. A message about something that
+        // went wrong while the machine is running has done its job after twelve
+        // seconds; a message saying why there is no machine at all is the only
+        // thing on screen that explains the state the program is in, and wiping
+        // it leaves a dead calculator and no reason anywhere.
+        //
+        // That is the whole of the "Windows says nothing, Linux says something"
+        // difference, and it was neither: same run, same window, the strip is
+        // there at six seconds and gone at twenty-two. Windows measured late and
+        // Linux measured early. Gert's own machine is in this state right now -
+        // its remembered shelf was deleted - so what it gives him is a complete
+        // calculator, a blank screen and, twelve seconds in, silence.
+        function forget() {
+            banner.opacity = 0
+            if (banner.isError && engine.running)
+                engine.clearError()
+        }
         Timer {
             id: hideTimer
             interval: 12000
-            onTriggered: { banner.opacity = 0; if (banner.isError) engine.clearError() }
+            onTriggered: banner.forget()
         }
         Text {
             id: text
@@ -430,7 +448,7 @@ Window {
         // reappears the next time Settings is opened.
         MouseArea {
             anchors.fill: parent
-            onClicked: { banner.opacity = 0; if (banner.isError) engine.clearError() }
+            onClicked: banner.forget()
         }
     }
 
