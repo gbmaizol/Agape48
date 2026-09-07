@@ -51,13 +51,16 @@ Window {
     // which is what the previous version of this file did.
     property bool geometryApplied: false
 
-    function applyDefaultGeometry() {
+    // force: show the window even though the skin never arrived. See showAnyway
+    // below - the ordinary calls pass nothing and wait, as they always have.
+    function applyDefaultGeometry(force) {
         if (geometryApplied)
             return
         // The skin decides the ratio and may still be loading, so wait for it
         // rather than sizing from the 480x900 fallback and never correcting.
         // SkinModel emits changed() when the face is in.
-        if (engine.skin.faceSize.width <= 0 || engine.skin.faceSize.height <= 0)
+        if (!force && (engine.skin.faceSize.width <= 0
+                       || engine.skin.faceSize.height <= 0))
             return
         geometryApplied = true
 
@@ -124,6 +127,42 @@ Window {
     Connections {
         target: engine.skin
         function onChanged() { root.applyDefaultGeometry() }
+        // A skin that fails LATER - someone loads their own and it is broken -
+        // says so on the calculator rather than only in the settings window.
+        function onLastErrorChanged() {
+            if (engine.skin.lastError !== "")
+                banner.show(engine.skin.lastError)
+        }
+    }
+
+    // A window that has never been shown cannot report why it has not been
+    // shown. Waiting for the skin was written as an early return, and the only
+    // retry is SkinModel's changed(), which it emits ONLY on success - so a
+    // skin that fails to load left this window invisible for the rest of the
+    // session: no calculator, no settings window, no message, and nothing in
+    // the log. That is a black screen that cannot be diagnosed from the outside,
+    // and it is what the first Android build came up as.
+    //
+    // So the wait now has an end. The skin loads in Agape48Engine's constructor,
+    // which is before any of this exists, so on a healthy start geometryApplied
+    // is already true when this fires and it does nothing at all. When it does
+    // fire, faceW/faceH fall back to 480x900 on their own, and the window
+    // arrives with the reason written across it.
+    Timer {
+        id: showAnyway
+        interval: 1500
+        running: true
+        onTriggered: {
+            if (root.geometryApplied)
+                return
+            console.warn("agape48: the skin never arrived, showing the window "
+                         + "at the fallback size.", engine.skin.lastError)
+            root.applyDefaultGeometry(true)
+            banner.show(engine.skin.lastError !== ""
+                        ? engine.skin.lastError
+                        : qsTr("The calculator's face did not load, so this "
+                               + "window is at its fallback size."))
+        }
     }
 
     Agape48Engine {
