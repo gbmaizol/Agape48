@@ -19,6 +19,7 @@
       21
     ],
     "pixelSize": 17,
+    "pixelSizePhone": 33,
     "bold": true,
     "color": "#c6aa60",
     "maxChars": 30,
@@ -26,7 +27,13 @@
       "DejaVu Sans Condensed",
       "Liberation Sans Narrow",
       "Arial Narrow",
-      "Helvetica Neue Condensed"
+      "Roboto Condensed",
+      "Roboto",
+      "Noto Sans",
+      "Segoe UI",
+      "DejaVu Sans",
+      "Liberation Sans",
+      "Arial"
     ]
   },
   "lcd": {

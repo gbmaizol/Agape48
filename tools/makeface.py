@@ -156,6 +156,10 @@ DEFAULTS = {
     "font_sub":          13,   # CANCEL under ON
     "font_brand_maker":  17,
     "font_brand_model":  22,
+    # The calculator's own name, drawn by QML rather than printed here. Gert,
+    # 2026sep07: "make the top center calculator name bigger, about 1.5x the
+    # size of the '48GX' text" - 22 x 1.5.
+    "font_brand_plate":  33,
 
     "colour_body":       [34, 34, 38],
     "colour_body_edge":  [62, 62, 70],
@@ -601,11 +605,26 @@ def main():
             "rect": [round(FACE_W / 2 - half), plate_top,
                      round(2 * half), ascent + descent],
             "pixelSize": C["font_brand_maker"],
+            # Phones only. The band's rect stays the printed row's size and the
+            # bigger text simply centres in it, so the desktop face is not
+            # touched - Gert, 2026sep07, after seeing it on both: "my request
+            # was only for Android", "the desktop version look perfect".
+            "pixelSizePhone": C["font_brand_plate"],
             "bold": True,
             "color": "#%02x%02x%02x" % BRAND,
             "maxChars": 30,
+            # Condensed first, because that is what the face is lettered in.
+            # The rest are ordinary grotesques that actually exist somewhere:
+            # the list used to run out on Android, where none of the condensed
+            # families is installed, and an empty family left Qt to choose - it
+            # picked something light and almost cursive, which Gert saw on the
+            # phone on 2026sep07: "use a more similar font to it. This slim,
+            # almost cursive won't cut." Roboto is Android's own, Segoe UI is
+            # Windows', DejaVu Sans and Liberation Sans are the Linux pair.
             "font": ["DejaVu Sans Condensed", "Liberation Sans Narrow",
-                     "Arial Narrow", "Helvetica Neue Condensed"],
+                     "Arial Narrow", "Roboto Condensed",
+                     "Roboto", "Noto Sans", "Segoe UI",
+                     "DejaVu Sans", "Liberation Sans", "Arial"],
         },
         "lcd": {"rect": [lcd_x, lcd_y, LCD_W, LCD_H], "zoom": LCD_ZOOM,
                 "pixelColor": LCD_PIXEL, "background": LCD_BG},

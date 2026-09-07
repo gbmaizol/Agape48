@@ -135,7 +135,22 @@ Item {
             }
             font.family: faceFont
             font.bold: plate ? plate.bold === true : true
-            font.pixelSize: plate && plate.pixelSize ? plate.pixelSize : 17
+            // Bigger on a phone, and only on a phone. The name is read at
+            // arm's length there, and the printed 17 px that suits a desktop
+            // face is too small for it. Gert, 2026sep07: "make the top center
+            // calculator name bigger, about 1.5x the size of the '48GX' text"
+            // - then, having seen it on both, "my request was only for
+            // Android" and "the desktop version look perfect". So the size is
+            // a second number in the skin rather than a change to the first,
+            // and the band's rect stays the printed row's: the taller text
+            // centres in it and reaches nothing, because the annunciator strip
+            // is 14 px below where it ends.
+            font.pixelSize: {
+                const phone = Qt.platform.os === "android"
+                if (phone && plate && plate.pixelSizePhone)
+                    return plate.pixelSizePhone
+                return plate && plate.pixelSize ? plate.pixelSize : 17
+            }
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             // Thirty letters, and all thirty of them shown. The band is 445 px
