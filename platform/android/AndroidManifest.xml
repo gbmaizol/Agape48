@@ -37,9 +37,13 @@
      next to a blank icon in the launcher. The Java in src/ has always been
      dk.geeak.agape48; this makes the package agree with it.
 
-  3. android:screenOrientation is left at "unspecified" on purpose - a 48GX in
-     landscape is a genuine question for the dogfood round rather than something
-     to decide here.
+  3. android:screenOrientation is "portrait", which is the dogfood round's
+     answer to the question this comment used to leave open. Gert, 2026sep07,
+     on the phone: "please keep the Agape48 from rotating when the phone turns
+     around. It looks too ugly." A 48GX is a portrait object - the face is 854
+     wide for 1438 tall - so landscape can only letterbox it or stretch it, and
+     the Android build already stretches to fill, which in landscape would make
+     the keys twice as wide as they are tall.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="dk.geeak.agape48"
@@ -65,7 +69,7 @@
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
             android:label="-- %%INSERT_APP_NAME%% --"
             android:launchMode="singleTop"
-            android:screenOrientation="unspecified"
+            android:screenOrientation="portrait"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
