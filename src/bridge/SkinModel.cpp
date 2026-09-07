@@ -177,6 +177,16 @@ bool SkinModel::loadJson(const QByteArray &data, const QUrl &base)
         m_nameplate.insert(QStringLiteral("rect"),
                            rectFromJson(plate.value(QStringLiteral("rect"))));
     }
+    // The same, for the "48GX" the generator PRINTED into the face: QML has no
+    // way of knowing where a word baked into a photograph landed, and on
+    // Android that word is the menu. Optional in the same way - a skin that
+    // omits it gets no underline and no error.
+    const QJsonObject badge = root.value(QStringLiteral("badge")).toObject();
+    if (!badge.isEmpty()) {
+        m_badge = badge.toVariantMap();
+        m_badge.insert(QStringLiteral("rect"),
+                       rectFromJson(badge.value(QStringLiteral("rect"))));
+    }
     return true;
 }
 
@@ -190,6 +200,7 @@ void SkinModel::clear()
     m_keys.clear();
     m_annunciators.clear();
     m_nameplate.clear();
+    m_badge.clear();
 }
 
 void SkinModel::setError(const QString &what)

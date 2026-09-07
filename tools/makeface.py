@@ -427,8 +427,18 @@ def main():
            font=f(FONT_B, C["font_brand_maker"]), fill=BRAND)
     # Left of the corner, not in it: the QML menu button lives in that corner
     # and was printing itself through the middle of "48GX".
-    d.text((FACE_W - EDGE - 34, TOP_MARGIN + 6), "48GX",
-           font=f(FONT_B, C["font_brand_model"]), fill=BRAND, anchor="ra")
+    #
+    # Where the ink lands is measured and written into layout.json, because on
+    # a phone this word IS the menu. Gert, 2026sep07: "in Android the '48GX' at
+    # the corner must be changed to look like a web link, and clicking there
+    # opens the menu. This is the most intuitive interface I can come up with."
+    # QML cannot know where a word printed here ended up, and the anchor is no
+    # help - "ra" is the text's right edge and ascender, neither of which is
+    # where the ink starts.
+    badge_at = (FACE_W - EDGE - 34, TOP_MARGIN + 6)
+    badge_font = f(FONT_B, C["font_brand_model"])
+    d.text(badge_at, "48GX", font=badge_font, fill=BRAND, anchor="ra")
+    badge_box = d.textbbox(badge_at, "48GX", font=badge_font, anchor="ra")
 
     # The nameplate band, measured here and written into layout.json for QML to
     # draw the open calculator's name into at run time. Gert, both-05 line 37:
@@ -625,6 +635,14 @@ def main():
                      "Arial Narrow", "Roboto Condensed",
                      "Roboto", "Noto Sans", "Segoe UI",
                      "DejaVu Sans", "Liberation Sans", "Arial"],
+        },
+        # The printed "48GX", as an ink box. Android underlines it in the same
+        # ink and takes taps over it; every other platform ignores it and keeps
+        # the corner button.
+        "badge": {
+            "rect": [badge_box[0], badge_box[1],
+                     badge_box[2] - badge_box[0], badge_box[3] - badge_box[1]],
+            "color": "#%02x%02x%02x" % BRAND,
         },
         "lcd": {"rect": [lcd_x, lcd_y, LCD_W, LCD_H], "zoom": LCD_ZOOM,
                 "pixelColor": LCD_PIXEL, "background": LCD_BG},

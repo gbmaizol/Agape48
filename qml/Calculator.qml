@@ -15,6 +15,7 @@ Item {
     signal customizeCancelled()
     signal unassignedKey(string label)
     signal bodyPressed()
+    signal menuRequested()
 
     // Main.qml's focus guard asks and answers through these two.
     function hasKeyboardFocus()  { return keypad.activeFocus }
@@ -315,6 +316,45 @@ Item {
             onCustomizeCancelled: root.customizeCancelled()
             onUnassignedKey: (label) => root.unassignedKey(label)
             onBodyPressed: root.bodyPressed()
+        }
+
+        // ANDROID'S WAY INTO THE MENU, and the only one there. Gert, 2026sep07,
+        // after the corner button turned out to be sitting under the status
+        // bar: "in Android the '48GX' at the corner must be changed to look
+        // like a web link, and clicking there opens the menu. This is the most
+        // intuitive interface I can come up with", then "just put a golden
+        // underline under the golden 48GX and it will look like a link
+        // allright."
+        //
+        // The word itself is printed into face.png, so all QML can do is
+        // underline it in the skin's own ink and take the taps. Where it is
+        // comes from the skin, because tools/makeface.py is the only thing that
+        // knows where it printed it - the same rule the nameplate follows.
+        //
+        // Last child of `face` on purpose: the keypad fills the face and would
+        // otherwise take the press first.
+        Item {
+            readonly property var badge: root.engine.skin.badge
+            readonly property rect box: badge && badge.rect ? badge.rect
+                                                            : Qt.rect(0, 0, 0, 0)
+            visible: Qt.platform.os === "android" && box.width > 0
+            // The target is bigger than the word: 16 face px on every side,
+            // which on this phone is about 48 device px across once the face is
+            // scaled to the screen. Still clear of the nameplate band, which
+            // ends 83 px to the left of the ink.
+            x: box.x - 16; y: box.y - 16
+            width: box.width + 32; height: box.height + 32
+
+            // Two px under the ink, in the ink's own colour. There are exactly
+            // four free rows there - the LCD bezel starts at y=44 and the ink
+            // ends at 39 - so this is measured, not chosen.
+            Rectangle {
+                x: 16; y: 16 + parent.box.height + 2
+                width: parent.box.width; height: 2
+                color: parent.badge && parent.badge.color ? parent.badge.color
+                                                          : "#c6aa60"
+            }
+            TapHandler { onTapped: root.menuRequested() }
         }
     }
 }

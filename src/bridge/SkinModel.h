@@ -45,6 +45,7 @@ class SkinModel : public QObject
     // skin has printed on itself. Empty for a skin that does not want one, and
     // Calculator.qml draws nothing in that case.
     Q_PROPERTY(QVariantMap  nameplate     READ nameplate     NOTIFY changed)
+    Q_PROPERTY(QVariantMap  badge         READ badge         NOTIFY changed)
     Q_PROPERTY(QString lastError       READ lastError       NOTIFY lastErrorChanged)
 
 public:
@@ -84,6 +85,7 @@ public:
     QColor lcdPixelColor() const { return m_lcdPixelColor; }
     QColor lcdBackground() const { return m_lcdBackground; }
     QVariantMap nameplate() const { return m_nameplate; }
+    QVariantMap badge() const { return m_badge; }
     QVariantList keys() const { return m_keys; }
     QVariantList annunciators() const { return m_annunciators; }
     QString lastError() const { return m_lastError; }
@@ -115,5 +117,6 @@ private:
     QVariantList m_keys;
     QVariantList m_annunciators;
     QVariantMap  m_nameplate;
+    QVariantMap  m_badge;
     QString m_lastError;
 };

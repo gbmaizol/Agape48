@@ -249,6 +249,8 @@ Window {
         onRemapRequested: (k) => rebind.openFor(k)
         onCustomizeCancelled: root.customizing = false
         onBodyPressed: engine.startSystemMove(root)
+        onMenuRequested: appMenu.popup(menuButton.x,
+                                       menuButton.y + menuButton.height)
         onUnassignedKey: (label) => banner.hint(
             qsTr("%1 is not assigned to any key. Ctrl+right-click a key to give it one.")
                 .arg(label))
@@ -378,13 +380,18 @@ Window {
     // 2026aug28 keeps Controls off the calculator face, and this sits on it.
     Rectangle {
         id: menuButton
+        // Not on Android, where the underlined "48GX" on the face is the way
+        // in - Gert's design, and one command in one place. The geometry still
+        // matters there: an invisible item still has a position, and it is
+        // where the menu pops up.
+        visible: Qt.platform.os !== "android"
         // Inset like the face is, and for the same reason. Measured on the
         // phone at e4ea219: the status bar is 162 px tall and this button was
-        // drawn from y=22 to y=100, entirely inside it - so every tap on it
-        // went to the system bar instead. With the right-click gesture gone
-        // this is the ONLY way into Settings, "Open another calculator", "Save
-        // memory now" and Quit, which made all of them unreachable on Android
-        // the moment a ROM was found and onRomRequired stopped firing.
+        // drawn from y=22 to y=100, entirely inside it, so every tap on it went
+        // to the system bar instead - which on Android, with the right-click
+        // gesture gone since 2026aug30, left no way at all into Settings, "Open
+        // another calculator", "Save memory now" or Quit once a ROM was found
+        // and onRomRequired stopped firing.
         anchors {
             top: parent.top; right: parent.right; margins: 8
             topMargin:   8 + safeArea.SafeArea.margins.top
