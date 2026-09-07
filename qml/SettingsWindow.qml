@@ -215,9 +215,30 @@ Window {
         focus: true
         Keys.onEscapePressed: (event) => { root.close(); event.accepted = true }
 
+    // The content scrolls; the buttons do not move. This window used to be one
+    // Column with the buttons as its last child, so anything that made the
+    // content taller pushed them off the bottom edge - and the red strip at the
+    // top is exactly that: four lines wide-screen, on a first run, in a window
+    // whose default is 520x430. It used to right itself after twelve seconds,
+    // when the error cleared itself; since the error stopped clearing while
+    // there is no calculator, a temporary annoyance became a window whose Close
+    // button could not be reached at all. Escape and the title bar still close
+    // it on a desktop. On the phone, where the window IS the screen and cannot
+    // be dragged taller, there would have been neither.
+    //
+    // Same shape as AdvancedWindow: a Flickable for the content and one Row
+    // pinned to the bottom, with the gap between them the height of that Row.
+    Flickable {
+        anchors { fill: parent; margins: 18; bottomMargin: 56 }
+        contentWidth: width
+        contentHeight: column.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar {}
+
     Column {
         id: column
-        anchors { fill: parent; margins: 18 }
+        width: parent.width
         spacing: 10
 
         // The reason this window opened, when it opened itself. Before dogfood
@@ -435,20 +456,21 @@ Window {
             elide: Text.ElideMiddle
         }
 
-        Item { width: 1; height: 4 }
+    }
+    }
 
-        Row {
-            spacing: 10
-            Button {
-                text: qsTr("Close")
-                onClicked: root.close()
-            }
-            // Its own window rather than a page in here, because half of what
-            // it tunes is drawn on the calculator and this window covers it.
-            Button {
-                text: qsTr("Advanced…")
-                onClicked: advanced.open()
-            }
+    Row {
+        anchors { left: parent.left; bottom: parent.bottom; margins: 18 }
+        spacing: 10
+        Button {
+            text: qsTr("Close")
+            onClicked: root.close()
+        }
+        // Its own window rather than a page in here, because half of what it
+        // tunes is drawn on the calculator and this window covers it.
+        Button {
+            text: qsTr("Advanced…")
+            onClicked: advanced.open()
         }
     }
 
