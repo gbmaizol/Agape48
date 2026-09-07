@@ -492,6 +492,21 @@ Window {
         height: root.height - safeArea.SafeArea.margins.top
                             - safeArea.SafeArea.margins.bottom
         onOpenedChanged: focusGuard.restart()
+        onAdvancedRequested: advancedPage.open()
+    }
+
+    // A page over the settings page rather than inside it: a sibling covering
+    // the same rectangle, so it hides the header underneath instead of starting
+    // below it. Opened after Settings and therefore on top of it, and closing it
+    // leaves Settings exactly where it was - which is what a phone's settings do
+    // and what Gert asked for.
+    AdvancedPage {
+        id: advancedPage
+        x: settingsPage.x
+        y: settingsPage.y
+        width: settingsPage.width
+        height: settingsPage.height
+        onOpenedChanged: focusGuard.restart()
     }
 
     // Error banner. Raw QtQuick: Quick Controls was allowed on 2026aug28, but
