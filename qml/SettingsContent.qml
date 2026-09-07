@@ -366,9 +366,18 @@ Item {
             color: unsaved ? "#ff8a80" : "#7d7d7d"
             font.pixelSize: TextSizes.dialogHint
             font.bold: unsaved
-            text: qsTr("Press Enter to move the calculator's memory there. Put it "
-                       + "inside a synced folder to carry the machine between "
-                       + "computers. You can also drop a folder on this window.")
+            // The last sentence is a desktop gesture: there is nothing on a
+            // phone to drag a folder FROM, and on a phone this is not a window.
+            // Gert's complaint about the resize switch was the same complaint -
+            // "there are functions that don't make sense in Android".
+            text: Qt.platform.os === "android"
+                      ? qsTr("Press Enter to move the calculator's memory there. "
+                             + "Put it inside a synced folder to carry the "
+                             + "machine between computers.")
+                      : qsTr("Press Enter to move the calculator's memory there. "
+                             + "Put it inside a synced folder to carry the "
+                             + "machine between computers. You can also drop a "
+                             + "folder on this window.")
         }
 
         Item { width: 1; height: 8; visible: liveResizeRow.visible }
@@ -439,13 +448,10 @@ Item {
         }
         // Its own window rather than a page in here, because half of what it
         // tunes is drawn on the calculator and this window covers it.
-        //
-        // Which is exactly why it is not offered on Android yet: it is still a
-        // Window, and a second Window there aborts the process. Hidden rather
-        // than left to crash, and it comes back the moment AdvancedWindow gets
-        // the shell treatment SettingsWindow just had.
+        // On a phone there is no beside, so it is a page over this one -
+        // Gert, 2026sep07: "the advanced wouldn't be a new window. It would be
+        // a new page inside settings, right?"
         Button {
-            visible: Qt.platform.os !== "android"
             text: qsTr("Advanced…")
             onClicked: root.advancedRequested()
         }

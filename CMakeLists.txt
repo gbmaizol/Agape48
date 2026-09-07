@@ -94,6 +94,9 @@ set(AGAPE48_QML_FILES
     qml/SettingsWindow.qml
     qml/SettingsContent.qml
     qml/SettingsPage.qml
+    qml/PageShell.qml
+    qml/AdvancedContent.qml
+    qml/AdvancedPage.qml
     qml/KeyBindingWindow.qml
     qml/CalculatorPickerWindow.qml
     qml/HandoverWindow.qml
