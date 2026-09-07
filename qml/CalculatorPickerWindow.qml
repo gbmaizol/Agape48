@@ -37,10 +37,16 @@ Window {
     title: qsTr("Calculators")
     flags: Qt.Dialog
     color: "#1b1b1b"
-    width: 460
-    height: 400
-    minimumWidth: 380
-    minimumHeight: 300
+    // Clamped to the screen; see SettingsWindow.qml for what a phone did to a
+    // dialog sized for a laptop.
+    readonly property real fitW: Screen.desktopAvailableWidth  > 0
+                                     ? Screen.desktopAvailableWidth  : 1e6
+    readonly property real fitH: Screen.desktopAvailableHeight > 0
+                                     ? Screen.desktopAvailableHeight : 1e6
+    width: Math.min(460, fitW)
+    height: Math.min(400, fitH)
+    minimumWidth: Math.min(380, fitW)
+    minimumHeight: Math.min(300, fitH)
 
     // A key handler rather than a Shortcut, for the reason in SettingsWindow:
     // a Shortcut in a secondary window goes on grabbing its sequence after the

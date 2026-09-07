@@ -103,10 +103,16 @@ Window {
     title: qsTr("Keyboard for %1").arg(keyLabel)
     flags: Qt.Dialog
     color: "#1b1b1b"
-    width: 440
-    height: 360
-    minimumWidth: 340
-    minimumHeight: 260
+    // Clamped to the screen; see SettingsWindow.qml for what a phone did to a
+    // dialog sized for a laptop.
+    readonly property real fitW: Screen.desktopAvailableWidth  > 0
+                                     ? Screen.desktopAvailableWidth  : 1e6
+    readonly property real fitH: Screen.desktopAvailableHeight > 0
+                                     ? Screen.desktopAvailableHeight : 1e6
+    width: Math.min(440, fitW)
+    height: Math.min(360, fitH)
+    minimumWidth: Math.min(340, fitW)
+    minimumHeight: Math.min(260, fitH)
 
     // Esc cancels a capture if one is running, otherwise closes the window.
     // A key handler rather than a Shortcut, for the reason in SettingsWindow.qml:

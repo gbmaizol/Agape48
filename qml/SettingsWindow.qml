@@ -87,10 +87,23 @@ Window {
     color: "#1b1b1b"
     // Set once, not bound: a binding on a window's size fights the user's own
     // drag and snaps it back, which is the trap Main.qml documents.
-    width: 520
-    height: 430
-    minimumWidth: 380
-    minimumHeight: 340
+    // Clamped to the screen, because a phone's screen can be smaller than a
+    // dialog written for a laptop. Measured on the phone at ef76dd2: the screen
+    // is 458 units wide and this window asked for 520, so it was centred on
+    // something wider than the display and clipped on BOTH edges - "P 48 ROM"
+    // for "HP 48 ROM", the browse buttons off the right. The minimums matter as
+    // much as the sizes: a minimumWidth wider than the screen would push it
+    // straight back out. The guard is for desktopAvailable* coming back 0
+    // before the window is mapped, which Main.qml documents; Math.min against 0
+    // would give a window with no size at all.
+    readonly property real fitW: Screen.desktopAvailableWidth  > 0
+                                     ? Screen.desktopAvailableWidth  : 1e6
+    readonly property real fitH: Screen.desktopAvailableHeight > 0
+                                     ? Screen.desktopAvailableHeight : 1e6
+    width: Math.min(520, fitW)
+    height: Math.min(430, fitH)
+    minimumWidth: Math.min(380, fitW)
+    minimumHeight: Math.min(340, fitH)
 
     // A path typed by a human is not a URL. Without this the state folder field
     // silently did nothing, because migrateTo() takes a QUrl and rejects

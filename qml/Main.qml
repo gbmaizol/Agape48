@@ -183,9 +183,28 @@ Window {
     // design item 10d is about.
     property bool customizing: false
 
+    // Nothing of its own; it exists to be asked where the system bars are. Qt
+    // reports the safe area as an attached property of an item, and an item
+    // whose own margins came from its own safe area would be describing a
+    // circle - so this one fills the window unconditionally and the calculator
+    // reads the answer off it.
+    Item {
+        id: safeArea
+        anchors.fill: parent
+    }
+
+    // Inset by the system bars on Android, and by nothing at all anywhere else,
+    // because the margins are zero there. Measured on the phone at ef76dd2: the
+    // status bar clock and the notification icons sat on top of the calculator's
+    // own HEWLETT-PACKARD line, because an app targeting SDK 35 draws edge to
+    // edge whether it planned to or not.
     Calculator {
         id: calculator
         anchors.fill: parent
+        anchors.topMargin: safeArea.SafeArea.margins.top
+        anchors.bottomMargin: safeArea.SafeArea.margins.bottom
+        anchors.leftMargin: safeArea.SafeArea.margins.left
+        anchors.rightMargin: safeArea.SafeArea.margins.right
         engine: engine
         customizing: root.customizing
         onRemapRequested: (k) => rebind.openFor(k)

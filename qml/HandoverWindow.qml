@@ -82,10 +82,16 @@ Window {
     title: qsTr("Calculator in use")
     flags: Qt.Dialog
     color: "#1b1b1b"
-    width: 560
-    height: 340
-    minimumWidth: 460
-    minimumHeight: 300
+    // Clamped to the screen; see SettingsWindow.qml for what a phone did to a
+    // dialog sized for a laptop.
+    readonly property real fitW: Screen.desktopAvailableWidth  > 0
+                                     ? Screen.desktopAvailableWidth  : 1e6
+    readonly property real fitH: Screen.desktopAvailableHeight > 0
+                                     ? Screen.desktopAvailableHeight : 1e6
+    width: Math.min(560, fitW)
+    height: Math.min(340, fitH)
+    minimumWidth: Math.min(460, fitW)
+    minimumHeight: Math.min(300, fitH)
 
     onVisibleChanged: if (!visible && root.engine.waitingForCalculator()) root.engine.stopWaiting()
 

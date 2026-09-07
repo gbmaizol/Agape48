@@ -236,6 +236,10 @@ private:
     // Which calculator on that shelf to open. Takes the folder explicitly
     // because joining one has to choose before m_location moves.
     void prepareInstances(const QUrl &where = QUrl());
+    // The shelf used when the user has not chosen one. A subfolder of the app's
+    // data folder on Android, where Qt's own config directory lives inside it;
+    // the data folder itself everywhere else. See the definition.
+    static QString defaultLocationPath();
     QString freeInstanceName() const;
     // The same question asked of a folder that is not ours yet, which is what
     // migrating onto somebody else's shelf needs.

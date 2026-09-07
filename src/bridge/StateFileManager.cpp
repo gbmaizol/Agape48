@@ -127,11 +127,33 @@ void StateFileManager::persistLocation()
 // Gert's Windows laptop is Azure-AD joined, which is what raised it. Only fresh
 // installs move: the location is written to QSettings on first run, so anything
 // already running keeps the folder it has.
+// A SUBFOLDER ON ANDROID, the data folder itself everywhere else.
+//
+// The shelf is a folder whose subdirectories are calculators, so it has to be a
+// folder nothing else writes into. On Android it was not: AppConfigLocation is
+// AppLocalDataLocation + "/settings" there, so the moment QSettings saved
+// anything it created a directory called "settings" inside the shelf and the
+// program adopted it as a calculator. Measured on the phone at ef76dd2 - the
+// nameplate read "settings", which is Qt's own config directory wearing the
+// name of a calculator.
+//
+// Desktop is unaffected: the config folder is in a different tree there, and
+// changing this on Windows or Linux would move everybody's calculators.
+QString StateFileManager::defaultLocationPath()
+{
+    const QString base =
+        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+#ifdef Q_OS_ANDROID
+    return base + QStringLiteral("/calculators");
+#else
+    return base;
+#endif
+}
+
 void StateFileManager::useDefaultLocation()
 {
     setError(QString());
-    const QString dir =
-        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    const QString dir = defaultLocationPath();
     QDir().mkpath(dir);
     setLocation(QUrl::fromLocalFile(dir));
     prepareInstances();
@@ -139,9 +161,8 @@ void StateFileManager::useDefaultLocation()
 
 bool StateFileManager::isDefault() const
 {
-    const QString def =
-        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
-    return m_location.isLocalFile() && m_location.toLocalFile() == def;
+    return m_location.isLocalFile()
+           && m_location.toLocalFile() == defaultLocationPath();
 }
 
 void StateFileManager::setLocation(const QUrl &url, bool mustClaim)
@@ -464,6 +485,23 @@ void StateFileManager::prepareInstances(const QUrl &where)
     }
 
     QStringList found = base.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+
+    // Somebody else's folder is not a calculator. This is the belt to the
+    // Android braces above: even when the shelf is the app's own data folder -
+    // which it still is for anyone who ran an earlier build, because the
+    // location was written to QSettings on their first run - the config
+    // directory must never be offered as a machine to work on. Hidden
+    // directories are already excluded by entryList, which is what keeps a
+    // synced folder's .dropbox.cache or .stfolder out.
+    const QString configDir = QDir(QStandardPaths::writableLocation(
+                                       QStandardPaths::AppConfigLocation))
+                                  .absolutePath();
+    if (!configDir.isEmpty()) {
+        found.removeIf([&](const QString &n) {
+            return QDir(base.filePath(n)).absolutePath() == configDir;
+        });
+    }
+
     if (found.isEmpty()) {
         const QString name = freeNameIn(base);
         if (!name.isEmpty() && base.mkdir(name))

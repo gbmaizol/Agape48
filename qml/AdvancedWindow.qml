@@ -28,10 +28,16 @@ Window {
     title: qsTr("Text sizes")
     flags: Qt.Dialog
     color: "#1b1b1b"
-    width: 460
-    height: 560
-    minimumWidth: 380
-    minimumHeight: 420
+    // Clamped to the screen; see SettingsWindow.qml for what a phone did to a
+    // dialog sized for a laptop.
+    readonly property real fitW: Screen.desktopAvailableWidth  > 0
+                                     ? Screen.desktopAvailableWidth  : 1e6
+    readonly property real fitH: Screen.desktopAvailableHeight > 0
+                                     ? Screen.desktopAvailableHeight : 1e6
+    width: Math.min(460, fitW)
+    height: Math.min(560, fitH)
+    minimumWidth: Math.min(380, fitW)
+    minimumHeight: Math.min(420, fitH)
 
     // One row: label, slider, and the figure he is going to tell us about.
     component SizeRow: Column {
