@@ -69,7 +69,32 @@ Window {
             // Keep the width and re-derive the height, or a face whose
             // proportions have changed since - they did when the annunciators
             // got their real size - sits letterboxed until the next resize.
-            setGeometry(geom.w, Math.round(geom.w / root.faceAspect))
+            //
+            // AND IT HAS TO FIT THE SCREEN IT IS BEING RESTORED ONTO, which is
+            // not the screen it was saved from. On Android that is not an edge
+            // case, it is every upgrade: the window is forced full screen, the
+            // aspect lock then derives a WIDTH from that height - 1018 * 0.594
+            // = 605 on Gert's phone - and 605 is remembered on a screen 458
+            // wide. The next run restored it and the face lost its whole
+            // right-hand column, NXT to DROP, off the edge. Measured on the
+            // upgrade install of 7e0624a; a fresh install has nothing saved and
+            // was correct.
+            //
+            // The same thing on a desktop is a laptop undocked from a wide
+            // monitor, which is why this is not written as an Android case.
+            // Width first, then height, and the aspect is kept through both so
+            // a window that has to lose height loses the width to match.
+            const maxW = Screen.desktopAvailableWidth  > 0 ? Screen.desktopAvailableWidth  : 1e6
+            const maxH = Screen.desktopAvailableHeight > 0 ? Screen.desktopAvailableHeight : 1e6
+            let w = Math.min(geom.w, maxW)
+            let h = Math.round(w / root.faceAspect)
+            if (h > maxH) {
+                h = maxH
+                w = Math.round(h * root.faceAspect)
+            }
+            console.info("agape48: saved", geom.w + "x" + geom.h,
+                         "screen", maxW + "x" + maxH, "-> window", w + "x" + h)
+            setGeometry(w, h)
             return
         }
         // 70% of the available height, never past the face's native size.
