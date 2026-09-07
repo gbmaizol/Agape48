@@ -158,6 +158,59 @@ const QHash<QString, QPair<int, int>> &keyTable()
     return table;
 }
 
+
+// --- documents that are not files -------------------------------------------
+//
+// Android's picker hands back a content:// DOCUMENT, not a file. It has no
+// POSIX path at all, so toLocalFile() is empty and the C core - which fopen()s
+// what it is given - has nothing to work with. Until tonight both directions
+// simply refused, and on a phone the picker is the only way to name a file, so
+// that refusal covered every file there was. Gert, on the phone: "when I try to
+// put a file on the stack it doesn't work, saying something that 'it can only
+// read a file in this computer'."
+//
+// Qt's own QFile does understand content://, so the bytes make the trip through
+// a scratch file in the app's cache and the core still only ever sees a real
+// path. start() already does exactly this for a picked ROM; this is that,
+// generalised and used in both directions.
+//
+// One scratch name, not a unique one: an import and an export cannot be in
+// flight at the same time, since both run from the same menu on the same
+// thread, and a fixed name means a crash leaves one stale file rather than a
+// growing pile.
+QString transferScratchPath()
+{
+    const QString dir =
+        QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    QDir().mkpath(dir);
+    return dir + QLatin1String("/agape48-transfer");
+}
+
+// Either end may be a content:// document or a plain path; QFile takes both.
+bool copyBytes(const QString &from, const QString &to)
+{
+    QFile in(from);
+    if (!in.open(QIODevice::ReadOnly))
+        return false;
+    QFile out(to);
+    // Truncate matters on the way OUT: the document Android just created is
+    // empty, but one the user picked to overwrite is not, and a shorter object
+    // written over a longer one would otherwise keep the old tail.
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        // Not every document provider honours "wt". "w" alone is worth one
+        // retry before telling the user it cannot be written.
+        if (!out.open(QIODevice::WriteOnly))
+            return false;
+    }
+    const QByteArray bytes = in.readAll();
+    if (out.write(bytes) != bytes.size())
+        return false;
+    // close() rather than trusting the destructor: a content:// write is only
+    // handed to the provider on close, and that is where it can still fail.
+    out.close();
+    return out.error() == QFileDevice::NoError;
+}
+
 } // namespace
 
 Agape48Engine::Agape48Engine(QObject *parent)
@@ -226,7 +279,7 @@ Agape48Engine::Agape48Engine(QObject *parent)
         m_detached = true;
         stop();
         emit detachedChanged();
-        setError(tr("This calculator was taken over by another window. "
+        setError(tr("This calculator was taken over somewhere else. "
                     "Press ON to take it back."));
     });
 
@@ -345,6 +398,34 @@ Agape48Engine::Agape48Engine(QObject *parent)
         saveState();                    // while it is still ours to save
         m_state->release();
     });
+
+#ifdef Q_OS_ANDROID
+    // THE PLATFORM'S OWN SIGNAL, because the window's is never delivered here.
+    // On a desktop the save is hung on Window.onActiveChanged -> suspend(), and
+    // that is enough: a window always loses focus before it goes away. Android
+    // does not work like that. The back gesture finishes the Activity and the
+    // process is gone; aboutToQuit does not run, the QML Window never reports
+    // itself inactive, and everything since the last explicit save is lost.
+    //
+    // MEASURED on Gert's phone, 2026sep07: cold-boot a new calculator, answer
+    // the recovery prompt, leave with the back gesture, come back - and it asks
+    // "Try To Recover Memory?" all over again, because ram and hp48 on disk
+    // were still the ones written when the calculator was last switched by
+    // hand, twenty minutes earlier.
+    //
+    // applicationStateChanged is what Qt raises from the Activity's own
+    // onPause/onStop, which Android guarantees before it may kill the process.
+    // Inactive rather than Suspended: Suspended is not reached on every device,
+    // and this is the point at which the machine must already be on disk.
+    connect(qApp, &QGuiApplication::applicationStateChanged, this,
+            [this](Qt::ApplicationState state) {
+                if (state == Qt::ApplicationInactive
+                    || state == Qt::ApplicationSuspended)
+                    suspend();
+                else if (state == Qt::ApplicationActive)
+                    resumeFromBackground();
+            });
+#endif
 }
 
 Agape48Engine::~Agape48Engine()
@@ -483,6 +564,14 @@ bool Agape48Engine::start()
         return false;
     }
 
+    // BORN, NOT PUT DOWN. A calculator whose state file does not exist yet has
+    // never been saved by anybody, so the first frame it draws is the ROM
+    // booting - not a record of how it was left. tick() needs that difference;
+    // see the m_freshLoad branch there for what reading it wrong costs.
+    m_bornEmpty = !stateDirUtf8.isEmpty()
+               && !QFileInfo::exists(QString::fromUtf8(stateDirUtf8)
+                                     + QLatin1String("/hp48"));
+
     if (!x48_init(&cfg)) {
         setError(QString::fromUtf8(x48_last_error()));
         return false;
@@ -492,6 +581,18 @@ bool Agape48Engine::start()
     // Whatever the next frame shows is the calculator as it was saved, not as
     // anybody just left it. Spent by the first frame in tick().
     m_freshLoad = true;
+
+    // A NEW CALCULATOR MUST NOT WEAR THE OLD ONE'S SCREEN. A machine with
+    // nothing saved boots into SHUTDN and stays there until ON, and a parked
+    // machine produces no frames at all - so the LCD went on showing whatever
+    // was last drawn. Measured on the phone: "New calculator" opened Calculator
+    // 2 with Calculator 1's stack still on the glass, name and all. Blank it
+    // here, where we already know there is nothing to draw.
+    if (m_bornEmpty) {
+        m_frame = {};
+        ++m_frameSerial;
+        emit frameReady();
+    }
     setError(QString());
     emit readyChanged();
     m_tick.start();
@@ -585,7 +686,20 @@ void Agape48Engine::tick()
             m_freshLoad = false;
             m_sawFirstFrame = true;
             m_displayOff = off;
-            if (off) {
+            // A NEW CALCULATOR IS NOT A CALCULATOR SOMEBODY SWITCHED OFF.
+            // Its first frame is blank because the ROM has not lit the display
+            // yet, which on a cold boot takes longer than the first slice - and
+            // reading that as "found off" detached the machine, released the
+            // lock, and left the keyboard dead to everything except ON, which
+            // then tried to reload a state file that had never been written.
+            // A brand-new calculator could not be started at all: measured on
+            // Gert's phone, 2026sep07, a fresh install sat on a blank green
+            // screen through every key and two restarts, at zero CPU.
+            //
+            // Linux was winning the same race rather than avoiding it - by the
+            // time it took its first frame the ROM had already switched the
+            // display on. Nothing about the desktop made it safe.
+            if (off && !m_bornEmpty) {
                 // Found switched off, and nobody asked us to wake it: hold no
                 // lock on a calculator we are not using. wakeAcquired() is what
                 // clears m_freshLoad ahead of us when somebody DID ask.
@@ -1147,15 +1261,24 @@ bool Agape48Engine::importFile(const QUrl &url)
         setError(tr("The calculator is not running."));
         return false;
     }
-    const QString path = url.toLocalFile();
+    QString path = url.toLocalFile();
+    QString scratch;
     if (path.isEmpty()) {
-        setError(tr("Agape48 can only read a file on this computer."));
-        return false;
+        scratch = transferScratchPath();
+        if (!copyBytes(url.toString(), scratch)) {
+            QFile::remove(scratch);
+            setError(tr("Could not read that file."));
+            return false;
+        }
+        path = scratch;
     }
     // Safe to reach into the Saturn's memory from here: emulation runs on this
     // thread from a timer, so a menu handler is always between two slices and
     // never inside one.
-    if (!x48_import_file(path.toUtf8().constData())) {
+    const bool imported = x48_import_file(path.toUtf8().constData());
+    if (!scratch.isEmpty())
+        QFile::remove(scratch);
+    if (!imported) {
         setError(QString::fromUtf8(x48_last_error()));
         return false;
     }
@@ -1175,14 +1298,29 @@ bool Agape48Engine::exportFile(const QUrl &url)
         setError(tr("The calculator is not running."));
         return false;
     }
-    const QString path = url.toLocalFile();
+    QString path = url.toLocalFile();
+    QString scratch;
     if (path.isEmpty()) {
-        setError(tr("Agape48 can only write a file on this computer."));
-        return false;
+        scratch = transferScratchPath();
+        path = scratch;
     }
     if (!x48_export_file(path.toUtf8().constData())) {
+        if (!scratch.isEmpty())
+            QFile::remove(scratch);
         setError(QString::fromUtf8(x48_last_error()));
         return false;
+    }
+    if (!scratch.isEmpty()) {
+        // The document already EXISTS by now - Android creates it when the user
+        // names it, before we are asked to write anything - so failing here
+        // leaves a real, empty file behind with the user's chosen name on it.
+        // Measured on Gert's phone before the fix: "test123.hpp, 0 B".
+        const bool copied = copyBytes(scratch, url.toString());
+        QFile::remove(scratch);
+        if (!copied) {
+            setError(tr("Could not write to that file."));
+            return false;
+        }
     }
     setError(QString());
     return true;

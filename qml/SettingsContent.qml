@@ -268,7 +268,7 @@ Item {
                 id: homeButton
                 width: 48
                 ToolTip.visible: hovered
-                ToolTip.text: qsTr("Back to this computer's own app storage")
+                ToolTip.text: qsTr("Back to this device's own app storage")
                 onClicked: root.engine.state.useDefaultLocation()
 
                 // Drawn rather than set as "⌂": that glyph is a thin outline
@@ -373,11 +373,11 @@ Item {
             text: Qt.platform.os === "android"
                       ? qsTr("Press Enter to move the calculator's memory there. "
                              + "Put it inside a synced folder to carry the "
-                             + "machine between computers.")
+                             + "machine between your devices.")
                       : qsTr("Press Enter to move the calculator's memory there. "
                              + "Put it inside a synced folder to carry the "
-                             + "machine between computers. You can also drop a "
-                             + "folder on this window.")
+                             + "machine between your devices. You can also drop "
+                             + "a folder on this window.")
         }
 
         Item { width: 1; height: 8; visible: liveResizeRow.visible }

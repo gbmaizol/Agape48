@@ -41,7 +41,7 @@ Agape48/
 │   ├── ann_*.png               the six annunciators, also generated
 │   └── layout.json             schema "agape48.skin/1", 49 keys - also generated
 └── platform/android/
-    ├── src/dk/geeak/agape48/SafBridge.java
+    ├── src/br/gbmaizol/agape48/SafBridge.java
     ├── build.gradle            one ABI, R8 on
     └── proguard-rules.pro
 ```

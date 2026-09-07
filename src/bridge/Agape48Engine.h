@@ -319,6 +319,10 @@ private:
     // calculator as it was SAVED, so it must never be read as the user having
     // just switched the machine off - see tick().
     bool              m_freshLoad = false;
+    // Set by start() when the calculator has never been saved. A machine with
+    // no state file on disk was not "left" anywhere, so its first frame says
+    // nothing about how anybody put it down - see tick().
+    bool              m_bornEmpty = false;
     // Who asked for this calculator, held from the moment the request arrives
     // until the machine has actually switched itself off and been handed over.
     // Empty at every other time, so it doubles as "a hand-over is in progress".

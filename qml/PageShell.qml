@@ -60,10 +60,23 @@ Popup {
     // Android's back gesture arrives as a key press, and the manifest opts in to
     // the modern callback. Escape is handled inside each page's contents, where
     // it cannot leak out to the calculator - see SettingsContent.qml.
-    Keys.onPressed: (event) => {
-        if (event.key === Qt.Key_Back) {
-            root.backRequested()
-            event.accepted = true
+    //
+    // ON AN ITEM, NOT ON THE POPUP. A Popup is not an Item, so `Keys` never
+    // attached to it: every page printed "Could not attach Keys property to:
+    // PageShell ... is not an Item" at startup and the handler below was dead
+    // code from the day it was written. Three of them on the phone, one per
+    // page. This catcher is a plain Item with the focus, drawn under everything
+    // and hit-testing nothing, so it changes what the page looks like not at
+    // all and finally gives the back gesture somewhere to land.
+    Item {
+        id: backCatcher
+        anchors.fill: parent
+        focus: true
+        Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_Back) {
+                root.backRequested()
+                event.accepted = true
+            }
         }
     }
 

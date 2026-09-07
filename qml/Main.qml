@@ -209,7 +209,8 @@ Window {
         onRomRequired: settings.open()
         // ON could not take the calculator back. Who has it, and what can be
         // done about it, rather than a dead window and no reason.
-        onAttachRefused: (h) => handover.showFor(h)
+        onAttachRefused: (h) => root.offerHandover(h && h.calculator ? h.calculator
+                                                                        : engine.state.instance, h)
         onBeep: (hz, ms) => feedback.beep(hz, ms)
         onKeyFeedback: (keyId) => feedback.tap()
         onLastErrorChanged: if (lastError) banner.show(lastError)
@@ -342,6 +343,16 @@ Window {
         MenuItem { text: qsTr("Settings…");       onTriggered: settings.open() }
         MenuItem {
             text: qsTr("Customize keyboard…")
+            // Not on a phone. Everything behind it is about a HARDWARE keyboard
+            // - which key on it presses which key on the calculator - and the
+            // window it opens says "Press the key you want. Esc cancels." A
+            // phone has neither the keys nor the Esc, and the window is still a
+            // Window, so tapping this there took the process down rather than
+            // showing anything. Hidden is the honest state: nothing is removed,
+            // and this line is all there is to change if a tablet with a
+            // keyboard ever wants it back.
+            height: visible ? implicitHeight : 0
+            visible: Qt.platform.os !== "android"
             onTriggered: root.customizing = true
         }
         MenuItem { text: qsTr("Save memory now"); onTriggered: engine.saveState() }
@@ -437,7 +448,16 @@ Window {
         id: exportPicker
         title: qsTr("Save the object on level 1 as")
         fileMode: FileDialog.SaveFile
-        nameFilters: [qsTr("All files (*)"), qsTr("HP 48 objects (*.hp)")]
+        // Android derives the document's MIME type from these filters and then
+        // appends that type's own extension to whatever name is typed, so
+        // "ALG48-from-phone" was saved as "ALG48-from-phone.hpp" - a C++ header
+        // suffix on an HP 48 object. Measured on the phone, 2026sep07. One
+        // filter that matches everything leaves the name alone; the desktops
+        // keep the pair, where the second one is a useful filter rather than a
+        // renaming rule.
+        nameFilters: Qt.platform.os === "android"
+                         ? [qsTr("All files (*)")]
+                         : [qsTr("All files (*)"), qsTr("HP 48 objects (*.hp)")]
         onAccepted: if (engine.exportFile(selectedFile))
                         banner.hint(qsTr("Level 1 saved to %1").arg(engine.urlToPath(selectedFile)))
     }
@@ -450,11 +470,45 @@ Window {
         onChangeFolder: settings.open()
     }
 
+    // "Somebody else has this calculator" is still a Window, so on a phone
+    // SHOWING it would take the process down - the same abort Settings had.
+    // It is the last one left, and the least reachable: it needs a calculator
+    // held by another instance, which cannot happen on a phone until the state
+    // folder can live in a synced folder. Until it gets the same split as
+    // Settings and the shelf, a phone gets the sentence rather than the crash.
+    function offerHandover(name, holder) {
+        if (Qt.platform.os === "android") {
+            banner.show(qsTr("%1 is in use by %2. Put it to sleep there, and open it here afterwards.")
+                        .arg(name)
+                        .arg(holder && holder.host ? holder.host : qsTr("another device")))
+            return
+        }
+        handover.showFor(holder, name)
+    }
+
+    // ONE SHELF, TWO SHELLS. The same split as Settings, for the same reason,
+    // and the shelf is the one that most needed it: it is the only way to reach
+    // a calculator that came from another machine, so on a phone the crash took
+    // out the whole point of a synced state folder.
+    readonly property var picker: Qt.platform.os === "android" ? pickerPage
+                                                               : pickerWindow
+
     CalculatorPickerWindow {
-        id: picker
+        id: pickerWindow
         engine: engine
         transientParent: root
-        onBusyCalculator: (name, holder) => handover.showFor(holder, name)
+        onBusyCalculator: (name, holder) => root.offerHandover(name, holder)
+    }
+
+    CalculatorPickerPage {
+        id: pickerPage
+        engine: engine
+        x: root.pageX
+        y: root.pageY
+        width: root.pageW
+        height: root.pageH
+        onOpenedChanged: focusGuard.restart()
+        onBusyCalculator: (name, holder) => root.offerHandover(name, holder)
     }
 
     // ONE SET OF SETTINGS, TWO SHELLS. The contents live in SettingsContent.qml
@@ -479,18 +533,26 @@ Window {
         onOpenedChanged: focusGuard.restart()
     }
 
+    // THE SCREEN INSIDE THE SYSTEM BARS, named once. A page IS the screen, so
+    // it takes the whole of it rather than a size chosen for a laptop and then
+    // clamped - which is what the window has to do. Every page reads these four
+    // rather than copying another page's geometry: the shelf did that first and
+    // came up with its header drawn across the clock, because a Popup's x and y
+    // are not simply the numbers you assigned to it.
+    readonly property real pageX: safeArea.SafeArea.margins.left
+    readonly property real pageY: safeArea.SafeArea.margins.top
+    readonly property real pageW: root.width  - safeArea.SafeArea.margins.left
+                                              - safeArea.SafeArea.margins.right
+    readonly property real pageH: root.height - safeArea.SafeArea.margins.top
+                                              - safeArea.SafeArea.margins.bottom
+
     SettingsPage {
         id: settingsPage
         engine: engine
-        // Inside the system bars, like the face. A page IS the screen, so this
-        // is the whole of it rather than a size chosen for a laptop and then
-        // clamped - which is what the window had to do here.
-        x: safeArea.SafeArea.margins.left
-        y: safeArea.SafeArea.margins.top
-        width:  root.width  - safeArea.SafeArea.margins.left
-                            - safeArea.SafeArea.margins.right
-        height: root.height - safeArea.SafeArea.margins.top
-                            - safeArea.SafeArea.margins.bottom
+        x: root.pageX
+        y: root.pageY
+        width: root.pageW
+        height: root.pageH
         onOpenedChanged: focusGuard.restart()
         onAdvancedRequested: advancedPage.open()
     }
@@ -502,10 +564,10 @@ Window {
     // and what Gert asked for.
     AdvancedPage {
         id: advancedPage
-        x: settingsPage.x
-        y: settingsPage.y
-        width: settingsPage.width
-        height: settingsPage.height
+        x: root.pageX
+        y: root.pageY
+        width: root.pageW
+        height: root.pageH
         onOpenedChanged: focusGuard.restart()
     }
 

@@ -1,4 +1,4 @@
-package dk.geeak.agape48;
+package br.gbmaizol.agape48;
 
 import android.app.Activity;
 import android.content.ContentResolver;

@@ -20,6 +20,17 @@ Item {
 
     signal closeRequested()
 
+    // The same dialog describes two shapes. On a desktop Settings is a window
+    // and the menu is the ⋮ in the calculator's corner; on a phone Settings is
+    // a page and the menu is the underlined "48GX" on the nameplate, because
+    // the ⋮ was buried under the status bar and went. Naming the wrong one is
+    // worse than saying nothing - it sends him hunting for a button that is not
+    // there, which is what "it mentioned an outdated menu" was about.
+    readonly property bool onPhone: Qt.platform.os === "android"
+    readonly property string shellWord: onPhone ? qsTr("Page") : qsTr("Window")
+    readonly property string shellHere: onPhone ? qsTr("page")  : qsTr("window")
+    readonly property string menuWord:  onPhone ? "48GX" : "\u22ee"
+
     // One row: label, slider, and the figure he is going to tell us about.
     component SizeRow: Column {
         id: rowRoot
@@ -114,7 +125,7 @@ Item {
                     // Not "Save memory now": saving emits no notice, so that
                     // sentence sent him looking for a banner that never comes.
                     // These two do, and one of each colour.
-                    note: qsTr("The red error strip and the blue notices. ⋮ → Import file to stack… shows a blue one; a folder that does not exist, typed into State folder, shows a red one.")
+                    note: qsTr("The red error strip and the blue notices. %1 → Import file to stack… shows a blue one; a folder that does not exist, typed into State folder, shows a red one.").arg(root.menuWord)
                     value: TextSizes.banner
                     fallback: TextSizes.defaultBanner
                     onMoved: (v) => TextSizes.banner = v
@@ -122,22 +133,22 @@ Item {
 
                 SizeRow {
                     label: qsTr("Message on the screen")
-                    note: qsTr("\"The chosen memory is in use by another device.\", shown on a blank screen when the other machine has the calculator. It shrinks on its own if it will not fit the screen, so raising this past a certain point stops making a difference.")
+                    note: qsTr("\"The chosen memory is in use by another device.\", shown on a blank screen when another device has the calculator. It shrinks on its own if it will not fit the screen, so raising this past a certain point stops making a difference.")
                     value: TextSizes.screenMessage
                     fallback: TextSizes.defaultScreenMessage
                     onMoved: (v) => TextSizes.screenMessage = v
                 }
 
                 SizeRow {
-                    label: qsTr("Window headings")
-                    note: qsTr("The bold line at the top of this window, Settings, and the calculator shelf.")
+                    label: qsTr("%1 headings").arg(root.shellWord)
+                    note: qsTr("The bold line at the top of this %1, Settings, and the calculator shelf.").arg(root.shellHere)
                     value: TextSizes.dialogTitle
                     fallback: TextSizes.defaultDialogTitle
                     onMoved: (v) => TextSizes.dialogTitle = v
                 }
 
                 SizeRow {
-                    label: qsTr("Window text")
+                    label: qsTr("%1 text").arg(root.shellWord)
                     note: qsTr("Ordinary text in Settings, the shelf, and the in-use dialog.")
                     value: TextSizes.dialogBody
                     fallback: TextSizes.defaultDialogBody
@@ -170,7 +181,7 @@ Item {
                     wrapMode: Text.WordWrap
                     color: "#e8a55a"
                     font.pixelSize: TextSizes.dialogHint
-                    text: qsTr("The key labels and the coloured legends above them are not text while the program is running — they are drawn into the calculator's picture when the program is built, which is why they stay sharp at any window size. Nothing here can move them. Tell me a number and I will rebuild the picture and send you a new copy to look at.")
+                    text: qsTr("The key labels and the coloured legends above them are not text while the program is running — they are drawn into the calculator's picture when the program is built, which is why they stay sharp at any size. Nothing here can move them. Tell me a number and I will rebuild the picture and send you a new copy to look at.")
                 }
                 Grid {
                     width: parent.width

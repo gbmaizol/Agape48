@@ -79,7 +79,7 @@ constexpr auto kSleepName = "sleep-request";
 constexpr int kSleepStaleMinutes = 10;
 
 #ifdef Q_OS_ANDROID
-constexpr auto kSafClass = "dk/geeak/agape48/SafBridge";
+constexpr auto kSafClass = "br/gbmaizol/agape48/SafBridge";
 #endif
 } // namespace
 
@@ -591,7 +591,7 @@ bool StateFileManager::openInstance(const QString &name, bool takeOver)
 QString StateFileManager::createInstance()
 {
     if (!m_location.isLocalFile()) {
-        setError(tr("A new calculator needs a state folder on this computer."));
+        setError(tr("A new calculator needs a state folder on this device."));
         return QString();
     }
     QDir base(m_location.toLocalFile());
@@ -683,7 +683,7 @@ bool StateFileManager::claim(bool takeOver)
     const LockInfo in = readLock(path);
 
     if (!takeOver && busyAt(instanceDir())) {
-        setError(tr("%1 is already open in another Agape48 window. Close it, "
+        setError(tr("%1 is already open in another Agape48. Close it there, "
                     "or open a different calculator.").arg(m_instance));
         return false;
     }
@@ -1339,8 +1339,8 @@ bool StateFileManager::migrateTo(const QUrl &destination)
     // that can hurt anybody. A calculator being open is not a reason to refuse
     // to JOIN a shelf; it is the reason the sleep dialog exists.
     if (isBusy(destination)) {
-        setError(tr("A calculator in that folder is open in another Agape48 "
-                    "window. Close it, or choose a different state folder."));
+        setError(tr("A calculator in that folder is open in another Agape48. "
+                    "Close it there, or choose a different state folder."));
         return false;
     }
 

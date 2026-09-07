@@ -34,8 +34,15 @@
 
   2. package, and a launcher icon. Qt's default is org.qtproject.example.<app>,
      which would put this calculator in the same namespace as Qt's examples and
-     next to a blank icon in the launcher. The Java in src/ has always been
-     dk.geeak.agape48; this makes the package agree with it.
+     next to a blank icon in the launcher. It is br.gbmaizol.agape48 since
+     2026sep07, on Gert's instruction: "Why dk.geeag? Please make a note to
+     change it to something more related to me, like br.gbmaizol.agape48." The
+     old prefix was invented in the first commit and defended by a comment that
+     argued in a circle - the Java was in that package because the same commit
+     had put it there. A reverse-DNS prefix names the publisher, and this one
+     names him. Renaming is a NEW APP IDENTITY: the build installs beside the
+     old one instead of over it, and nothing carries across, which is why it was
+     done on the night the old install was being deleted anyway.
 
   3. android:screenOrientation is "portrait", which is the dogfood round's
      answer to the question this comment used to leave open. Gert, 2026sep07,
@@ -46,7 +53,7 @@
      the keys twice as wide as they are tall.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="dk.geeak.agape48"
+    package="br.gbmaizol.agape48"
     android:installLocation="auto"
     android:versionCode="-- %%INSERT_VERSION_CODE%% --"
     android:versionName="-- %%INSERT_VERSION_NAME%% --">

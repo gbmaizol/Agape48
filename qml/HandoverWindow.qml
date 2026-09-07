@@ -116,7 +116,7 @@ Window {
                 color: "#d0d0d0"; font.pixelSize: TextSizes.dialogBody
                 text: {
                     if (root.phase === "waiting")
-                        return qsTr("Asked %1 to put it to sleep. Waiting for it to save and let go — %2 seconds. On one machine that takes about a second; across a synced folder it takes as long as the sync does, and a machine that is switched off or offline never answers at all.")
+                        return qsTr("Asked %1 to put it to sleep. Waiting for it to save and let go — %2 seconds. On one device that takes about a second; across a synced folder it takes as long as the sync does, and a machine that is switched off or offline never answers at all.")
                                .arg(root.who).arg(root.engine.waitSeconds)
                     if (root.phase === "unanswered" && root.reason === "arriving")
                         return qsTr("%1 has let go, and its memory is on its way — but not all of it is here yet. Waiting for the rest. There is no deadline on this one: the files are coming, and reading them half-arrived is the one thing that would lose work.")
@@ -130,9 +130,9 @@ Window {
                     if (root.holder.host === undefined)
                         return qsTr("Something else is holding it. Send a sleep command and take it over?")
                     if (root.holder.sameMachine && root.holder.alive)
-                        return qsTr("Another Agape48 window on this computer has it open. Send it a sleep command and take it over?")
+                        return qsTr("Another Agape48 on this device has it open. Send it a sleep command and take it over?")
                     if (root.holder.sameMachine)
-                        return qsTr("A window on this computer left it open and is no longer running. Take it over?")
+                        return qsTr("Another Agape48 on this device left it open and is no longer running. Take it over?")
                     return qsTr("It is open on %1, last heard from %2 minutes ago. Send a sleep command to the other one and take it over?")
                            .arg(root.who).arg(root.quiet)
                 }
@@ -147,7 +147,7 @@ Window {
                 color: root.phase === "unanswered" || root.probablyGone ? "#e8a55a" : "#7d7d7d"
                 font.pixelSize: TextSizes.dialogHint
                 text: root.phase === "unanswered"
-                      ? qsTr("Taking it over now does not ask and does not wait. If that machine really is still using it, it loses whatever it has done since its last save, and whichever quits last wins.")
+                      ? qsTr("Taking it over now does not ask and does not wait. If that device really is still using it, it loses whatever it has done since its last save, and whichever quits last wins.")
                       : qsTr("Asking is the safe one: it saves over there before it lets go, so you get everything they did.")
             }
 

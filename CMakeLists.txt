@@ -99,6 +99,8 @@ set(AGAPE48_QML_FILES
     qml/AdvancedPage.qml
     qml/KeyBindingWindow.qml
     qml/CalculatorPickerWindow.qml
+    qml/CalculatorPickerContent.qml
+    qml/CalculatorPickerPage.qml
     qml/HandoverWindow.qml
     qml/AdvancedWindow.qml
     qml/Agape48Keymap.qml
@@ -188,10 +190,12 @@ if(ANDROID)
         # which refuses to be compiled against anything below 36; nothing about
         # this app wants Android 16's behaviour changes yet.
         QT_ANDROID_COMPILE_SDK_VERSION 36
-        # dk.geeak.agape48, not org.qtproject.example.agape48: the Java in
-        # platform/android/src has always been in that package, and SafBridge is
-        # reached by that name from StateFileManager.cpp.
-        QT_ANDROID_PACKAGE_NAME       "dk.geeak.agape48"
+        # br.gbmaizol.agape48 since 2026sep07, on Gert's instruction. The
+        # Java in platform/android/src moved with it, and so did kSafClass in
+        # StateFileManager.cpp - which is a JNI class-name STRING, so a rename
+        # that misses it compiles, links, ships, and fails only when the folder
+        # picker is opened.
+        QT_ANDROID_PACKAGE_NAME       "br.gbmaizol.agape48"
         # Without this the launcher shows a blank icon - measured on the first
         # APK. The drawable is assets/icon.png, copied into the package source
         # dir because res/ is what aapt reads.
