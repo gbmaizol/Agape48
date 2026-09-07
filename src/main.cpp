@@ -13,6 +13,31 @@
 #include <stdlib.h>
 #endif
 
+// Q_DECL_EXPORT on Android, and this is the whole of why the first four APKs
+// came up as a black screen with nothing in the log.
+//
+// qt_add_executable builds a SHARED LIBRARY on Android, not an executable, and
+// QtActivity starts it with dlsym(handle, "main"). We build everything with
+// -fvisibility=hidden - cmake/Agape48Size.cmake:58, for a smaller dynsym and
+// better LTO and ICF - so the one symbol Android has to find was the one we had
+// told the linker to hide. Measured in the shipped library: 487 entries in
+// .dynsym and "main" not among them, and on the phone:
+//
+//   D/nativeloader: Load .../libagape48_arm64-v8a.so : ok
+//   E/default     : dlsym failed: undefined symbol: main
+//   E/default     : Could not find main method
+//
+// Everything loaded and then nothing ran - no QGuiApplication, no QML, and
+// therefore none of the diagnostics we had added for a black screen, which is
+// why it was silent as well as black.
+//
+// Q_DECL_EXPORT is __attribute__((visibility("default"))) here, so this one
+// symbol is exempted and every other symbol keeps the size win. Not extern "C":
+// main already has an unmangled name and the standard forbids giving it
+// linkage of its own.
+#ifdef Q_OS_ANDROID
+Q_DECL_EXPORT
+#endif
 int main(int argc, char *argv[])
 {
 #ifdef Q_OS_WIN
