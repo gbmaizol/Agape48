@@ -92,6 +92,8 @@ set(AGAPE48_QML_FILES
     qml/Calculator.qml
     qml/Keypad.qml
     qml/SettingsWindow.qml
+    qml/SettingsContent.qml
+    qml/SettingsPage.qml
     qml/KeyBindingWindow.qml
     qml/CalculatorPickerWindow.qml
     qml/HandoverWindow.qml

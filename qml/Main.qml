@@ -457,9 +457,40 @@ Window {
         onBusyCalculator: (name, holder) => handover.showFor(holder, name)
     }
 
+    // ONE SET OF SETTINGS, TWO SHELLS. The contents live in SettingsContent.qml
+    // and know nothing about either; what changes is what is drawn around them.
+    //
+    // Android has no second window - asking for one aborts the process, 10 times
+    // out of 10 on Gert's phone - so there it is a full-screen in-scene page. The
+    // desktops keep the window they have, unchanged, because a window is right
+    // there and Gert has said so more than once.
+    //
+    // Both are DECLARED on both platforms and only one is ever opened. Creating a
+    // Window costs nothing until it is shown - the surface, and therefore the
+    // abort, comes with show() - and this way `settings` is one name that
+    // answers open() and opened() everywhere, instead of a Loader whose item has
+    // to be null-checked at four call sites.
+    readonly property var settings: Qt.platform.os === "android" ? settingsPage
+                                                                 : settingsWindow
+
     SettingsWindow {
-        id: settings
+        id: settingsWindow
         engine: engine
+        onOpenedChanged: focusGuard.restart()
+    }
+
+    SettingsPage {
+        id: settingsPage
+        engine: engine
+        // Inside the system bars, like the face. A page IS the screen, so this
+        // is the whole of it rather than a size chosen for a laptop and then
+        // clamped - which is what the window had to do here.
+        x: safeArea.SafeArea.margins.left
+        y: safeArea.SafeArea.margins.top
+        width:  root.width  - safeArea.SafeArea.margins.left
+                            - safeArea.SafeArea.margins.right
+        height: root.height - safeArea.SafeArea.margins.top
+                            - safeArea.SafeArea.margins.bottom
         onOpenedChanged: focusGuard.restart()
     }
 
