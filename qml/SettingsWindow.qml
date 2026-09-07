@@ -420,14 +420,21 @@ Window {
                        + "computers. You can also drop a folder on this window.")
         }
 
-        Item { width: 1; height: 8 }
+        Item { width: 1; height: 8; visible: liveResizeRow.visible }
 
         // Off by default. A resize drag draws an outline and the window changes
         // shape once, when the mouse is released; ticked, the window follows the
         // pointer the whole way. Both are kept because the second is what most
         // programs do, and the first is what stops the face jumping about on a
         // fast drag - dogfood windows-02.
+        //
+        // Not on a phone, where there is no window to drag the edge of: Android
+        // imposes the size, which is why 31be0c8 turned the aspect lock off
+        // there. Gert, 2026sep07: "there are functions that don't make sense in
+        // Android, like the resize option in the settings dialog."
         Row {
+            id: liveResizeRow
+            visible: Qt.platform.os !== "android"
             spacing: 6
             Switch {
                 id: liveResizeSwitch

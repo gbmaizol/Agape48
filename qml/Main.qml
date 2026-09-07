@@ -262,7 +262,10 @@ Window {
 
     // The mode has to say it is on and how to leave, or it is a trap.
     Rectangle {
-        anchors { left: parent.left; right: parent.right; top: parent.top }
+        anchors {
+            left: parent.left; right: parent.right; top: parent.top
+            topMargin: safeArea.SafeArea.margins.top
+        }
         height: modeText.implicitHeight + 18
         visible: root.customizing
         color: "#1f3a5f"
@@ -375,7 +378,18 @@ Window {
     // 2026aug28 keeps Controls off the calculator face, and this sits on it.
     Rectangle {
         id: menuButton
-        anchors { top: parent.top; right: parent.right; margins: 8 }
+        // Inset like the face is, and for the same reason. Measured on the
+        // phone at e4ea219: the status bar is 162 px tall and this button was
+        // drawn from y=22 to y=100, entirely inside it - so every tap on it
+        // went to the system bar instead. With the right-click gesture gone
+        // this is the ONLY way into Settings, "Open another calculator", "Save
+        // memory now" and Quit, which made all of them unreachable on Android
+        // the moment a ROM was found and onRomRequired stopped firing.
+        anchors {
+            top: parent.top; right: parent.right; margins: 8
+            topMargin:   8 + safeArea.SafeArea.margins.top
+            rightMargin: 8 + safeArea.SafeArea.margins.right
+        }
         width: 28; height: 28; radius: 14
         color: menuMouse.containsMouse ? "#ffffff" : "#000000"
         opacity: menuMouse.containsMouse ? 0.22 : 0.28
