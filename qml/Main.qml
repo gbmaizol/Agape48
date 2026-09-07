@@ -135,8 +135,22 @@ Window {
     property bool fixingAspect: false
 
 
+    // NOT ON ANDROID, and this is what was clipping the face there. The lock
+    // answers a size change by deriving the other dimension - which is right
+    // when a window manager is negotiating and wrong when the platform has
+    // simply imposed a full-screen surface. Android forces the height to the
+    // screen, the lock derives 1018 * 0.594 = 605 for the width, and 605 on a
+    // 458-wide display puts the whole right-hand key column past the edge:
+    // measured by Windows on the phone, twice, including after the restore path
+    // was clamped - the clamp set 458x771 and the lock put 605 back.
+    //
+    // There is nothing for it to protect there either. The face is drawn inside
+    // a single transform in Calculator.qml, so it fits whatever it is given
+    // without the window having to be its shape.
+    readonly property bool lockAspect: Qt.platform.os !== "android"
+
     function keepAspect(drivenByWidth) {
-        if (fixingAspect || !visible || faceAspect <= 0)
+        if (!lockAspect || fixingAspect || !visible || faceAspect <= 0)
             return
         fixingAspect = true
         if (drivenByWidth) height = Math.round(width / faceAspect)

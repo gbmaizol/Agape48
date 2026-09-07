@@ -26,6 +26,27 @@ Item {
             ? Math.min(width / faceSize.width, height / faceSize.height)
             : 1
 
+    // ANDROID FILLS THE SCREEN, the desktops keep the face's proportions. Gert,
+    // 2026sep07: "I prefer that only for Android it does the same as Droid48
+    // does. Keep the desktop versions as they are."
+    //
+    // The face is 854x1438, which is 0.594 wide for its height; his phone is
+    // 0.450. Fitted by the smaller of the two ratios - which is what every
+    // other platform does - the calculator ends at 75% of the screen's height
+    // and the rest is background. Droid48 stretches instead, and that is now
+    // what happens here: the two axes get their own scale, so the keypad
+    // reaches the bottom of the phone and the LCD's dots come out 32% taller
+    // than they are wide on this particular screen.
+    //
+    // One transform for the whole face, so every key, annunciator and hit area
+    // follows it without knowing about any of this - the same property the
+    // uniform version relied on.
+    readonly property bool fillScreen: Qt.platform.os === "android"
+    readonly property real scaleX:
+        faceSize.width > 0 ? (fillScreen ? width / faceSize.width : scaleFactor) : 1
+    readonly property real scaleY:
+        faceSize.height > 0 ? (fillScreen ? height / faceSize.height : scaleFactor) : 1
+
     // The LCD's vertical centre in THIS item's coordinates, so anything that has
     // to sit over the calculator's screen can be put there without knowing how
     // the face is scaled. Exposed rather than anchored to because QML anchors
@@ -35,15 +56,22 @@ Item {
     readonly property real lcdCenterY:
         face.y + face.height / 2
         + (engine.skin.lcdRect.y + engine.skin.lcdRect.height / 2
-           - face.height / 2) * scaleFactor
+           - face.height / 2) * scaleY
 
     Item {
         id: face
         width: root.faceSize.width
         height: root.faceSize.height
         anchors.centerIn: parent
-        scale: root.scaleFactor
-        transformOrigin: Item.Center
+        // A Scale transform rather than the scale property, because scale is
+        // one number and this needs two. Identical to the old behaviour
+        // wherever scaleX and scaleY are the same, which is every desktop.
+        transform: Scale {
+            origin.x: face.width / 2
+            origin.y: face.height / 2
+            xScale: root.scaleX
+            yScale: root.scaleY
+        }
 
         Image {
             anchors.fill: parent
@@ -162,8 +190,10 @@ Item {
             // being rounded up to the next one and then shrunk back by 6/7 for
             // no reason: at exactly 6 device pixels to the dot this is 6, the
             // second step is 1:1, and the result is what it is today.
+            // The larger of the two axes, so a stretched screen is drawn at
+            // the finer of its two pitches and then squeezed, never blown up.
             readonly property int perDot: Math.max(1, Math.ceil(
-                root.engine.skin.lcdZoom * root.scaleFactor
+                root.engine.skin.lcdZoom * Math.max(root.scaleX, root.scaleY)
                     * Screen.devicePixelRatio - 0.02))
             layer.enabled: cols > 0 && rows > 0
             layer.smooth: true
