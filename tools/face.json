@@ -14,6 +14,7 @@
   "lcd_gap": 22,
   "bottom_margin": 16,
   "hit_pad": 4,
+  "ann_zoom": 2,
   "ann_gap": 0,
   "cap_radius_frac": 0.16,
   "cap_frame_w": 3,
@@ -37,6 +38,7 @@
   "font_sub": 13,
   "font_brand_maker": 17,
   "font_brand_model": 22,
+  "font_brand_plate": 33,
   "colour_body": [
     34,
     34,
@@ -88,6 +90,5 @@
     96
   ],
   "colour_lcd_bg": "#9fbf7a",
-  "colour_lcd_pixel": "#0d1a0d",
-  "ann_zoom": 2
+  "colour_lcd_pixel": "#0d1a0d"
 }
