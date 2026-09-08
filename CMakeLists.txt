@@ -197,9 +197,13 @@ if(ANDROID)
         # picker is opened.
         QT_ANDROID_PACKAGE_NAME       "br.gbmaizol.agape48"
         # Without this the launcher shows a blank icon - measured on the first
-        # APK. The drawable is assets/icon.png, copied into the package source
-        # dir because res/ is what aapt reads.
-        QT_ANDROID_APP_ICON           "@drawable/icon"
+        # APK. It names the ADAPTIVE icon since 2026sep08: res/mipmap-anydpi-v26
+        # /ic_launcher.xml, a background colour plus a foreground layer at five
+        # densities, all written by tools/make-icon.py. The legacy square is
+        # still there for anything older than API 26. AndroidManifest.xml sets
+        # the same attribute and is the file that actually ships; this keeps the
+        # two from disagreeing.
+        QT_ANDROID_APP_ICON           "@mipmap/ic_launcher"
         QT_ANDROID_VERSION_NAME       "${PROJECT_VERSION}"
         QT_ANDROID_VERSION_CODE       1
         QT_ANDROID_APP_NAME           "Agape48"
