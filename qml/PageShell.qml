@@ -112,8 +112,10 @@ Popup {
         }
     }
 
-    // Android's back gesture arrives as a key press, and the manifest opts in to
-    // the modern callback. Escape is handled inside each page's contents, where
+    // Android's back gesture arrives as a key press, and the manifest goes out
+    // of its way to keep it that way: android:enableOnBackInvokedCallback is
+    // false there on purpose, because opting in to Android 13's replacement
+    // stops the key ever reaching this handler - see the manifest. Escape is handled inside each page's contents, where
     // it cannot leak out to the calculator - see SettingsContent.qml.
     //
     // ON THE ITEM THAT CONTAINS THE PAGE, and that is the whole fix. It was on

@@ -1,59 +1,24 @@
 import QtQuick
-import QtQuick.Controls
 import Agape48
 
-// "This calculator is somebody else's just now."
-//
-// Shown when a calculator cannot be opened because another instance holds it -
-// ON refused, or one picked from the shelf.
-//
-// The first answer offered is to ASK, not to seize. Gert, 2026sep02: "send a
-// sleep command to the other one and take it over?" That is better than taking
-// it over rather than merely politer: the instance that is asked still holds
-// the lock, so it saves before letting go, and the calculator that arrives here
-// is everything that was done over there. A take-over cannot do that - by the
-// time the loser notices, the folder is not its to write, so its last minutes
-// are gone.
-//
-// Taking it over is still here, but only after the ask goes unanswered, which
-// is the case it was always really for: a machine that is switched off.
+// "This calculator is somebody else's just now.", in a window, on a desktop.
+// The contents and every word in them are in HandoverContent.qml; this is the
+// frame, and the frame is all that differs between a laptop and a phone. Same
+// split as Settings and the shelf, and made on the night the phone could first
+// reach it - see the note at the top of the contents.
 Window {
     id: root
     required property Agape48Engine engine
-
-    property var holder: ({})
-    property string calculator: ""
-    // asking -> waiting -> (closed | unanswered)
-    property string phase: "asking"
-    // Only meaningful in the unanswered phase, and it can CHANGE while the
-    // dialog is up: "held", "arriving" or "letgo". See Agape48Engine.h.
-    property string reason: "held"
+    property alias live: content.live
 
     readonly property bool opened: visible
+    readonly property string phase: content.phase
 
-    function showFor(h, name) {
-        holder = h || ({})
-        // lockHolderOf() names the calculator it was asked about, so a dialog
-        // raised from the shelf is about THAT one, not about whichever this
-        // window happens to have open.
-        calculator = name || holder.calculator || root.engine.state.instance
-        phase = "asking"
-        place(); show(); raise(); requestActivate()
-    }
+    signal pickAnother()
+    signal changeFolder()
 
-    function showUnanswered(name, host, why) {
-        calculator = name
-        if (host)
-            holder = Object.assign({}, holder, { host: host })
-        reason = why
-        // Already up: repaint it where it stands. The engine now re-tests the
-        // reason every second and says so when it changes, and pouncing on the
-        // user's focus once a second is not what "says so" should mean.
-        if (phase === "unanswered")
-            return
-        phase = "unanswered"
-        place(); show(); raise(); requestActivate()
-    }
+    function showFor(h, name) { content.showFor(h, name) }
+    function showUnanswered(name, host, why) { content.showUnanswered(name, host, why) }
 
     function place() {
         if (transientParent) {
@@ -61,23 +26,6 @@ Window {
             y = transientParent.y + 90
         }
     }
-
-    // The engine drives the middle phase, so the dialog cannot get out of step
-    // with it: whatever ends the wait ends this.
-    Connections {
-        target: root.engine
-        function onWaitingChanged() {
-            if (root.engine.waitingForCalculator())
-                root.phase = "waiting"
-        }
-        function onOtherLetGo(name) { root.close() }
-        function onSleepUnanswered(name, host, reason) { root.showUnanswered(name, host, reason) }
-    }
-
-    readonly property int quiet: holder.quietMinutes !== undefined ? holder.quietMinutes : -1
-    readonly property bool probablyGone: holder.probablyGone === true
-    readonly property string who: holder.host !== undefined && holder.host !== ""
-                                  ? holder.host : qsTr("the other one")
 
     title: qsTr("Calculator in use")
     flags: Qt.Dialog
@@ -95,190 +43,13 @@ Window {
 
     onVisibleChanged: if (!visible && root.engine.waitingForCalculator()) root.engine.stopWaiting()
 
-    Item {
+    HandoverContent {
+        id: content
         anchors.fill: parent
-        focus: true
-        Keys.onEscapePressed: (event) => { root.close(); event.accepted = true }
-
-        Column {
-            anchors { fill: parent; margins: 18 }
-            spacing: 12
-
-            Label {
-                text: qsTr("%1 is in use").arg(root.calculator)
-                color: "#f0f0f0"; font.pixelSize: TextSizes.dialogTitle; font.weight: Font.DemiBold
-            }
-
-            // --- what is going on -------------------------------------------
-            Label {
-                width: parent.width
-                wrapMode: Text.WordWrap
-                color: "#d0d0d0"; font.pixelSize: TextSizes.dialogBody
-                text: {
-                    if (root.phase === "waiting")
-                        return qsTr("Asked %1 to put it to sleep. Waiting for it to save and let go — %2 seconds. On one device that takes about a second; across a synced folder it takes as long as the sync does, and a machine that is switched off or offline never answers at all.")
-                               .arg(root.who).arg(root.engine.waitSeconds)
-                    if (root.phase === "unanswered" && root.reason === "arriving")
-                        return qsTr("%1 has let go, and its memory is on its way — but not all of it is here yet. Waiting for the rest. There is no deadline on this one: the files are coming, and reading them half-arrived is the one thing that would lose work.")
-                               .arg(root.who)
-                    if (root.phase === "unanswered" && root.reason === "letgo")
-                        return qsTr("%1 has let go, but what arrived was not saved for us — it may be from just before you asked. Taking it now is safe to read, but anything they did in the last few seconds is not in it.")
-                               .arg(root.who)
-                    if (root.phase === "unanswered")
-                        return qsTr("%1 has not answered. It may be switched off, or not syncing. Nothing has changed: the calculator is still theirs.")
-                               .arg(root.who)
-                    if (root.holder.host === undefined)
-                        return qsTr("Something else is holding it. Send a sleep command and take it over?")
-                    if (root.holder.sameMachine && root.holder.alive)
-                        return qsTr("Another Agape48 on this device has it open. Send it a sleep command and take it over?")
-                    if (root.holder.sameMachine)
-                        return qsTr("Another Agape48 on this device left it open and is no longer running. Take it over?")
-                    return qsTr("It is open on %1, last heard from %2 minutes ago. Send a sleep command to the other one and take it over?")
-                           .arg(root.who).arg(root.quiet)
-                }
-            }
-
-            // --- the honest footnote ----------------------------------------
-            Label {
-                width: parent.width
-                wrapMode: Text.WordWrap
-                visible: root.phase !== "waiting" && root.holder.sameMachine === false
-                         && !root.arriving
-                color: root.phase === "unanswered" || root.probablyGone ? "#e8a55a" : "#7d7d7d"
-                font.pixelSize: TextSizes.dialogHint
-                text: root.phase === "unanswered"
-                      ? qsTr("Taking it over now does not ask and does not wait. If that device really is still using it, it loses whatever it has done since its last save, and whichever quits last wins.")
-                      : qsTr("Asking is the safe one: it saves over there before it lets go, so you get everything they did.")
-            }
-
-            BusyIndicator {
-                running: root.phase === "waiting" || root.arriving
-                visible: running
-                implicitWidth: 28; implicitHeight: 28
-            }
-
-            Item { width: 1; height: 4 }
-
-            // --- asking ------------------------------------------------------
-            Flow {
-                width: parent.width
-                spacing: 10
-                visible: root.phase === "asking"
-                Button {
-                    text: qsTr("Yes")
-                    // Ask, then take it when they let go. If nobody is really
-                    // holding it any more this comes straight back.
-                    onClicked: root.engine.askForCalculator(root.calculator, true)
-                }
-                Button {
-                    // "Sleep" alone never said WHO sleeps, and it sits beside a
-                    // Yes that means "sleep it AND take it". Gert, both-04
-                    // line 8: "if I click on 'Sleep', I expect the Linux Agape48
-                    // to sleep, but instead it requests the Windows Agape48 to
-                    // sleep instead." The behaviour is the designed one - the
-                    // question above it says "send a sleep command to the other
-                    // one" - so the label is what was wrong, and naming the
-                    // difference from Yes is what fixes it.
-                    text: qsTr("Sleep, don't take")
-                    // Ask, and leave it. "Stop holding it" without "give it to
-                    // me now" - the calculator ends up free for whoever wants it.
-                    onClicked: { root.engine.askForCalculator(root.calculator, false); root.close() }
-                }
-                Button {
-                    text: qsTr("Choose another…")
-                    onClicked: { root.close(); root.pickAnother() }
-                }
-                Button {
-                    text: qsTr("Another folder…")
-                    onClicked: { root.close(); root.changeFolder() }
-                }
-                Button { text: qsTr("Cancel"); onClicked: root.close() }
-            }
-
-            // --- waiting -----------------------------------------------------
-            // Gert, 2026sep02: a countdown, and a way out of it that is not
-            // just cancelling - force it, pick another, or go somewhere else
-            // entirely. Waiting is the polite answer, not the only one.
-            Flow {
-                width: parent.width
-                spacing: 10
-                visible: root.phase === "waiting"
-                Button {
-                    text: qsTr("Take it over now")
-                    onClicked: {
-                        // Take first, stop second. Stopping withdraws the
-                        // request, and it is that outstanding request which
-                        // lets the engine tell a half-delivered folder from a
-                        // whole one - so stopping first disarms the check that
-                        // exists to stop this very button reading half a
-                        // calculator. Closing ends the wait either way.
-                        if (root.engine.takeOverCalculator(root.calculator)) {
-                            root.engine.stopWaiting()
-                            root.close()
-                        }
-                    }
-                }
-                Button {
-                    text: qsTr("Choose another…")
-                    onClicked: { root.engine.stopWaiting(); root.close(); root.pickAnother() }
-                }
-                Button {
-                    text: qsTr("Another folder…")
-                    onClicked: { root.engine.stopWaiting(); root.close(); root.changeFolder() }
-                }
-                Button {
-                    text: qsTr("Stop waiting")
-                    onClicked: { root.engine.stopWaiting(); root.close() }
-                }
-            }
-
-            // --- nobody answered ---------------------------------------------
-            Flow {
-                width: parent.width
-                spacing: 10
-                visible: root.phase === "unanswered" && !root.arriving
-                Button {
-                    text: qsTr("Take it over")
-                    onClicked: if (root.engine.takeOverCalculator(root.calculator)) root.close()
-                }
-                Button {
-                    text: qsTr("Ask again")
-                    onClicked: root.engine.askForCalculator(root.calculator, true)
-                }
-                Button {
-                    text: qsTr("Choose another…")
-                    onClicked: { root.close(); root.pickAnother() }
-                }
-                Button { text: qsTr("Cancel"); onClicked: root.close() }
-            }
-
-            // --- they let go and the memory is still coming ------------------
-            // No "Take it over" here, and that is the point of the whole
-            // change. In this state the folder on disk does not match its own
-            // contents record, so taking it reads half a calculator - which is
-            // exactly what happened in both-05 line 15. Waiting is the only
-            // answer that keeps the work, so the buttons are the two ways of
-            // deciding not to wait, and neither of them reads the folder.
-            Flow {
-                width: parent.width
-                spacing: 10
-                visible: root.arriving
-                Button {
-                    text: qsTr("Choose another…")
-                    onClicked: { root.engine.stopWaiting(); root.close(); root.pickAnother() }
-                }
-                Button {
-                    text: qsTr("Stop waiting")
-                    onClicked: { root.engine.stopWaiting(); root.close() }
-                }
-            }
-        }
+        engine: root.engine
+        onCloseRequested: root.close()
+        onRaiseRequested: { root.place(); root.show(); root.raise(); root.requestActivate() }
+        onPickAnother: root.pickAnother()
+        onChangeFolder: root.changeFolder()
     }
-
-    readonly property bool arriving: phase === "unanswered" && reason === "arriving"
-
-    signal pickAnother()
-    // "None of these": the shelf itself is the wrong one. Opens Settings, where
-    // the state folder lives.
-    signal changeFolder()
 }

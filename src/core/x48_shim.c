@@ -964,18 +964,308 @@ bool x48_export_file(const char *path)
     return true;
 }
 
+/* --- the clipboard -------------------------------------------------------
+ *
+ * Two menu items sat over these for weeks returning "not implemented" to a
+ * caller that ignored the answer, so Copy stack and Paste did nothing at all
+ * and said nothing about it, on all three platforms. Found on the phone on
+ * 2026sep09 with 4 and 7 plainly on the stack.
+ *
+ * WHAT THEY DO NOW: level 1, if it is a real number or a string, as text a
+ * person would recognise - "1701", "-2.5E-9", "hello". Not the whole stack
+ * despite the menu's name, which is the same level-1 rule the export command
+ * has always had, and not every object type: a program or a list is a
+ * decompilation problem, and the thing that decompiles RPL properly is the
+ * ROM. Anything else says so and points at Export, which writes any object at
+ * all.
+ *
+ * The number format is the machine's own: 5 nibbles of prologue, then 3
+ * exponent digits in ten's complement, then 12 mantissa digits, all of them
+ * least significant nibble FIRST, then 1 sign nibble - 21 nibbles, which is
+ * what ob_size() says a DOREAL is. A string is a 5-nibble length that counts
+ * itself, then two nibbles per character.
+ *
+ * THE EXPONENT COMES FIRST, and that was worth measuring rather than
+ * remembering: with the mantissa read from the wrong end of the object, 1701
+ * copied as "1.00000000003E170" - which is what the banner said the first time
+ * this ran on the phone, and the reason the menu item now says out loud what it
+ * put on the clipboard.
+ *
+ * ASCII ONLY, and deliberately. The HP 48 character set agrees with ASCII from
+ * 32 to 126 and goes its own way above that, so those characters pass straight
+ * through in both directions and anything else is refused rather than
+ * guessed at. The full table is still the missing piece the old stub named. */
+
+#define A48_REAL_NIBS 21
+#define A48_MANT_DIGITS 12
+
+/* Digits of a real, most significant first, plus its exponent and sign. */
+static void real_digits(const BYTE *o, char *digits, int *exp10, int *neg)
+{
+    int i, e;
+    for (i = 0; i < A48_MANT_DIGITS; i++)
+        digits[i] = (char)('0' + (o[19 - i] & 0x0f));   /* o[19] is the leading digit */
+    digits[A48_MANT_DIGITS] = '\0';
+    e = (o[5] & 0x0f) + (o[6] & 0x0f) * 10 + (o[7] & 0x0f) * 100;
+    if (e >= 500)
+        e -= 1000;                 /* ten's complement, the machine's own form */
+    *exp10 = e;
+    *neg = (o[20] & 0x0f) != 0;
+}
+
+static size_t real_to_text(const BYTE *o, char *out, size_t outlen)
+{
+    char digits[A48_MANT_DIGITS + 1], tmp[64];
+    int exp10, neg, sig, i, at = 0;
+
+    real_digits(o, digits, &exp10, &neg);
+    sig = A48_MANT_DIGITS;
+    while (sig > 1 && digits[sig - 1] == '0')
+        sig--;                     /* trailing zeros carry no information */
+
+    if (neg)
+        tmp[at++] = '-';
+    if (exp10 >= 0 && exp10 <= 11) {
+        for (i = 0; i <= exp10; i++)
+            tmp[at++] = (i < sig) ? digits[i] : '0';
+        if (sig > exp10 + 1) {
+            tmp[at++] = '.';
+            for (i = exp10 + 1; i < sig; i++)
+                tmp[at++] = digits[i];
+        }
+    } else if (exp10 < 0 && exp10 >= -11) {
+        tmp[at++] = '0';
+        tmp[at++] = '.';
+        for (i = 0; i < -exp10 - 1; i++)
+            tmp[at++] = '0';
+        for (i = 0; i < sig; i++)
+            tmp[at++] = digits[i];
+    } else {
+        tmp[at++] = digits[0];
+        if (sig > 1) {
+            tmp[at++] = '.';
+            for (i = 1; i < sig; i++)
+                tmp[at++] = digits[i];
+        }
+        at += (int)snprintf(tmp + at, sizeof(tmp) - (size_t)at, "E%d", exp10);
+    }
+    tmp[at] = '\0';
+
+    if (out && (size_t)at + 1 <= outlen)
+        memcpy(out, tmp, (size_t)at + 1);
+    return (size_t)at + 1;         /* including the terminator */
+}
+
 size_t x48_stack_to_text(char *buf, size_t buflen)
 {
-    (void)buf; (void)buflen;
-    set_error("clipboard: not implemented (needs the HP48-to-Unicode table)");
-    return 0;
+    DWORD stkp, addr, avail, size, prologue, i, chars;
+    BYTE *nibs;
+    size_t need = 0;
+
+    if (!s_ready) { set_error("no calculator running"); return 0; }
+
+    stkp = Read5(DSKTOP);
+    addr = Read5(stkp);
+    if (addr == 0 || addr >= A48_ADDR_END) {
+        set_error("there is nothing on level 1 to copy");
+        return 0;
+    }
+    avail = A48_ADDR_END - addr;
+    if (avail > A48_MAX_NIBS)
+        avail = A48_MAX_NIBS;
+    nibs = (BYTE *)malloc(avail);
+    if (!nibs) { set_error("out of memory"); return 0; }
+    Npeek(nibs, addr, avail);
+
+    size = ob_size(nibs, avail, 0);
+    if (size == 0) {
+        free(nibs);
+        set_error("level 1 does not hold an object this version understands");
+        return 0;
+    }
+
+    prologue = 0;
+    for (i = 5; i-- > 0; )
+        prologue = (prologue << 4) | nibs[i];
+
+    if (prologue == DOREAL && size >= A48_REAL_NIBS) {
+        need = real_to_text(nibs, buf, buflen);
+    } else if (prologue == DOCSTR && size >= 10) {
+        DWORD len5 = 0;
+        for (i = 5; i-- > 0; )
+            len5 = (len5 << 4) | nibs[5 + i];
+        chars = (len5 >= 5) ? (len5 - 5) / 2 : 0;
+        need = chars + 1;
+        if (buf && need <= buflen) {
+            for (i = 0; i < chars; i++) {
+                unsigned c = (unsigned)nibs[10 + i * 2]
+                           | ((unsigned)nibs[10 + i * 2 + 1] << 4);
+                if (c < 32 || c > 126) {   /* see the note above the table */
+                    free(nibs);
+                    set_error("that text has characters this version cannot "
+                              "translate yet - use Export from stack to file");
+                    return 0;
+                }
+                buf[i] = (char)c;
+            }
+            buf[chars] = '\0';
+        }
+    } else {
+        free(nibs);
+        set_error("Copy handles a number or a text string on level 1. For "
+                  "anything else use Export from stack to file, which writes "
+                  "every kind of object.");
+        return 0;
+    }
+
+    free(nibs);
+    return need;
+}
+
+/* Text to a real, or 0 nibbles if it is not a number this can read.
+ *
+ * Every digit is collected in order, with a note of how many came before the
+ * point; the exponent then falls out of where the first digit that is not a
+ * zero sits relative to it. That is one rule for "1701", ".5", "0.007" and
+ * "12.5E2" together, and it is why there is no special case here for any of
+ * them. */
+static int parse_real(const char *t, BYTE *out)
+{
+    char all[64];
+    int neg = 0, count = 0, intCount = -1, seen = 0;
+    int expGiven = 0, expNeg = 0, first, sig, exp10, i;
+    const char *p = t;
+
+    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+        p++;
+    if (*p == '+' || *p == '-') { neg = (*p == '-'); p++; }
+
+    for (; *p; p++) {
+        if (*p >= '0' && *p <= '9') {
+            if (count < (int)sizeof(all) - 1)
+                all[count] = *p;
+            count++;
+            seen = 1;
+        } else if (*p == '.' && intCount < 0) {
+            intCount = count;
+        } else if ((*p == 'e' || *p == 'E') && seen) {
+            p++;
+            if (*p == '+' || *p == '-') { expNeg = (*p == '-'); p++; }
+            if (*p < '0' || *p > '9')
+                return 0;
+            for (; *p >= '0' && *p <= '9'; p++) {
+                expGiven = expGiven * 10 + (*p - '0');
+                if (expGiven > 9999)
+                    return 0;
+            }
+            break;
+        } else {
+            return 0;              /* not a plain number */
+        }
+    }
+    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+        p++;
+    if (*p != '\0' || !seen || count > (int)sizeof(all) - 1)
+        return 0;
+    if (intCount < 0)
+        intCount = count;          /* no point at all: it is all integer */
+    all[count] = '\0';
+
+    for (first = 0; first < count && all[first] == '0'; first++)
+        ;
+    if (first == count) {          /* every digit was a zero */
+        first = 0;
+        sig = 1;
+        all[0] = '0';
+        exp10 = 0;
+        neg = 0;                   /* there is no negative zero on a 48 */
+    } else {
+        sig = count - first;
+        exp10 = intCount - 1 - first + (expNeg ? -expGiven : expGiven);
+    }
+    if (exp10 > 499 || exp10 < -499)
+        return 0;
+    if (sig > A48_MANT_DIGITS)
+        sig = A48_MANT_DIGITS;
+
+    for (i = 0; i < 5; i++)
+        out[i] = (BYTE)((DOREAL >> (i * 4)) & 0x0f);
+    for (i = 0; i < A48_MANT_DIGITS; i++) {
+        int d = (i < sig) ? (all[first + i] - '0') : 0;
+        out[19 - i] = (BYTE)d;     /* most significant at 19, as read back */
+    }
+    {
+        int e = exp10 < 0 ? exp10 + 1000 : exp10;
+        out[5] = (BYTE)(e % 10);
+        out[6] = (BYTE)((e / 10) % 10);
+        out[7] = (BYTE)((e / 100) % 10);
+    }
+    out[20] = (BYTE)(neg ? 9 : 0);
+    return A48_REAL_NIBS;
 }
 
 bool x48_text_to_stack(const char *utf8)
 {
-    (void)utf8;
-    set_error("clipboard: not implemented (needs the Unicode-to-HP48 table)");
-    return false;
+    BYTE  real[A48_REAL_NIBS];
+    BYTE *nibs;
+    DWORD size, addr, i;
+    size_t len;
+    int n;
+
+    if (!s_ready) { set_error("no calculator running"); return false; }
+    if (!utf8 || !*utf8) { set_error("there is nothing on the clipboard"); return false; }
+
+    n = parse_real(utf8, real);
+    if (n > 0) {
+        nibs = (BYTE *)malloc((size_t)n);
+        if (!nibs) { set_error("out of memory"); return false; }
+        memcpy(nibs, real, (size_t)n);
+        size = (DWORD)n;
+    } else {
+        /* Not a number, so it becomes a string - which is what a calculator
+         * can honestly do with arbitrary text, and what a real 48 does when
+         * text arrives over the wire. */
+        len = strlen(utf8);
+        if (len > (A48_MAX_NIBS / 2u) - 16u) {
+            set_error("that is too much text for the calculator");
+            return false;
+        }
+        for (i = 0; i < len; i++) {
+            unsigned char c = (unsigned char)utf8[i];
+            if (c < 32 || c > 126) {
+                set_error("the clipboard has characters this version cannot "
+                          "translate yet - only plain text and numbers");
+                return false;
+            }
+        }
+        size = 10 + (DWORD)len * 2;
+        nibs = (BYTE *)malloc(size);
+        if (!nibs) { set_error("out of memory"); return false; }
+        for (i = 0; i < 5; i++)
+            nibs[i] = (BYTE)((DOCSTR >> (i * 4)) & 0x0f);
+        {
+            DWORD field = 5 + (DWORD)len * 2;   /* the length counts itself */
+            for (i = 0; i < 5; i++)
+                nibs[5 + i] = (BYTE)((field >> (i * 4)) & 0x0f);
+        }
+        for (i = 0; i < len; i++) {
+            unsigned char c = (unsigned char)utf8[i];
+            nibs[10 + i * 2]     = (BYTE)(c & 0x0f);
+            nibs[10 + i * 2 + 1] = (BYTE)(c >> 4);
+        }
+    }
+
+    addr = RPL_CreateTemp(size);
+    if (addr == 0) {
+        free(nibs);
+        set_error("not enough calculator memory for that");
+        return false;
+    }
+    Nwrite(nibs, addr, size);
+    free(nibs);
+    RPL_Push(addr);
+    s_dirty = true;
+    return true;
 }
 
 /* --- beeper ------------------------------------------------------------- */

@@ -64,7 +64,78 @@ Item {
     FolderDialog {
         id: folderPicker
         title: qsTr("Where should the calculator's memory live?")
-        onAccepted: root.engine.state.migrateTo(selectedFolder)
+        onAccepted: root.moveTo(selectedFolder)
+    }
+
+    // EVERY ROUTE THAT MOVES THE MEMORY COMES THROUGH HERE - the picker, Enter
+    // in the field, the Save button of the unsaved dialog, and the two Android
+    // buttons - because all four have the same three outcomes and used to
+    // handle two of them each.
+    //
+    // The third outcome is the one dogfood android-09 was written on. A folder
+    // that Android will not let this app into cannot be told apart from a
+    // folder that is not there, so the move fails, the switch that would fix it
+    // is on a system screen in another app, and by the time the user comes back
+    // the folder they picked is forgotten. It is remembered here instead, and
+    // the move is finished for them the moment the app is in front again.
+    property url pendingFolder
+    // Re-asked rather than bound: the answer changes in the system settings,
+    // while this process is in the background and has nothing to notice it
+    // with.
+    property bool anyFolder: root.engine.state.canUseAnyFolder()
+
+    function moveTo(folder) {
+        if (root.engine.state.migrateTo(folder)) {
+            stateField.text = root.engine.state.displayName
+            root.warnUnsaved = false
+            root.pendingFolder = ""
+            // A move that worked can still have something to say - joining a
+            // shelf that already has calculators on it says which one opened -
+            // and it should not be said in the colour of a failure.
+            root.goodNews = root.engine.lastError !== ""
+            return true
+        }
+        root.goodNews = false
+        if (!root.engine.state.canUseAnyFolder())
+            root.pendingFolder = folder
+        return false
+    }
+
+    // The message strip is the same strip either way; only its colour and its
+    // heading change.
+    property bool goodNews: false
+
+    // qmllint says "Member state not found on type QQmlApplication" here and is
+    // wrong about the type: with QtQuick loaded, Qt.application is a
+    // QQuickApplication, which adds state and stateChanged to what QQmlApplication
+    // has. Measured on the phone at 22:58 on 2026sep09 - this handler is what
+    // started the calculator again after the switch was turned on.
+    Connections {
+        target: Qt.application
+        function onStateChanged() {
+            if (Qt.application.state !== Qt.ApplicationActive)
+                return
+            const had = root.anyFolder
+            root.anyFolder = root.engine.state.canUseAnyFolder()
+            if (!root.anyFolder)
+                return
+            if (String(root.pendingFolder) !== "") {
+                const folder = root.pendingFolder
+                root.pendingFolder = ""
+                root.moveTo(folder)
+            } else if (!had && !root.engine.ready) {
+                // Nothing was picked, and the calculator is not running: the
+                // app came up pointed at a folder it was not allowed into and
+                // refused to start, which is exactly the state the switch was
+                // just turned on to fix. Measured on the phone at 22:54 on
+                // 2026sep09 - "Agape48 is not allowed into
+                // /storage/emulated/0/Documents/Agape48Emulator/TestShelf any
+                // more" - where turning the switch on left the message on
+                // screen and the calculator still dark until the app was
+                // killed and started again.
+                root.engine.start()
+            }
+        }
     }
 
     // "Save" and "Discard" rather than OK and Cancel, in his words: "Clicking
@@ -144,11 +215,8 @@ Item {
         // A refused move leaves this window open with the red banner saying
         // why, rather than closing as though it had worked.
         onAccepted: {
-            if (root.engine.state.migrateTo(root.pathToUrl(stateField.text))) {
-                stateField.text = root.engine.state.displayName
-                root.warnUnsaved = false
+            if (root.moveTo(root.pathToUrl(stateField.text)))
                 root.closeRequested()
-            }
         }
         onDiscarded: {
             stateField.text = root.engine.state.displayName
@@ -216,13 +284,14 @@ Item {
             width: parent.width
             height: errorText.implicitHeight + 16
             visible: root.engine.lastError !== ""
-            color: "#5a1d18"
+            color: root.goodNews ? "#1d3a24" : "#5a1d18"
             radius: 4
             Text {
                 id: errorText
                 anchors { fill: parent; margins: 8 }
                 text: root.engine.lastError
-                color: "#ffdad6"; font.pixelSize: TextSizes.dialogBody; wrapMode: Text.WordWrap
+                color: root.goodNews ? "#c8e6c9" : "#ffdad6"
+                font.pixelSize: TextSizes.dialogBody; wrapMode: Text.WordWrap
             }
         }
 
@@ -262,7 +331,26 @@ Item {
             text: qsTr("State folder")
             color: "#9a9a9a"; font.pixelSize: TextSizes.dialogHint
         }
+
+        // TWO SHAPES FOR ONE SETTING, and the phone got the wrong one until
+        // 2026sep09. Gert: "the 'press enter to move' mechanics is still a bit
+        // confuse for a mobile app. Please look it over."
+        //
+        // He is right, and it is worse than confusing. A path typed by hand is
+        // a desktop gesture: there is a keyboard, the path is short enough to
+        // read in the box, and Enter is what a text field means. On a phone the
+        // box shows the last thirty characters of a path nobody can type, the
+        // keyboard covers half the screen, and Enter on a soft keyboard is a
+        // key people press to dismiss it. Nothing on that screen said what
+        // would happen, or when.
+        //
+        // So the phone gets no text field at all. It gets the path, whole,
+        // where it can be read; and buttons, each of which says what it does
+        // and does it when it is pressed. The desktop keeps the field, Enter,
+        // the drop target and the unsaved-changes dialog, all of which were
+        // asked for and all of which work there.
         Row {
+            visible: Qt.platform.os !== "android"
             width: parent.width
             spacing: 6
             // A house, left of the field, for "put it back where it started".
@@ -361,6 +449,7 @@ Item {
             }
         }
         Label {
+            visible: Qt.platform.os !== "android"
             width: parent.width
             wrapMode: Text.WordWrap
             // Red and bold once the path in the field is not the one in use and
@@ -370,60 +459,161 @@ Item {
             color: unsaved ? "#ff8a80" : "#7d7d7d"
             font.pixelSize: TextSizes.dialogHint
             font.bold: unsaved
-            // The last sentence is a desktop gesture: there is nothing on a
-            // phone to drag a folder FROM, and on a phone this is not a window.
-            // Gert's complaint about the resize switch was the same complaint -
-            // "there are functions that don't make sense in Android".
-            text: Qt.platform.os === "android"
-                      ? qsTr("Press Enter to move the calculator's memory there. "
-                             + "To carry the machine between your devices it has "
-                             + "to be somewhere your sync app can reach, and on "
-                             + "Android that is not the folder it starts in.")
-                      : qsTr("Press Enter to move the calculator's memory there. "
-                             + "Put it inside a synced folder to carry the "
-                             + "machine between your devices. You can also drop "
-                             + "a folder on this window.")
+            text: qsTr("Press Enter to move the calculator's memory there. "
+                       + "Put it inside a synced folder to carry the machine "
+                       + "between your devices. You can also drop a folder on "
+                       + "this window.")
         }
 
-        // ANDROID ONLY, and it is the answer to dogfood android-08 line 7:
-        // "I don't have access to the internal calculator folder, and I can't
-        // change it to a visible folder before you implement this possibility."
+        // ------------------------------------------------------------------
+        // THE PHONE'S VERSION OF THE SAME SETTING.
+        // ------------------------------------------------------------------
+
+        // The path, whole and readable, rather than the last few characters of
+        // it in a box too narrow to hold it. Nothing here is editable: on this
+        // platform every way of changing it is a button.
+        Rectangle {
+            visible: Qt.platform.os === "android"
+            width: parent.width
+            height: statePath.height + 12
+            color: "#141414"
+            border.color: "#3a3a3a"
+            radius: 3
+            Label {
+                id: statePath
+                x: 6; y: 6
+                width: parent.width - 12
+                // A path is one word as far as wrapping is concerned - there is
+                // nothing in it a word wrap is allowed to break - so it breaks
+                // anywhere, the same rule the unsaved dialog needed.
+                wrapMode: Text.WrapAnywhere
+                color: "#8fc9ff"; font.pixelSize: TextSizes.dialogBody
+                text: root.engine.state.displayName
+            }
+        }
+
+        Button {
+            visible: Qt.platform.os === "android"
+            width: parent.width
+            text: qsTr("Choose a folder…")
+            // No Enter, no confirmation of its own: the system picker already
+            // ends in a button that says USE THIS FOLDER, and asking again
+            // after that would be asking twice.
+            onClicked: folderPicker.open()
+        }
+        Label {
+            visible: Qt.platform.os === "android"
+            width: parent.width
+            wrapMode: Text.WordWrap
+            color: "#7d7d7d"; font.pixelSize: TextSizes.dialogHint
+            text: qsTr("Moves the calculators to the folder you pick, and opens "
+                       + "what is already there if that folder is another "
+                       + "device's shelf. Pick one your sync app watches to "
+                       + "carry the machine between your devices.")
+        }
+
+        // ANDROID ONLY. This used to be the answer to dogfood android-08 line
+        // 7 - "I don't have access to the internal calculator folder, and I
+        // can't change it to a visible folder before you implement this
+        // possibility" - and since 2026sep09 it is no longer an answer to
+        // anything, because that folder is where a phone now STARTS. What is
+        // left for the button is the way back: it moves the calculators out of
+        // whatever folder they are in and into Agape48's own, which needs no
+        // permission and cannot be taken away.
         //
         // A button rather than a path he has to know: the folder is
         // Android/media/br.gbmaizol.agape48/Agape48 calculators, which nobody
-        // would type and which the "…" picker cannot return either - that picker
-        // hands back a content:// tree, and the emulator core needs a real path.
-        // Everything about why this particular folder is in StateFileManager::
-        // sharedLocation().
+        // would type and which the picker cannot return either - the system
+        // picker does not show an app's own folders at all.
         Item { width: 1; height: 6; visible: sharedButton.visible }
         Button {
             id: sharedButton
-            visible: Qt.platform.os === "android"
-            height: visible ? implicitHeight : 0
+            // Not while the calculators are already there, which on a phone is
+            // where they start. A button whose whole effect is "yes, still
+            // here" is one more thing to read on a page about storage.
+            visible: Qt.platform.os === "android" && !root.engine.state.isDefault
+            // NO `height: visible ? implicitHeight : 0` HERE OR BELOW. A Column
+            // already leaves invisible children out of the layout, so that
+            // binding bought nothing - and on a Label whose implicitHeight
+            // comes from wrapping text inside a width, it is a cycle: measured
+            // on the phone at c63966c, "SettingsContent.qml:419: QML Label:
+            // Binding loop detected for property height", several times a
+            // second for as long as the settings page was open.
             width: parent.width
-            text: qsTr("Move it where other apps can see it")
+            text: qsTr("Move them to Agape48's own folder")
             onClicked: {
                 // Empty means no external storage, and sharedLocation() has
                 // already put the reason where the error box will find it.
                 const where = root.engine.state.sharedLocation()
                 if (where.toString() === "")
                     return
-                if (root.engine.state.migrateTo(where)) {
-                    stateField.text = root.engine.state.displayName
-                    root.warnUnsaved = false
-                }
+                root.moveTo(where)
             }
         }
         Label {
             visible: sharedButton.visible
-            height: visible ? implicitHeight : 0
             width: parent.width
             wrapMode: Text.WordWrap
             color: "#7d7d7d"; font.pixelSize: TextSizes.dialogHint
-            text: qsTr("Puts the calculators in Android/media, where a file "
-                       + "manager or a sync app can find them. Nothing is asked "
-                       + "of you and no permission is needed - the folder "
-                       + "belongs to Agape48, it is just not hidden.")
+            text: qsTr("Copies them into Android/media, where a file manager "
+                       + "or a sync app can still find them and no permission "
+                       + "is needed. Uninstalling Agape48 deletes that folder, "
+                       + "so it is not the place for a calculator you want to "
+                       + "keep.")
+        }
+
+        Item { width: 1; height: 6; visible: sharedButton.visible }
+
+        // The house button's job, said in words, because there is no room for a
+        // row of icons here and no tooltip on a phone to explain one.
+        //
+        // NOT THE SAME AS THE BUTTON ABOVE, and the two are worded to say so.
+        // That one copies; this one walks away. It is the only way out of a
+        // folder that cannot be read any more - a card taken out, or the
+        // permission turned off in Android's settings - because copying out of
+        // a folder needs to read it first.
+        Button {
+            visible: sharedButton.visible
+            width: parent.width
+            text: qsTr("Forget that folder and use Agape48's own")
+            onClicked: {
+                root.engine.state.useDefaultLocation()
+                root.goodNews = false
+                if (!root.engine.ready)
+                    root.engine.start()
+            }
+        }
+
+        Item { width: 1; height: 10; visible: Qt.platform.os === "android" }
+
+        // THE ONE PERMISSION THIS APP ASKS FOR, offered rather than demanded,
+        // and only on the platform that has it. Everything above works without
+        // it; this is what makes a folder of HIS - the one his sync client
+        // already watches - possible at all. See canUseAnyFolder() in
+        // StateFileManager.cpp for why Android has no smaller answer.
+        Button {
+            id: anyFolderButton
+            visible: Qt.platform.os === "android" && !root.anyFolder
+            width: parent.width
+            text: qsTr("Let Agape48 into your own folders")
+            onClicked: root.engine.state.requestAnyFolderAccess()
+        }
+        Label {
+            visible: Qt.platform.os === "android"
+            width: parent.width
+            wrapMode: Text.WordWrap
+            color: "#7d7d7d"; font.pixelSize: TextSizes.dialogHint
+            text: root.anyFolder
+                      ? qsTr("Agape48 may keep the calculators in your own "
+                             + "folders. Android's Settings can take that back "
+                             + "whenever you like.")
+                      : qsTr("Android keeps apps out of folders like Documents "
+                             + "and Download. This opens the system switch for "
+                             + "Agape48; turn it on, come back, and the folder "
+                             + "you picked is moved into straight away. You do "
+                             + "not have to: your sync app can watch Agape48's "
+                             + "own folder above instead, and then nothing here "
+                             + "needs any permission at all.")
         }
 
         Item { width: 1; height: 8; visible: liveResizeRow.visible }

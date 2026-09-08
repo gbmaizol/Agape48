@@ -17,12 +17,24 @@
      sandbox to integrate Dropbox, and so on." With the marker gone the union is
      pasted nowhere and the app ships asking for nothing at all.
 
-     Nothing is lost by it. The calculator's own memory lives in the app's
-     private folder, which needs no permission; a folder outside it is reached
-     through the Storage Access Framework, which grants per folder at the moment
-     the user picks one and is not a manifest permission either. The one thing
-     that would need a real permission is a legacy /sdcard path, which this app
-     deliberately does not use.
+     ONE PERMISSION IS DECLARED, and it is the one Gert's example named.
+     MANAGE_EXTERNAL_STORAGE is what lets Agape48 keep the calculators in a
+     folder of his own - Documents/Agape48Emulator, which his sync client
+     watches - instead of one only Agape48 can see. Declaring it asks for
+     nothing: it is a "special" permission that no prompt can grant, only a
+     switch on a system settings screen that the user reaches deliberately, from
+     a button that appears in Settings only after a folder that needs it has
+     been chosen. Everything the app does by itself - the folder it starts in,
+     and the Android/media folder the "Move it where other apps can see it"
+     button hands out - is the app's own storage and needs no permission at all,
+     which is why this is not asked for at startup and never will be.
+
+     The Storage Access Framework was the alternative and it could not do the
+     job: a content:// tree has no path, the C core cannot fopen() one, and the
+     shelf is a folder of folders with lock files in it. What the picker returns
+     is now turned back into the path it stands for; the permission is what
+     makes that path openable. See localised() and canUseAnyFolder() in
+     StateFileManager.cpp.
 
      One permission does still appear in the built manifest, and it is not ours
      to remove: androidx.core declares
@@ -44,7 +56,26 @@
      old one instead of over it, and nothing carries across, which is why it was
      done on the night the old install was being deleted anyway.
 
-  3. android:screenOrientation is "portrait", which is the dogfood round's
+  3. android:enableOnBackInvokedCallback is FALSE, and it is the reason the
+     back gesture works at all. Android 13 introduced a second way to deliver
+     "back": an app that opts in stops receiving KEYCODE_BACK as a key event in
+     its view hierarchy and gets an OnBackInvokedCallback instead. Qt 6.12's
+     QtActivityBase registers no such callback - it has dispatchKeyEvent,
+     onKeyDown and onKeyUp and nothing else - so with the opt-in ON the system
+     had nobody to call and did the default thing, which is to finish the
+     activity.
+
+     Measured on Gert's phone on 2026sep09, with the Settings page open: back
+     put the app in the launcher, every time, and a console.log at the top of
+     the QML key handler never printed. With this attribute false the same
+     press prints "PROBE key 16777313", which is Qt::Key_Back, and Settings
+     closes onto the calculator the way dogfood android-08 line 16 asked.
+
+     So the whole page-and-back design was correct and unreachable. Revisit
+     this only when Qt registers a callback of its own; the day it does, this
+     attribute becomes the way to get the predictive-back animation.
+
+  4. android:screenOrientation is "portrait", which is the dogfood round's
      answer to the question this comment used to leave open. Gert, 2026sep07,
      on the phone: "please keep the Agape48 from rotating when the phone turns
      around. It looks too ugly." A 48GX is a portrait object - the face is 854
@@ -58,6 +89,7 @@
     android:versionCode="-- %%INSERT_VERSION_CODE%% --"
     android:versionName="-- %%INSERT_VERSION_NAME%% --">
     <!-- %%INSERT_FEATURES -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <supports-screens
         android:anyDensity="true"
         android:largeScreens="true"
@@ -69,7 +101,7 @@
         android:label="-- %%INSERT_APP_NAME%% --"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:enableOnBackInvokedCallback="true"
+        android:enableOnBackInvokedCallback="false"
         android:allowBackup="true"
         android:fullBackupOnly="false">
         <activity

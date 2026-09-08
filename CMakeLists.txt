@@ -102,6 +102,8 @@ set(AGAPE48_QML_FILES
     qml/CalculatorPickerContent.qml
     qml/CalculatorPickerPage.qml
     qml/HandoverWindow.qml
+    qml/HandoverPage.qml
+    qml/HandoverContent.qml
     qml/AdvancedWindow.qml
     qml/Agape48Keymap.qml
     qml/TextSizes.qml
@@ -190,11 +192,11 @@ if(ANDROID)
         # which refuses to be compiled against anything below 36; nothing about
         # this app wants Android 16's behaviour changes yet.
         QT_ANDROID_COMPILE_SDK_VERSION 36
-        # br.gbmaizol.agape48 since 2026sep07, on Gert's instruction. The
-        # Java in platform/android/src moved with it, and so did kSafClass in
-        # StateFileManager.cpp - which is a JNI class-name STRING, so a rename
-        # that misses it compiles, links, ships, and fails only when the folder
-        # picker is opened.
+        # br.gbmaizol.agape48 since 2026sep07, on Gert's instruction. There is
+        # no Java of ours left for it to disagree with: platform/android/src
+        # held one class, a Storage Access Framework bridge whose Activity field
+        # was never assigned, and it went on 2026sep09 with the rest of the SAF
+        # path - see localised() in StateFileManager.cpp.
         QT_ANDROID_PACKAGE_NAME       "br.gbmaizol.agape48"
         # Without this the launcher shows a blank icon - measured on the first
         # APK. It names the ADAPTIVE icon since 2026sep08: res/mipmap-anydpi-v26

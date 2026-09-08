@@ -357,8 +357,34 @@ Window {
         }
         MenuItem { text: qsTr("Save memory now"); onTriggered: engine.saveState() }
         MenuSeparator {}
-        MenuItem { text: qsTr("Copy stack");      onTriggered: engine.copyStackToClipboard() }
-        MenuItem { text: qsTr("Paste");           onTriggered: engine.pasteClipboardToStack() }
+        // BOTH SAY WHAT HAPPENED, since 2026sep09. They were two menu items
+        // that returned a bool nobody read: on the phone, "Copy stack" then
+        // "Paste" put nothing back and neither one said a word, and there was
+        // no way to tell from the outside whether the copy had failed, the
+        // paste had failed, or the clipboard had never been touched. A command
+        // that can fail silently cannot be dogfooded at all.
+        MenuItem {
+            text: qsTr("Copy stack")
+            onTriggered: {
+                const copied = engine.copyStackToClipboard()
+                // Says what it copied, which is the confirmation a clipboard
+                // never gives you and the only way to catch a number that came
+                // out wrong. A long string is cut - this is a banner, not a
+                // window. A failure has already set the red strip.
+                if (copied !== "")
+                    banner.hint(qsTr("Copied: %1").arg(copied.length > 40
+                                                       ? copied.substring(0, 40) + "…"
+                                                       : copied))
+            }
+        }
+        MenuItem {
+            text: qsTr("Paste")
+            // A clipboard holding something the calculator cannot read already
+            // sets lastError, and the red strip says so; this is for the case
+            // where there is nothing there at all.
+            onTriggered: if (!engine.pasteClipboardToStack() && engine.lastError === "")
+                             banner.hint(qsTr("There is nothing on the clipboard to paste."))
+        }
         MenuSeparator {}
         MenuItem {
             text: qsTr("Import file to stack…")
@@ -462,28 +488,42 @@ Window {
                         banner.hint(qsTr("Level 1 saved to %1").arg(engine.urlToPath(selectedFile)))
     }
 
+    // ONE DIALOG, TWO SHELLS - the third and last of the three, split on
+    // 2026sep09 for the reason the old comment here gave for not splitting it:
+    // "it needs a calculator held by another instance, which cannot happen on a
+    // phone until the state folder can live in a synced folder." That night the
+    // state folder could, and the first thing the phone did with it was open a
+    // calculator the laptop was holding. A phone used to get a sentence in the
+    // banner instead - no way to ask for it, no countdown, no way to take it.
+    readonly property var handover: Qt.platform.os === "android" ? handoverPage
+                                                                 : handoverWindow
+
     HandoverWindow {
-        id: handover
+        id: handoverWindow
         engine: engine
         transientParent: root
+        // Deaf on a phone: the contents show themselves when a wait ends in
+        // silence, and this one showing itself there is the abort the split was
+        // made to avoid. See HandoverContent.qml.
+        live: Qt.platform.os !== "android"
         onPickAnother: picker.openPicker()
         onChangeFolder: settings.open()
     }
 
-    // "Somebody else has this calculator" is still a Window, so on a phone
-    // SHOWING it would take the process down - the same abort Settings had.
-    // It is the last one left, and the least reachable: it needs a calculator
-    // held by another instance, which cannot happen on a phone until the state
-    // folder can live in a synced folder. Until it gets the same split as
-    // Settings and the shelf, a phone gets the sentence rather than the crash.
+    HandoverPage {
+        id: handoverPage
+        engine: engine
+        live: Qt.platform.os === "android"
+        x: root.pageX
+        y: root.pageY
+        width: root.pageW
+        height: root.pageH
+        onPickAnother: picker.openPicker()
+        onChangeFolder: settings.open()
+    }
+
     function offerHandover(name, holder) {
-        if (Qt.platform.os === "android") {
-            banner.show(qsTr("%1 is in use by %2. Put it to sleep there, and open it here afterwards.")
-                        .arg(name)
-                        .arg(holder && holder.host ? holder.host : qsTr("another device")))
-            return
-        }
-        handover.showFor(holder, name)
+        root.handover.showFor(holder, name)
     }
 
     // THE PHONE'S BACK MEANS "OUT", not "up one". Gert, dogfood android-08:
@@ -504,6 +544,11 @@ Window {
     function closeAllPages() {
         advancedPage.close()
         pickerPage.close()
+        // Through leave(), not close(): this one has a countdown running behind
+        // it, and a wait nobody is watching would go on asking the other device
+        // for a calculator this one has stopped wanting.
+        if (handoverPage.opened)
+            handoverPage.leave()
         if (settingsPage.opened)
             settingsPage.dismiss()
     }

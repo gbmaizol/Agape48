@@ -1540,21 +1540,27 @@ bool Agape48Engine::reloadState()
 
 // --- clipboard --------------------------------------------------------------
 
-bool Agape48Engine::copyStackToClipboard()
+QString Agape48Engine::copyStackToClipboard()
 {
     QByteArray buf(512, Qt::Uninitialized);
     size_t need = x48_stack_to_text(buf.data(), size_t(buf.size()));
-    if (need == 0)
-        return false;
+    if (need == 0) {
+        setError(QString::fromUtf8(x48_last_error()));
+        return {};
+    }
     if (need > size_t(buf.size())) {          // retry once with the real size
         buf.resize(int(need));
         need = x48_stack_to_text(buf.data(), size_t(buf.size()));
-        if (need == 0 || need > size_t(buf.size()))
-            return false;
+        if (need == 0 || need > size_t(buf.size())) {
+            setError(QString::fromUtf8(x48_last_error()));
+            return {};
+        }
     }
-    buf.truncate(int(need));
-    QGuiApplication::clipboard()->setText(QString::fromUtf8(buf));
-    return true;
+    // need counts the terminator the core writes; the string does not want it.
+    buf.truncate(int(need) - 1);
+    const QString text = QString::fromUtf8(buf);
+    QGuiApplication::clipboard()->setText(text);
+    return text;
 }
 
 bool Agape48Engine::pasteClipboardToStack()
@@ -1563,10 +1569,26 @@ bool Agape48Engine::pasteClipboardToStack()
     if (text.isEmpty())
         return false;
     if (!x48_text_to_stack(text.toUtf8().constData())) {
-        setError(tr("Clipboard text is not a valid RPL object."));
+        // The core's own sentence, not a summary of it: it knows whether the
+        // text was too long, held a character it cannot translate, or would
+        // not fit in the calculator's memory.
+        setError(QString::fromUtf8(x48_last_error()));
         return false;
     }
+    setError(QString());
     setTickRate(kTickIntervalMs);
+    // THE SAME NUDGE IMPORT NEEDS, and leaving it out is why Paste looked like
+    // it did nothing at all: the object was pushed and the stack on the glass
+    // went on showing what it showed before, because the ROM redraws when
+    // something happens to the machine and nothing had. Measured on the phone
+    // on 2026sep09 - 3.14158 copied, dropped, pasted, and the display still
+    // read what was under it. ON is also CANCEL, so any latched shift comes off
+    // first or ON would be OFF.
+    QStringList seq;
+    if (m_annunciators & X48_ANN_RIGHT) seq << QStringLiteral("SHR");
+    if (m_annunciators & X48_ANN_LEFT)  seq << QStringLiteral("SHL");
+    seq << QStringLiteral("ON");
+    queueTaps(seq);
     return true;
 }
 

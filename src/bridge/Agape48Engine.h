@@ -227,7 +227,14 @@ public slots:
     bool reloadState();
 
     // --- clipboard ---------------------------------------------------------
-    bool copyStackToClipboard();
+    // THE TEXT, not a bool. Copy used to answer yes-or-no to a caller that
+    // asked nothing and told nobody, which is how two menu items over a stub
+    // in the core - "clipboard: not implemented" - went weeks without anyone
+    // noticing they did nothing. Handing back what was copied lets the menu
+    // say it out loud, and that sentence is also the only way to see, from
+    // outside, that the number was read correctly. Empty means it failed and
+    // lastError says why.
+    QString copyStackToClipboard();
     bool pasteClipboardToStack();
 
 signals:

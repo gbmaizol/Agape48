@@ -6,12 +6,14 @@
 // just syncing files - no REST client, no QtNetwork, no account. The user picks
 // a directory; whatever they have watching that directory does the transport.
 //
-//   Desktop : a plain path, e.g. ~/Dropbox/Agape48 . Handed to the core as
-//             cfg.state_dir.
-//   Android : a content:// TREE uri from ACTION_OPEN_DOCUMENT_TREE, with a
-//             persisted permission grant. A tree uri has no POSIX path, so the
-//             files are opened here via SAF and handed to the core as open
-//             file descriptors (cfg.fd_*).
+// A PLAIN PATH ON EVERY PLATFORM, e.g. ~/Dropbox/Agape48 or, on a phone,
+// /storage/emulated/0/Documents/Agape48Emulator. Handed to the core as
+// cfg.state_dir. Android's folder picker hands back a content:// tree uri
+// instead, which has no POSIX path and which the C core cannot fopen(): that
+// uri is turned back into the path it stands for the moment it arrives, and
+// nothing below this line ever sees anything but a local file. See localised()
+// in the .cpp, and canUseAnyFolder() for the permission that decides whether
+// the path can actually be opened.
 //
 // The hard part is not the transport, it is the conflict: two devices editing
 // one .ram between syncs. See conflictDetected() and README "Sync conflicts".
@@ -96,9 +98,7 @@ public:
     // after two copies pointed at one folder quietly ate each other's memory -
     // every instance writes the whole state on quit, so the last one out won.
     //
-    // Local files only. An Android content:// tree would need the whole SAF
-    // dance to write one small file, and Android will not run two copies of an
-    // app anyway.
+    // Local files only, which since 2026sep09 is every location there is.
     bool claim(bool takeOver = false);
     void release();
 
@@ -222,6 +222,19 @@ public:
     // result straight to migrateTo(). Empty if external storage is not mounted.
     Q_INVOKABLE QUrl sharedLocation();
 
+    // MAY AGAPE48 OPEN A FOLDER OF THE USER'S OWN? True on every desktop, and
+    // on Android only once the user has granted "all files access" on a system
+    // screen. Everything the app does by itself lives in its own storage and
+    // needs no permission; this is the one thing that does, and it is asked for
+    // only when a folder that needs it has been chosen. Not a Q_PROPERTY: it
+    // changes in the system settings while this process is in the background,
+    // so there is nothing here to emit a signal, and the settings page re-asks
+    // when it comes back to the foreground.
+    Q_INVOKABLE bool canUseAnyFolder() const;
+
+    // Opens the system screen with the switch on it, for this app.
+    Q_INVOKABLE void requestAnyFolderAccess();
+
     // location/<instance>, which is what the core is given as its state_dir.
     QString instanceDir() const;
 
@@ -257,7 +270,6 @@ signals:
 
 private:
     bool populateDesktop(x48_config_t *cfg, QByteArray *storage);
-    bool populateAndroidSaf(x48_config_t *cfg);
     void loadPersistedLocation();
     void beat();
     // The other half of the sync rule Gert set on 2026aug30: a calculator can

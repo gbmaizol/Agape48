@@ -176,7 +176,17 @@ Item {
                             text: modelData.inUse
                                   ? qsTr("open somewhere else")
                                   : (modelData.heldBy !== "" && !modelData.current
-                                     ? qsTr("left open on %1 since %2").arg(modelData.heldBy).arg(modelData.heldSince)
+                                     // Through Date, not straight out of the
+                                     // lock file. heldSince is UTC in ISO form
+                                     // because that is what travels between
+                                     // machines; on the phone it read "since
+                                     // 2026-09-08T21:17:23Z" beside a clock
+                                     // saying 23:17, which is the same moment
+                                     // wearing a disguise. Same format as the
+                                     // line below it, in the reader's own time.
+                                     ? qsTr("left open on %1 since %2").arg(modelData.heldBy)
+                                           .arg(Qt.formatDateTime(new Date(modelData.heldSince),
+                                                                  "yyyy-MM-dd HH:mm"))
                                      : qsTr("last used %1").arg(Qt.formatDateTime(modelData.lastUsed, "yyyy-MM-dd HH:mm")))
                             color: modelData.inUse ? "#e8a55a" : "#7d7d7d"
                             font.pixelSize: TextSizes.dialogHint
