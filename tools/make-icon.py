@@ -73,12 +73,23 @@ ANGLE = 30                              # counter-clockwise
 BACKGROUND = (66, 75, 92, 255)
 CLEAR = (0, 0, 0, 0)
 
-# How much of the canvas the calculator takes. Android's is smaller because an
-# adaptive layer is 108dp of which only the middle 72dp is guaranteed to
-# survive the launcher's mask; the rest is there to be cropped, or to slide
-# about when the launcher does its parallax wobble.
-FILL_DESKTOP = 0.84
-FILL_ADAPTIVE = 0.76
+# How much of the canvas the photograph takes. OVER 1.0 ON PURPOSE: it is
+# scaled until its bounding box is a quarter wider than the icon, so the four
+# corners of the tilted picture fall outside and are cut off. Gert, 2026sep08:
+# "The image is too small. make it larger, it doesn't matter if some corners
+# will be cut."
+#
+# 1.25 rather than more. Past about 1.4 the cut corners meet, the picture
+# becomes a plain square, and two things go with them: the tilt stops being
+# visible at all on a transparent desktop icon, and the slate is left with
+# nothing to do. At 1.25 a wedge of ground still shows at two corners, which is
+# what keeps the rotation legible.
+#
+# One number for both, where Android's used to be smaller to stay inside the
+# 72dp safe zone. Being cropped is now the point, so the zone it has to respect
+# is the mask, not the canvas.
+FILL_DESKTOP = 1.25
+FILL_ADAPTIVE = 1.25
 
 # "Oh, and make the edges a bit blurry!" - Gert, 2026sep08. A fraction of the
 # icon's own size rather than a fixed number of pixels, so the softness looks
