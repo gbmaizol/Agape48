@@ -34,6 +34,16 @@ Popup {
     property string title: ""
     signal backRequested()
 
+    // THE SYSTEM BACK IS NOT THE DRAWN ARROW, since dogfood android-08. The
+    // arrow means "up one page" - it is what takes Text sizes back to Settings.
+    // Gert wants the phone's own back to mean something stronger: "The back
+    // button should take out of every internal configs or selections, stopping
+    // at the calculator", and "make it go back to the calculator if swiping
+    // back or clicking the back bottom-button." So the gesture and the
+    // navigation bar emit this instead, and Main.qml - which is the only place
+    // that knows how many pages are open - closes the lot.
+    signal dismissRequested()
+
     // Everything declared inside a PageShell lands under the header.
     default property alias pageContent: body.data
 
@@ -50,35 +60,13 @@ Popup {
     // only cost a full-screen blend every frame.
     dim: false
     padding: 0
-    // Every exit goes through backRequested(), including the back gesture, so a
-    // page that has something to ask before closing still gets to ask it.
+    // Nothing closes this page by itself: every exit goes through
+    // backRequested() or dismissRequested(), so a page that has something to
+    // ask before closing still gets to ask it.
     closePolicy: Popup.NoAutoClose
     focus: true
 
     background: Rectangle { color: "#1b1b1b" }
-
-    // Android's back gesture arrives as a key press, and the manifest opts in to
-    // the modern callback. Escape is handled inside each page's contents, where
-    // it cannot leak out to the calculator - see SettingsContent.qml.
-    //
-    // ON AN ITEM, NOT ON THE POPUP. A Popup is not an Item, so `Keys` never
-    // attached to it: every page printed "Could not attach Keys property to:
-    // PageShell ... is not an Item" at startup and the handler below was dead
-    // code from the day it was written. Three of them on the phone, one per
-    // page. This catcher is a plain Item with the focus, drawn under everything
-    // and hit-testing nothing, so it changes what the page looks like not at
-    // all and finally gives the back gesture somewhere to land.
-    Item {
-        id: backCatcher
-        anchors.fill: parent
-        focus: true
-        Keys.onPressed: (event) => {
-            if (event.key === Qt.Key_Back) {
-                root.backRequested()
-                event.accepted = true
-            }
-        }
-    }
 
     Item {
         id: header
@@ -124,8 +112,33 @@ Popup {
         }
     }
 
+    // Android's back gesture arrives as a key press, and the manifest opts in to
+    // the modern callback. Escape is handled inside each page's contents, where
+    // it cannot leak out to the calculator - see SettingsContent.qml.
+    //
+    // ON THE ITEM THAT CONTAINS THE PAGE, and that is the whole fix. It was on
+    // a Popup first, where `Keys` cannot attach at all ("Could not attach Keys
+    // property to: PageShell ... is not an Item"), so it was dead code. Then it
+    // was on a focus-holding Item drawn under the page - which worked exactly
+    // until you touched anything. A key event goes to the focus item and then
+    // up its PARENT chain; a catcher beside the content is a sibling, not an
+    // ancestor, so the moment a text field or a button inside the page took the
+    // focus the back key went past it and nothing happened. That is Gert's
+    // dogfood android-08 line 8 precisely: "In some circumstances, like if I
+    // just entered the settings, swiping back goes back to the calculator" -
+    // the circumstance being that he had not touched the page yet.
+    //
+    // Everything declared inside a PageShell lands in here, so here the back
+    // key is always upstream of whatever has the focus.
     Item {
         id: body
         anchors { fill: parent; topMargin: header.height }
+        focus: true
+        Keys.onPressed: (event) => {
+            if (event.key === Qt.Key_Back) {
+                root.dismissRequested()
+                event.accepted = true
+            }
+        }
     }
 }

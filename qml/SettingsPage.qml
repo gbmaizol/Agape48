@@ -20,6 +20,13 @@ PageShell {
     // there is an unapplied path sitting in the folder field.
     onBackRequested: content.requestClose()
 
+    // Closing on somebody else's say-so - the phone's back, which Main.qml
+    // turns into "shut everything and show me the calculator". It goes through
+    // the contents for the same reason the arrow does: a folder typed and not
+    // applied is still worth a question, and the gesture is if anything MORE
+    // likely to be the accident that loses it.
+    function dismiss() { content.requestClose() }
+
     SettingsContent {
         id: content
         anchors.fill: parent

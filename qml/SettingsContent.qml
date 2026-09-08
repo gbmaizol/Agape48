@@ -70,6 +70,10 @@ Item {
     // "Save" and "Discard" rather than OK and Cancel, in his words: "Clicking
     // 'Close' before pressing ENTER should also make it red and bold, and ask
     // for confirmation, with options 'Save'   'Discard'."
+    // The labels inside carry no colour of their own - see the note in
+    // CalculatorPickerContent.qml. A Dialog's background comes from the system
+    // palette and the ink has to come from the same place, or it is unreadable
+    // on whichever half of the world the hard-coded value was not chosen for.
     Dialog {
         id: unsavedDialog
         anchors.centerIn: parent
@@ -100,7 +104,7 @@ Item {
             Label {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
+                font.pixelSize: TextSizes.dialogBody
                 text: qsTr("Save moves the calculator's memory to:")
             }
 
@@ -133,7 +137,7 @@ Item {
             Label {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
+                font.pixelSize: TextSizes.dialogBody
                 text: qsTr("Discard leaves it where it is now.")
             }
         }
@@ -372,12 +376,54 @@ Item {
             // "there are functions that don't make sense in Android".
             text: Qt.platform.os === "android"
                       ? qsTr("Press Enter to move the calculator's memory there. "
-                             + "Put it inside a synced folder to carry the "
-                             + "machine between your devices.")
+                             + "To carry the machine between your devices it has "
+                             + "to be somewhere your sync app can reach, and on "
+                             + "Android that is not the folder it starts in.")
                       : qsTr("Press Enter to move the calculator's memory there. "
                              + "Put it inside a synced folder to carry the "
                              + "machine between your devices. You can also drop "
                              + "a folder on this window.")
+        }
+
+        // ANDROID ONLY, and it is the answer to dogfood android-08 line 7:
+        // "I don't have access to the internal calculator folder, and I can't
+        // change it to a visible folder before you implement this possibility."
+        //
+        // A button rather than a path he has to know: the folder is
+        // Android/media/br.gbmaizol.agape48/Agape48 calculators, which nobody
+        // would type and which the "…" picker cannot return either - that picker
+        // hands back a content:// tree, and the emulator core needs a real path.
+        // Everything about why this particular folder is in StateFileManager::
+        // sharedLocation().
+        Item { width: 1; height: 6; visible: sharedButton.visible }
+        Button {
+            id: sharedButton
+            visible: Qt.platform.os === "android"
+            height: visible ? implicitHeight : 0
+            width: parent.width
+            text: qsTr("Move it where other apps can see it")
+            onClicked: {
+                // Empty means no external storage, and sharedLocation() has
+                // already put the reason where the error box will find it.
+                const where = root.engine.state.sharedLocation()
+                if (where.toString() === "")
+                    return
+                if (root.engine.state.migrateTo(where)) {
+                    stateField.text = root.engine.state.displayName
+                    root.warnUnsaved = false
+                }
+            }
+        }
+        Label {
+            visible: sharedButton.visible
+            height: visible ? implicitHeight : 0
+            width: parent.width
+            wrapMode: Text.WordWrap
+            color: "#7d7d7d"; font.pixelSize: TextSizes.dialogHint
+            text: qsTr("Puts the calculators in Android/media, where a file "
+                       + "manager or a sync app can find them. Nothing is asked "
+                       + "of you and no permission is needed - the folder "
+                       + "belongs to Agape48, it is just not hidden.")
         }
 
         Item { width: 1; height: 8; visible: liveResizeRow.visible }

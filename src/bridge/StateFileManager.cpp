@@ -24,6 +24,7 @@
 
 #ifdef Q_OS_ANDROID
 #  include <QCoreApplication>
+#  include <QJniEnvironment>
 #  include <QJniObject>
 #  include <QtCore/qnativeinterface.h>
 #endif
@@ -148,6 +149,54 @@ QString StateFileManager::defaultLocationPath()
 #else
     return base;
 #endif
+}
+
+QUrl StateFileManager::sharedLocation()
+{
+    setError(QString());
+#ifdef Q_OS_ANDROID
+    QJniEnvironment env;
+    const QJniObject context = QNativeInterface::QAndroidApplication::context();
+    if (!context.isValid())
+        return {};
+    // File[], one per storage volume - internal first, then any SD card. The
+    // first one that exists and can be written to wins; a phone with no card
+    // returns a single entry, and an unmounted volume returns a null one.
+    const QJniObject dirs =
+        context.callObjectMethod("getExternalMediaDirs", "()[Ljava/io/File;");
+    if (!dirs.isValid())
+        return {};
+    const auto array = dirs.object<jobjectArray>();
+    if (!array)
+        return {};
+    const jsize count = env->GetArrayLength(array);
+    for (jsize i = 0; i < count; ++i) {
+        const QJniObject dir(env->GetObjectArrayElement(array, i));
+        if (!dir.isValid())
+            continue;
+        const QJniObject path =
+            dir.callObjectMethod("getAbsolutePath", "()Ljava/lang/String;");
+        if (!path.isValid())
+            continue;
+        // A SUBFOLDER, not the media directory itself. The shelf adopts every
+        // subdirectory it finds as a calculator, and Android's media scanner
+        // and other apps both write into that directory - the same mistake the
+        // default location already made once, when Qt's own "settings" folder
+        // appeared on the shelf wearing the name of a calculator.
+        const QString shelf =
+            path.toString() + QStringLiteral("/Agape48 calculators");
+        if (!QDir().mkpath(shelf))
+            continue;
+        if (!QFileInfo(shelf).isWritable())
+            continue;
+        return QUrl::fromLocalFile(shelf);
+    }
+    // Every volume refused. It says so rather than returning empty in silence:
+    // the caller is a button, and a button that does nothing and explains
+    // nothing is the worst of the three outcomes.
+    setError(tr("This device has no external storage to keep the calculators on."));
+#endif
+    return {};
 }
 
 void StateFileManager::useDefaultLocation()
@@ -665,6 +714,58 @@ bool StateFileManager::renameInstance(const QString &from, const QString &to)
         emit instanceChanged();
     }
     watchFiles();                       // the folder it watches has a new name
+    return true;
+}
+
+bool StateFileManager::deleteInstance(const QString &name)
+{
+    setError(QString());
+    if (!m_location.isLocalFile()) {
+        setError(tr("Calculators can only be deleted from a local state folder."));
+        return false;
+    }
+    const QString clean = name.trimmed();
+    if (clean.isEmpty() || clean.contains(QLatin1Char('/'))
+            || clean.contains(QLatin1Char('\\'))) {
+        setError(tr("That name cannot be used for a folder."));
+        return false;
+    }
+    // The open one. Refused here as well as disabled in the shelf - see the
+    // header.
+    if (clean == m_instance) {
+        setError(tr("%1 is the calculator you are using. Open another one "
+                    "first, then delete this one.").arg(clean));
+        return false;
+    }
+    QDir base(m_location.toLocalFile());
+    const QString path = base.filePath(clean);
+    if (!QFileInfo::exists(path)) {
+        setError(tr("There is no calculator called %1.").arg(clean));
+        return false;
+    }
+    // Somebody else is mid-session in it. busyAt() only knows about live
+    // processes on THIS machine, so the lock file answers for the other ones -
+    // the same two-part question the shelf already asks to draw "open somewhere
+    // else" beside a name.
+    if (busyAt(path) || isHeldBySomebody(clean)) {
+        setError(tr("%1 is open somewhere else. Close it there first.").arg(clean));
+        return false;
+    }
+    // Stop watching before removing, for the reason renameInstance gives at
+    // length: on Windows the watcher holds the directory open and the removal
+    // fails with nothing the user can see.
+    if (m_watch) {
+        const QStringList watched = m_watch->files() + m_watch->directories();
+        if (!watched.isEmpty())
+            m_watch->removePaths(watched);
+    }
+    QDir doomed(path);
+    const bool gone = doomed.removeRecursively();
+    watchFiles();
+    if (!gone) {
+        setError(tr("Could not delete %1.").arg(clean));
+        return false;
+    }
     return true;
 }
 

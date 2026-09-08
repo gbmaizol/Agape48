@@ -40,10 +40,12 @@ Android ADAPTIVE icon's background layer, which is required to be opaque and
 which some launchers paint black if it is not - black bars again, which is the
 complaint that started this. So:
 
-    the desktop PNG, the .ico, the adaptive FOREGROUND layer and the legacy
-    square      transparent, and the tilted photograph floats on whatever is
-                behind it
-    the adaptive BACKGROUND layer     #424B5C, the slate he chose
+    the desktop PNG, the .ico and the legacy square     transparent, and the
+                tilted photograph floats on whatever is behind it
+    the adaptive FOREGROUND layer     transparent at the corners, but scaled to
+                cover the launcher's mask completely - see FILL_ADAPTIVE
+    the adaptive BACKGROUND layer     the slate, which by design is now only
+                seen while a launcher is animating the icon
 
 The soft shadow is kept in every case. It is what stops a dark photograph from
 dissolving into a dark taskbar, and on transparency it simply travels with the
@@ -66,11 +68,19 @@ PNG_SIZE = 256
 
 ANGLE = 30                              # counter-clockwise
 
-# Gert's, given as three numbers: "make the background r66,g75,b92". A slate
-# blue-grey that picks up the photograph's own cool cast, so the tilted picture
-# reads as an object lying on a ground rather than as a hole in one. Used ONLY
-# where transparency is not allowed - see the note at the top.
-BACKGROUND = (66, 75, 92, 255)
+# Gert's, given as three numbers: "make the background r66,g75,b92", and then
+# halved on 2026sep08 after he saw it cut into a circle on the launcher:
+# "Works! I see a circle with the calculator in it. Please make the background
+# half as dark."
+#
+# HALF AS DARK, not half as bright - those are opposite operations and only one
+# of them is what he asked for. Darkness is 1 - L in HSL, so halving it takes
+# L from 0.310 to 0.655 while hue (219 degrees) and saturation (0.165) stay
+# exactly where they were. That is the difference between a lighter version of
+# HIS slate and a different colour that happens to be paler: rgb(66,75,92)
+# becomes rgb(153,163,181). Used ONLY where transparency is not allowed - see
+# the note at the top.
+BACKGROUND = (153, 163, 181, 255)
 CLEAR = (0, 0, 0, 0)
 
 # How much of the canvas the photograph takes. OVER 1.0 ON PURPOSE: it is
@@ -85,11 +95,35 @@ CLEAR = (0, 0, 0, 0)
 # nothing to do. At 1.25 a wedge of ground still shows at two corners, which is
 # what keeps the rotation legible.
 #
-# One number for both, where Android's used to be smaller to stay inside the
-# 72dp safe zone. Being cropped is now the point, so the zone it has to respect
-# is the mask, not the canvas.
+# TWO NUMBERS, because the two platforms want opposite things, and 2026sep08
+# is when that became clear. Gert, looking at the launcher: "Why the launcher
+# shows me a circle in the background of the icon instead of transparency?"
+#
+# It is showing a circle because on Android there is no such thing as a
+# free-form icon any more. An adaptive icon is two layers and the LAUNCHER
+# chooses the silhouette - a circle here, a squircle on other phones, a
+# rounded square elsewhere - and cuts both layers with it, so every icon on the
+# home screen is the same shape on purpose. Transparency cannot defeat that;
+# the background layer is required to be opaque, and a launcher handed a
+# transparent one paints it black, which is the black bars this whole icon
+# started as.
+#
+# What CAN be done is leave the launcher's shape nothing of ours to fill: scale
+# the photograph until it covers the whole mask, and the circle stops being a
+# coloured plate with a picture on it and becomes a circle of picture. 1.6
+# rather than 1.5: at 1.5 the circle is covered but the squircle still shows a
+# wedge at one corner, and phones do not agree on the shape. Measured inside the
+# mask - uncovered area at the 72dp the launcher shows: 10.65% at 1.25, 0.04% at
+# 1.5, 0.00% at 1.6, and 0.67% at 1.6 even for the 80dp a launcher reaches
+# during parallax.
+#
+# The desktop keeps 1.25 and its transparency, because there the icon really is
+# free-form and the tilt is the whole point. Past about 1.4 the cut corners meet
+# and the picture becomes a plain square, which on a transparent desktop icon
+# would throw the rotation away - so the number that is right for Android is
+# wrong there, and the other way about.
 FILL_DESKTOP = 1.25
-FILL_ADAPTIVE = 1.25
+FILL_ADAPTIVE = 1.6
 
 # "Oh, and make the edges a bit blurry!" - Gert, 2026sep08. A fraction of the
 # icon's own size rather than a fixed number of pixels, so the softness looks

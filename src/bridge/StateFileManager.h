@@ -187,6 +187,41 @@ public:
 
     Q_INVOKABLE bool renameInstance(const QString &from, const QString &to);
 
+    // Throw one away, folder and all. Gert asked for it in dogfood android-08
+    // line 6: "we need a 4th button to delete a calculator! It should be
+    // disabled if the selected calculator is the one that's loaded."
+    //
+    // THE OPEN ONE IS NOT DELETABLE, and that is his rule rather than a
+    // limitation - deleting the folder the C core is writing into would leave
+    // the emulator running against files that no longer exist, and the next
+    // save would recreate half of them. The shelf disables the button for it;
+    // this refuses it as well, because a shelf is not the only caller a method
+    // can ever have. A calculator open on ANOTHER device is refused too: its
+    // lock is the only evidence that someone is mid-session in it.
+    Q_INVOKABLE bool deleteInstance(const QString &name);
+
+    // A FOLDER ON ANDROID THAT OTHER APPS CAN SEE. Empty everywhere else.
+    //
+    // The shelf's default on Android is the app's own private data directory,
+    // which works perfectly and is invisible: since Android 11 no file manager
+    // may browse Android/data, so nothing can sync it and the user cannot even
+    // look at it. Gert, dogfood android-08 line 7: "I don't have access to the
+    // internal calculator folder, and I can't change it to a visible folder
+    // before you implement this possibility."
+    //
+    // getExternalMediaDirs() is the possibility. It hands back the app's own
+    // folder under Android/media, which Android deliberately left readable by
+    // other apps when it closed Android/data - it is a real POSIX path, it
+    // needs no permission of any kind, and the app owns it, so nothing here has
+    // to change: the shelf, the locks, the per-calculator folders and
+    // migrateTo() all work on it exactly as they do on a desktop. That is the
+    // whole reason to prefer it over the Storage Access Framework, where a
+    // content:// tree has no path and the C core cannot fopen() it.
+    //
+    // Creates the folder if it is not there yet, so the caller can hand the
+    // result straight to migrateTo(). Empty if external storage is not mounted.
+    Q_INVOKABLE QUrl sharedLocation();
+
     // location/<instance>, which is what the core is given as its state_dir.
     QString instanceDir() const;
 

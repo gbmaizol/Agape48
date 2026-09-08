@@ -50,6 +50,61 @@ Item {
         }
     }
 
+    // Deleting a calculator throws away its memory, its ports and its ROM
+    // settings, and there is no undo anywhere in this program. So it asks -
+    // which is also what makes the button's position on the row harmless.
+    Dialog {
+        id: confirmDelete
+        anchors.centerIn: parent
+        modal: true
+        // PINNED, like every other popup in this program. See PageShell.qml:
+        // asking Android for a second window makes the platform plugin acquire
+        // a surface and the process aborts. A Dialog is a Popup, so it is the
+        // same question and it gets the same answer.
+        popupType: Popup.Item
+        title: qsTr("Delete this calculator?")
+        standardButtons: Dialog.Yes | Dialog.Cancel
+        // Explicit, for the binding loop the settings dialog documents at
+        // length: a Dialog with standardButtons and a wrapping label sizes
+        // itself from a footer whose width depends on the width it is given.
+        width: Math.min(420, root.width - 40)
+
+        // WRAPPED IN A COLUMN, exactly like the settings dialog, and not for
+        // tidiness. A single Item declared in a Dialog BECOMES its contentItem,
+        // so a wrapping Label put here directly has its height decide the
+        // dialog's height while its width comes from the dialog - and Qt
+        // reports "Binding loop detected for property implicitHeight" twice at
+        // startup. A Column in between is the contentItem instead; its height
+        // is the sum of its children and nothing measures back the other way.
+        Column {
+            width: parent.width
+            // NO COLOUR OF ITS OWN. A Dialog paints its own background from
+            // the system palette - light on a laptop with no theme set, dark on
+            // Gert's Windows - so ink fixed at either end is unreadable on the
+            // other. Measured: on a bare X session this label was #e8e8e8 on the
+            // Basic style's white and could not be read at all. The page behind
+            // it is a different case and keeps its light ink, because that
+            // background is ours and is always dark.
+            Label {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                font.pixelSize: TextSizes.dialogBody
+                text: qsTr("%1 and everything in it - its memory, both ports and "
+                           + "its settings - will be removed from the state folder. "
+                           + "This cannot be undone.").arg(root.selected)
+            }
+        }
+
+        onAccepted: {
+            const doomed = root.selected
+            if (root.engine.state.deleteInstance(doomed))
+                root.selected = root.engine.state.instance
+            // Either way: on success the list is one shorter, and on failure
+            // lastError says why and the row is still there to try again.
+            root.refresh()
+        }
+    }
+
     // A key handler rather than a Shortcut, for the reason in SettingsWindow:
     // a Shortcut in a secondary window goes on grabbing its sequence after the
     // window is hidden, which is what killed Esc-is-ON in dogfood #8.
@@ -158,22 +213,64 @@ Item {
 
         Item { id: gap; width: 1; height: 2 }
 
+        // ONE ROW OF FOUR, EQUAL WIDTHS. It was a Flow first, which wrapped
+        // Close onto a second line on a narrow shelf; Gert, 2026sep08: "Keep
+        // the four buttons on the same row. they can be smaller." So they
+        // divide the width between them instead of asking for what their text
+        // wants - four equal quarters, which also stops the row from
+        // rearranging itself as the selection changes the labels' state.
+        //
+        // "New" rather than "New calculator" for the same reason: a quarter of
+        // a phone's width does not hold two words, and a Button clips its label
+        // rather than eliding it. On a page headed "Calculators" the noun is
+        // not needed.
         Row {
             id: buttonRow
-            spacing: 10
+            width: parent.width
+            spacing: 6
+            readonly property real cell: (width - spacing * 3) / 4
             Button {
+                width: buttonRow.cell
                 text: qsTr("Open")
                 enabled: root.selected !== "" && root.selected !== root.engine.state.instance
                 onClicked: root.openSelected()
             }
             Button {
-                text: qsTr("New calculator")
+                width: buttonRow.cell
+                text: qsTr("New")
                 onClicked: {
                     const made = root.engine.newCalculator()
                     if (made !== "") { root.selected = made; root.closeRequested() }
                 }
             }
-            Button { text: qsTr("Close"); onClicked: root.closeRequested() }
+            // Gert, dogfood android-08 line 6: "we need a 4th button to delete
+            // a calculator! It should be disabled if the selected calculator is
+            // the one that's loaded." Both halves of that are here: the enabled
+            // condition is his, and deleteInstance() refuses the open one again
+            // on its own account.
+            //
+            // KEPT BEFORE Close rather than after it. Close has been the last
+            // button on this row since the shelf existed, and moving it to make
+            // room for a destructive one would put Delete under the thumb that
+            // has learned where Close is.
+            Button {
+                id: deleteButton
+                width: buttonRow.cell
+                text: qsTr("Delete")
+                enabled: root.selected !== "" && root.selected !== root.engine.state.instance
+                // Red, and only when it can actually do something - a disabled
+                // button painted in warning colours reads as an error message.
+                //
+                // TWO LITERALS, and not palette.mid for the disabled half:
+                // reading one member of the palette group inside a binding that
+                // assigns another member is a loop, and Qt says so twice at
+                // startup - "QML Palette: Binding loop detected for property
+                // buttonText". Caught by running the program before shipping
+                // it, which is the only way this class of mistake shows up.
+                palette.buttonText: enabled ? "#ff8a80" : "#7d7d7d"
+                onClicked: confirmDelete.open()
+            }
+            Button { width: buttonRow.cell; text: qsTr("Close"); onClicked: root.closeRequested() }
         }
     }
 

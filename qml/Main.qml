@@ -486,6 +486,28 @@ Window {
         handover.showFor(holder, name)
     }
 
+    // THE PHONE'S BACK MEANS "OUT", not "up one". Gert, dogfood android-08:
+    // "The back button should take out of every internal configs or selections,
+    // stopping at the calculator", and on the line where back from Settings had
+    // landed him on the calculator by accident, "But I like it, so make it go
+    // back to the calculator if swiping back or clicking the back
+    // bottom-button."
+    //
+    // Here rather than in PageShell because this is the only place that knows
+    // how many pages are open. The drawn arrow in each header still means up
+    // one page - without it there would be no way from Text sizes back to
+    // Settings - so the two gestures are wired to two different signals.
+    //
+    // Settings is asked rather than told: it may have a folder typed into it
+    // and not yet applied, and a back swipe is exactly the accident that would
+    // throw it away. The other two have nothing to lose, so they simply go.
+    function closeAllPages() {
+        advancedPage.close()
+        pickerPage.close()
+        if (settingsPage.opened)
+            settingsPage.dismiss()
+    }
+
     // ONE SHELF, TWO SHELLS. The same split as Settings, for the same reason,
     // and the shelf is the one that most needed it: it is the only way to reach
     // a calculator that came from another machine, so on a phone the crash took
@@ -509,6 +531,7 @@ Window {
         height: root.pageH
         onOpenedChanged: focusGuard.restart()
         onBusyCalculator: (name, holder) => root.offerHandover(name, holder)
+        onDismissRequested: root.closeAllPages()
     }
 
     // ONE SET OF SETTINGS, TWO SHELLS. The contents live in SettingsContent.qml
@@ -555,6 +578,18 @@ Window {
         height: root.pageH
         onOpenedChanged: focusGuard.restart()
         onAdvancedRequested: advancedPage.open()
+        onDismissRequested: root.closeAllPages()
+
+        // DEAF WHILE TEXT SIZES IS OVER IT. The two pages are siblings on the
+        // same rectangle, so their back arrows are drawn at the same point, and
+        // one tap on the top one was reaching both: measured 2026sep08, page
+        // state went from "settings=true advanced=true" to both false on a
+        // single tap, which is why Text sizes appeared to close straight to the
+        // calculator instead of back to Settings. A modal popup is supposed to
+        // block what is under it; between two popups it does not. Being
+        // disabled does block it, and it costs nothing to look at because this
+        // page is completely covered while advancedPage is open.
+        enabled: !advancedPage.opened
     }
 
     // A page over the settings page rather than inside it: a sibling covering
@@ -569,6 +604,7 @@ Window {
         width: root.pageW
         height: root.pageH
         onOpenedChanged: focusGuard.restart()
+        onDismissRequested: root.closeAllPages()
     }
 
     // Error banner. Raw QtQuick: Quick Controls was allowed on 2026aug28, but
