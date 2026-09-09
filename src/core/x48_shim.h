@@ -104,17 +104,6 @@ bool        x48_is_asleep(void);
  * real 48 would be. That number has to come from outside and be calibrated. */
 long        x48_instructions_per_second(void);
 
-/* Tell the core the instruction rate the frontend is holding it to, so it stops
- * MEASURING what it can be told. The 48's timer1 runs at 16 Hz and timer2 at
- * 8192 Hz, so the divisors are just rate/16 and rate/8192 - and with them right
- * the calculator's clock, its alarms, WAIT and TICKS are all correct at a
- * throttled speed, which they are not otherwise.
- *
- * 0 hands the job back to x48's own continuous measurement, which is what a
- * free-running emulator needs. Rates whose rate/16 will not fit in the core's
- * short t1_tick are refused for the same reason, and return false. */
-bool        x48_pin_timers(long instructions_per_second);
-
 /* --- display ------------------------------------------------------------ */
 
 /* Copies the current LCD into *out. Returns false if nothing changed since the

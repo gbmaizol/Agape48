@@ -638,8 +638,6 @@ bool Agape48Engine::start()
     }
 
     m_ready = true;
-
-    applyPacing();
     // Whatever the next frame shows is the calculator as it was saved, not as
     // anybody just left it. Spent by the first frame in tick().
     m_freshLoad = true;
@@ -953,26 +951,12 @@ void Agape48Engine::setLiveResize(bool on)
     emit liveResizeChanged();
 }
 
-// Hand the rate to the core, or hand the job back. Everything the 48 times
-// itself - its clock, its alarms, WAIT and TICKS - comes off timer1 and timer2,
-// and x48 normally keeps those honest by MEASURING how fast the host is going.
-// That measurement is too slow and too smoothed to follow a deliberate throttle
-// (see the note in schedule()), so when we are pacing we tell it the number
-// instead. Off, x48 measures again, which is correct for a free run.
-void Agape48Engine::applyPacing()
-{
-    if (!m_ready)
-        return;
-    x48_pin_timers(m_realSpeed ? m_realSpeedRate : 0);
-}
-
 void Agape48Engine::setRealSpeed(bool on)
 {
     if (m_realSpeed == on)
         return;
     m_realSpeed = on;
     QSettings().setValue(QLatin1String("speed/real"), on);
-    applyPacing();
     // Start from now, and throw the debt away: flipping the switch is not a
     // reason to catch up on time the calculator spent running free.
     m_paceAt   = 0;
@@ -1039,7 +1023,6 @@ void Agape48Engine::setRealSpeedRate(int instructionsPerSecond)
         return;
     m_realSpeedRate = rate;
     QSettings().setValue(QLatin1String("speed/rate"), rate);
-    applyPacing();
     // Same reasoning as the switch: start from now rather than settling a debt
     // that was incurred at a different rate.
     m_paceAt   = 0;

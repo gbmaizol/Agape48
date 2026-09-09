@@ -46,8 +46,6 @@
 #include <time.h>
 
 #include "timer.h"
-
-extern int x48_timers_pinned;   /* Agape48: see x48_pin_timers() */
 #include "debugger.h"
 #include "romio.h"
 
@@ -650,20 +648,7 @@ get_t1_t2()
            * slow down timer2.
            */
           ticks.t2_ticks = saturn.timer2;
-          /* Agape48: NOT WHILE THE DIVISOR IS PINNED. This is a second, independent
-           * calibration on top of the statistics block in schedule(), and it is a
-           * ONE-WAY RATCHET: every time the emulated timer2 is found running ahead of
-           * the host clock it makes timer2 slower, and nothing here ever makes it
-           * faster again. Free-running that is harmless, because the statistics block
-           * reassigns t2_tick from measured throughput every 0x7ffff instructions and
-           * so undoes the ratchet. Pinning the divisor removed that reset and left the
-           * ratchet unopposed: measured on Gert's laptop 2026sep09, t2_tick climbed
-           * 61 -> 67 -> 439 -> 3388 -> 3811 over one session, so TICKS - and the
-           * clock, the alarms and WAIT with it - got steadily slower, and every
-           * measurement he took went through it. Returning the old value still keeps
-           * timer2 monotonic, which is what the check above is really for. */
-          if (!x48_timers_pinned)
-            saturn.t2_tick++;
+          saturn.t2_tick++;
         }
 
       return ticks;
@@ -729,10 +714,7 @@ get_t1_t2()
        * slow down timer2.
        */
       ticks.t2_ticks = saturn.timer2;
-      /* Agape48: the same one-way ratchet as the site above, guarded the same
-       * way. The long note is there. */
-      if (!x48_timers_pinned)
-        saturn.t2_tick++;
+      saturn.t2_tick++;
     }
 
   return ticks;

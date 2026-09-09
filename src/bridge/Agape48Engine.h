@@ -315,7 +315,6 @@ private:
     void finishRelease(int row, int mask);
     void setTickRate(int ms);
     int  realSpeedBudget();
-    void applyPacing();
     void queueTaps(const QStringList &keys);
     void shutdownCore();
     // Save, release, detach: the single way a calculator leaves this window,
