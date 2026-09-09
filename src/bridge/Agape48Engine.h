@@ -71,6 +71,13 @@ class Agape48Engine : public QObject
     // top edges that lands the face at a shifted position - dogfood windows-02.
     // Machine-local, like the window geometry and the keymap.
     Q_PROPERTY(bool liveResize READ liveResize WRITE setLiveResize NOTIFY liveResizeChanged)
+
+    // Off by default, and off means the calculator runs as fast as the machine
+    // allows - Gert's words: "Normally we want the calculator to run as fast as
+    // it can." On, the Saturn is paced to a real HP 48's instruction rate,
+    // which is what makes a game written for one playable rather than five
+    // times too fast. See kRealSpeedInstrPerSec for where the rate comes from.
+    Q_PROPERTY(bool realSpeed READ realSpeed WRITE setRealSpeed NOTIFY realSpeedChanged)
     Q_PROPERTY(QString logPath      READ logPath      CONSTANT)
 
     // Counts down while a sleep request is outstanding; 0 when nothing is.
@@ -93,6 +100,7 @@ public:
     bool soundEnabled() const   { return m_sound; }
     bool debugLogging() const   { return m_debugLogging; }
     bool liveResize() const     { return m_liveResize; }
+    bool realSpeed() const      { return m_realSpeed; }
     QString logPath() const;
 
     void setRomSource(const QUrl &url);
@@ -100,6 +108,7 @@ public:
     void setSoundEnabled(bool on);
     void setDebugLogging(bool on);
     void setLiveResize(bool on);
+    void setRealSpeed(bool on);
 
     // --- asking another instance for a calculator ---------------------------
     // Writes the request, then waits for whoever has it to save and let go.
@@ -247,6 +256,7 @@ signals:
     void hapticsEnabledChanged();
     void soundEnabledChanged();
     void debugLoggingChanged();
+    void realSpeedChanged();
     void liveResizeChanged();
 
     void frameReady();                      // LcdItem listens; fires only on change
@@ -284,6 +294,7 @@ private:
     void markPressed(int row, int mask, bool down);
     void finishRelease(int row, int mask);
     void setTickRate(int ms);
+    int  realSpeedBudget();
     void queueTaps(const QStringList &keys);
     void shutdownCore();
     // Save, release, detach: the single way a calculator leaves this window,
@@ -317,6 +328,14 @@ private:
     bool              m_haptics = true;
     bool              m_sound = true;
     bool              m_debugLogging = false;
+
+    // Real-speed pacing. m_paceAt is the reading of m_clock at the last slice
+    // and m_paceOwed the fraction of an instruction carried over, in
+    // instruction-microseconds - without it the rate would be quietly rounded
+    // down once per tick, which over a minute is a visible loss.
+    bool              m_realSpeed = false;
+    qint64            m_paceAt    = 0;
+    qint64            m_paceOwed  = 0;
     bool              m_liveResize    = false;
     bool              m_displayOff = false;
     bool              m_detached = false;

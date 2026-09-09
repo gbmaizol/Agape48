@@ -36,6 +36,32 @@ constexpr int  kMinHoldMs      = 60;
 constexpr int  kCyclesPerTick  = 70000;
 constexpr int  kIdleIntervalMs = 100;
 
+// REAL HP 48 SPEED, and the number is triangulated rather than picked. Gert,
+// 2026sep09, on a game he had just tried: "it's runing at 5x the speed it
+// should be."
+//
+// Free-running, this frontend delivers kCyclesPerTick every kTickIntervalMs =
+// 4,375,000 instructions a second, so his five times puts a real machine at
+// about 875,000. TWO INDEPENDENT THINGS AGREE with that: 875,000 times the
+// Saturn's ~4.2 cycles per instruction is 3.68 MHz, which is the 48GX's clock,
+// and x48_shim.c:327 already guessed "roughly 17000 of these" for a 60 Hz tick,
+// which is 1.06 M/s - the same number to twenty percent, and never once
+// reconciled with the 70000 two lines above it.
+//
+// THE TWO CONSTANTS INSIDE X48 DISAGREE, with each other and with both of
+// those: the timer fallback at emulate.c:2376 assumes 8192 instructions per
+// 1/16 s, which is 131,072/s, and the dead throttle at emulate.c:2466 busy-waits
+// 2 us each, which is 500,000/s. Neither is authoritative - which is exactly why
+// this one is derived from something observed on a real game instead of chosen
+// from the source.
+constexpr int    kRealSpeedInstrPerSec = 875000;
+
+// The most time one slice may make up. A stall - the phone backgrounding us, a
+// long frame, waking out of the 100 ms idle tick - must not hand the Saturn a
+// burst and make a game jump; two ticks' worth is enough to ride out a late
+// timer and small enough that nothing visible can accumulate behind it.
+constexpr qint64 kPaceMaxCatchUpUs     = 2 * kTickIntervalMs * 1000;
+
 // Waiting for another instance to answer a sleep request. Long enough for the
 // question and the answer to cross a sync folder - a busy Dropbox takes tens of
 // seconds - and short enough that a machine which is simply switched off does
@@ -222,6 +248,7 @@ Agape48Engine::Agape48Engine(QObject *parent)
         setDebugLogging(true);
 
     m_liveResize = QSettings().value(QLatin1String("window/liveResize"), false).toBool();
+    m_realSpeed  = QSettings().value(QLatin1String("speed/real"), false).toBool();
 
     m_clock.start();
     m_tick.setInterval(kTickIntervalMs);
@@ -638,7 +665,11 @@ void Agape48Engine::resumeFromBackground()
 
 void Agape48Engine::tick()
 {
-    x48_run_slice(kCyclesPerTick);
+    // OFF IS THE UNTOUCHED PATH. Not one clock read, not one branch taken
+    // beyond this ternary, because "normally we want the calculator to run as
+    // fast as it can" and a throttle that costs something when it is off is a
+    // throttle nobody would leave off.
+    x48_run_slice(m_realSpeed ? realSpeedBudget() : kCyclesPerTick);
 
     if (x48_take_frame(&m_frame)) {
         ++m_frameSerial;
@@ -841,8 +872,14 @@ void Agape48Engine::handOver()
 
 void Agape48Engine::setTickRate(int ms)
 {
-    if (m_tick.interval() != ms)
+    if (m_tick.interval() != ms) {
         m_tick.setInterval(ms);
+        // Waking out of the 100 ms idle tick must not read as 100 ms of owed
+        // time. The clamp would bound it anyway; starting the clock again makes
+        // it exact, and while parked the machine executes almost nothing so
+        // there is no real debt to lose.
+        m_paceAt = 0;
+    }
     if (m_ready && !m_tick.isActive()) {
         m_tick.start();
         emit runningChanged();
@@ -866,6 +903,55 @@ void Agape48Engine::setLiveResize(bool on)
     m_liveResize = on;
     QSettings().setValue(QLatin1String("window/liveResize"), on);
     emit liveResizeChanged();
+}
+
+void Agape48Engine::setRealSpeed(bool on)
+{
+    if (m_realSpeed == on)
+        return;
+    m_realSpeed = on;
+    QSettings().setValue(QLatin1String("speed/real"), on);
+    // Start from now, and throw the debt away: flipping the switch is not a
+    // reason to catch up on time the calculator spent running free.
+    m_paceAt   = 0;
+    m_paceOwed = 0;
+    emit realSpeedChanged();
+}
+
+// How many instructions real time has earned since the last slice. THIS IS THE
+// WHOLE OF THE THROTTLE: a smaller budget, never a wait. So real speed costs
+// LESS cpu than running free - which is the opposite of x48's own throttle, a
+// gettimeofday() spin loop of 2 us per instruction on the thread that draws,
+// and the reason that one would have been wrong for a phone even if it had been
+// reachable. It is not: it lives in emulate(), which this build never calls.
+//
+// Paced on the clock rather than on a fixed budget per tick because a fixed
+// budget is only as accurate as the timer, and a tick that fires late silently
+// loses Saturn time. In a game that is jitter.
+int Agape48Engine::realSpeedBudget()
+{
+    const qint64 now = m_clock.nsecsElapsed() / 1000;   // microseconds
+    if (m_paceAt == 0) {
+        // First slice of a run, or the first after the switch or the tick rate
+        // moved: hand it one tick's worth rather than nothing, so the
+        // calculator does not stall for a frame while the clock is established.
+        m_paceAt = now;
+        return int(qint64(kTickIntervalMs) * 1000 * kRealSpeedInstrPerSec / 1000000);
+    }
+
+    qint64 us = now - m_paceAt;
+    m_paceAt = now;
+    if (us > kPaceMaxCatchUpUs)
+        us = kPaceMaxCatchUpUs;
+
+    // The remainder is carried in instruction-microseconds. Without it every
+    // tick would round down and the rate would drift low by up to one
+    // instruction per tick - sixty a second, which is small but is a bias
+    // rather than noise, so it never averages out.
+    m_paceOwed += us * kRealSpeedInstrPerSec;
+    const qint64 n = m_paceOwed / 1000000;
+    m_paceOwed -= n * 1000000;
+    return int(n);
 }
 
 void Agape48Engine::setDebugLogging(bool on)

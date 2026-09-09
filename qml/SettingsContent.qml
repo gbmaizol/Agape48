@@ -646,6 +646,37 @@ Item {
 
         Item { width: 1; height: 8 }
 
+        // Real calculator speed, asked for on 2026sep09: "a feature that's
+        // required, default off in settings: Slow down to real calculator
+        // speed... This is necessary to make calculator games playable."
+        //
+        // ON EVERY PLATFORM, and he said which matters most: "It's needed for
+        // all builds, mainly the Android build." It costs less battery on,
+        // not more - the throttle is a smaller instruction budget per tick,
+        // never a wait. See kRealSpeedInstrPerSec in Agape48Engine.cpp.
+        Row {
+            spacing: 6
+            Switch {
+                id: realSpeedSwitch
+                checked: root.engine.realSpeed
+                onToggled: root.engine.realSpeed = checked
+            }
+            Label {
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("Slow down to real calculator speed")
+                color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
+            }
+        }
+        Label {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: qsTr("Games written for a real HP 48 run about five times too "
+                       + "fast otherwise. Everything else is quicker with this off.")
+            color: "#7d7d7d"; font.pixelSize: TextSizes.dialogHint
+        }
+
+        Item { width: 1; height: 8 }
+
         // Debug logging, asked for in dogfood #8: there was no record at all of
         // why a start had failed, only a banner that vanished after six seconds.
         Row {
