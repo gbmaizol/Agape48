@@ -368,10 +368,16 @@ bool x48_pin_timers(long instructions_per_second)
     if (instructions_per_second / 16 > 32767)
         return false;
 
-    saturn.t1_tick = (short)(instructions_per_second / 16);
-    saturn.t2_tick = (short)(instructions_per_second / 8192);
-    if (saturn.t2_tick < 1)
-        saturn.t2_tick = 1;
+    {
+        extern short x48_pinned_t1_tick, x48_pinned_t2_tick;
+        short t2 = (short)(instructions_per_second / 8192);
+        if (t2 < 1)
+            t2 = 1;
+        x48_pinned_t1_tick = (short)(instructions_per_second / 16);
+        x48_pinned_t2_tick = t2;
+        saturn.t1_tick = x48_pinned_t1_tick;
+        saturn.t2_tick = x48_pinned_t2_tick;
+    }
     x48_timers_pinned = 1;
     return true;
 }

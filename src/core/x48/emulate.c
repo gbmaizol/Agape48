@@ -69,6 +69,8 @@ unsigned long	old_instr = 0;
 
 int throttle;
 int x48_timers_pinned;      /* Agape48: see the note in schedule() */
+short x48_pinned_t1_tick;   /* and the values it was pinned to */
+short x48_pinned_t2_tick;
 int		rece_instr = 0;
 int		device_check = 0;
 
@@ -2393,7 +2395,14 @@ schedule()
      * arithmetic and are left alone here. i_per_s is still updated, because it
      * is the honest measurement of what the host actually managed and the
      * settings page shows it. */
-    if (!x48_timers_pinned) {
+    if (x48_timers_pinned) {
+      /* RE-ASSERT rather than skip. Skipping was the first version and it left
+       * the one-way ratchet in get_t1_t2() with nothing to undo it - see the
+       * note there. This restores the periodic correction a free run has always
+       * had, to the known constants instead of to a measurement. */
+      saturn.t1_tick = x48_pinned_t1_tick;
+      saturn.t2_tick = x48_pinned_t2_tick;
+    } else {
       saturn.t1_tick = t1_i_per_tick;
       saturn.t2_tick = t2_i_per_tick;
     }
