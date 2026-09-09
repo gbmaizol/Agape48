@@ -28,6 +28,14 @@ Stripped with exiftool rather than re-encoded, so the pixels are byte-identical.
 It no longer reads makeface.py's output, so the two are independent: changing
 the face no longer changes the icon.
 
+RE-RUNNING IT CHANGES NOTHING, and that was measured rather than hoped for on
+2026sep09: this laptop has Pillow 10.2.0, the Windows one 12.2.0, and every PNG
+either writes is pixel-for-pixel identical to the committed file. Only the
+encoder's own bytes differ, plus CRLF on the two XML files write_text() makes.
+So a diff that shows icons changing after a re-run is a re-encode, not a new
+icon: `git checkout -- assets platform/android/res platform/linux/hicolor` and
+commit only what you meant to change.
+
 THE PHOTOGRAPH IS TURNED 30 DEGREES COUNTER-CLOCKWISE. Gert, 2026sep08: "one
 quirk to make it different from Droid48: Rotate it 30 counter-clockwise. But
 this needs to be the new icon for all OSs." It also solves a shape problem it
