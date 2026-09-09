@@ -78,6 +78,21 @@ class Agape48Engine : public QObject
     // which is what makes a game written for one playable rather than five
     // times too fast. See kRealSpeedInstrPerSec for where the rate comes from.
     Q_PROPERTY(bool realSpeed READ realSpeed WRITE setRealSpeed NOTIFY realSpeedChanged)
+
+    // THE RATE ITSELF, so calibrating it never needs a rebuild. Gert asked for
+    // exactly this: "What if we make a calibration program... and then we can
+    // make this one time calibration on the screen using it?" The default is
+    // derived rather than picked - see kRealSpeedInstrPerSec - and it was still
+    // too fast for his game, which is the whole argument for the number being a
+    // setting instead of a constant.
+    Q_PROPERTY(int realSpeedRate READ realSpeedRate WRITE setRealSpeedRate NOTIFY realSpeedRateChanged)
+
+    // What the emulator is ACTUALLY executing, straight out of x48's own
+    // continuous measurement against the host clock. This is the answer to "Don't
+    // you see the clock tiks?" - yes, and this is what they say. Live while the
+    // calculator is awake; it falls towards nothing in SHUTDN, where the 48
+    // spends most of its life by design.
+    Q_PROPERTY(int measuredRate READ measuredRate NOTIFY measuredRateChanged)
     Q_PROPERTY(QString logPath      READ logPath      CONSTANT)
 
     // Counts down while a sleep request is outstanding; 0 when nothing is.
@@ -101,6 +116,8 @@ public:
     bool debugLogging() const   { return m_debugLogging; }
     bool liveResize() const     { return m_liveResize; }
     bool realSpeed() const      { return m_realSpeed; }
+    int  realSpeedRate() const  { return m_realSpeedRate; }
+    int  measuredRate() const   { return m_measuredRate; }
     QString logPath() const;
 
     void setRomSource(const QUrl &url);
@@ -109,6 +126,7 @@ public:
     void setDebugLogging(bool on);
     void setLiveResize(bool on);
     void setRealSpeed(bool on);
+    void setRealSpeedRate(int instructionsPerSecond);
 
     // --- asking another instance for a calculator ---------------------------
     // Writes the request, then waits for whoever has it to save and let go.
@@ -257,6 +275,8 @@ signals:
     void soundEnabledChanged();
     void debugLoggingChanged();
     void realSpeedChanged();
+    void realSpeedRateChanged();
+    void measuredRateChanged();
     void liveResizeChanged();
 
     void frameReady();                      // LcdItem listens; fires only on change
@@ -334,6 +354,9 @@ private:
     // instruction-microseconds - without it the rate would be quietly rounded
     // down once per tick, which over a minute is a visible loss.
     bool              m_realSpeed = false;
+    int               m_realSpeedRate = 0;   // set from settings in the ctor
+    int               m_measuredRate  = 0;
+    int               m_rateSample    = 0;   // ticks since the last reading
     qint64            m_paceAt    = 0;
     qint64            m_paceOwed  = 0;
     bool              m_liveResize    = false;

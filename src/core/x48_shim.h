@@ -91,6 +91,19 @@ int         x48_run_slice(int max_cycles);
  * the frontend can then stop ticking and let the device sleep. */
 bool        x48_is_asleep(void);
 
+/* X48'S OWN SPEEDOMETER, and it costs nothing because it is already running.
+ * schedule() samples the host's real-time clock every 0x7ffff instructions -
+ * about eight times a second - and keeps a ten-sample smoothed count of the
+ * instructions actually executed per real second, which it uses to hold the
+ * calculator's own clock true whatever speed the host runs at. This just reads
+ * it. 0 before the first sample and while nothing is loaded.
+ *
+ * It answers "how fast is this running", which is the only measurable side of
+ * the speed question: the core counts INSTRUCTIONS and never Saturn cycles
+ * (emulate.c:2216 is the one and only counter), so it cannot say how fast a
+ * real 48 would be. That number has to come from outside and be calibrated. */
+long        x48_instructions_per_second(void);
+
 /* --- display ------------------------------------------------------------ */
 
 /* Copies the current LCD into *out. Returns false if nothing changed since the

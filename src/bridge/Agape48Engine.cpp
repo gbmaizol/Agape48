@@ -62,6 +62,17 @@ constexpr int    kRealSpeedInstrPerSec = 875000;
 // timer and small enough that nothing visible can accumulate behind it.
 constexpr qint64 kPaceMaxCatchUpUs     = 2 * kTickIntervalMs * 1000;
 
+// What the rate may be set to. The ceiling is the free-running rate itself -
+// past that the throttle would be asking for more instructions than the tick
+// can deliver and would silently do nothing - and the floor is low enough to be
+// obviously wrong on screen rather than to look like a hang.
+constexpr int    kRateFloor  = 50000;
+constexpr int    kRateCeiling = kCyclesPerTick * 1000 / kTickIntervalMs;
+
+// How often the speedometer is read. x48 resamples eight times a second, so
+// anything faster reads the same number twice; this is about twice a second.
+constexpr int    kRateSampleTicks = 32;
+
 // Waiting for another instance to answer a sleep request. Long enough for the
 // question and the answer to cross a sync folder - a busy Dropbox takes tens of
 // seconds - and short enough that a machine which is simply switched off does
@@ -249,6 +260,10 @@ Agape48Engine::Agape48Engine(QObject *parent)
 
     m_liveResize = QSettings().value(QLatin1String("window/liveResize"), false).toBool();
     m_realSpeed  = QSettings().value(QLatin1String("speed/real"), false).toBool();
+    m_realSpeedRate = qBound(kRateFloor,
+                             QSettings().value(QLatin1String("speed/rate"),
+                                               kRealSpeedInstrPerSec).toInt(),
+                             kRateCeiling);
 
     m_clock.start();
     m_tick.setInterval(kTickIntervalMs);
@@ -671,6 +686,18 @@ void Agape48Engine::tick()
     // throttle nobody would leave off.
     x48_run_slice(m_realSpeed ? realSpeedBudget() : kCyclesPerTick);
 
+    // Read the speedometer in BOTH modes, because the free-running rate is the
+    // reference the throttled one gets calibrated against. Twice a second, one
+    // long and one comparison, which is not a cost by any measure.
+    if (++m_rateSample >= kRateSampleTicks) {
+        m_rateSample = 0;
+        const int rate = int(x48_instructions_per_second());
+        if (rate != m_measuredRate) {
+            m_measuredRate = rate;
+            emit measuredRateChanged();
+        }
+    }
+
     if (x48_take_frame(&m_frame)) {
         ++m_frameSerial;
         // What the user sees, not what a register says. OFF does not clear
@@ -936,7 +963,7 @@ int Agape48Engine::realSpeedBudget()
         // moved: hand it one tick's worth rather than nothing, so the
         // calculator does not stall for a frame while the clock is established.
         m_paceAt = now;
-        return int(qint64(kTickIntervalMs) * 1000 * kRealSpeedInstrPerSec / 1000000);
+        return int(qint64(kTickIntervalMs) * 1000 * m_realSpeedRate / 1000000);
     }
 
     qint64 us = now - m_paceAt;
@@ -948,10 +975,28 @@ int Agape48Engine::realSpeedBudget()
     // tick would round down and the rate would drift low by up to one
     // instruction per tick - sixty a second, which is small but is a bias
     // rather than noise, so it never averages out.
-    m_paceOwed += us * kRealSpeedInstrPerSec;
+    m_paceOwed += us * m_realSpeedRate;
     const qint64 n = m_paceOwed / 1000000;
     m_paceOwed -= n * 1000000;
     return int(n);
+}
+
+// The one number the calibration produces. Persisted per machine, which is
+// right: the rate is a property of a real HP 48 and not of this laptop, but the
+// only way to arrive at it is to compare against something, and what is
+// available to compare against differs from machine to machine.
+void Agape48Engine::setRealSpeedRate(int instructionsPerSecond)
+{
+    const int rate = qBound(kRateFloor, instructionsPerSecond, kRateCeiling);
+    if (m_realSpeedRate == rate)
+        return;
+    m_realSpeedRate = rate;
+    QSettings().setValue(QLatin1String("speed/rate"), rate);
+    // Same reasoning as the switch: start from now rather than settling a debt
+    // that was incurred at a different rate.
+    m_paceAt   = 0;
+    m_paceOwed = 0;
+    emit realSpeedRateChanged();
 }
 
 void Agape48Engine::setDebugLogging(bool on)

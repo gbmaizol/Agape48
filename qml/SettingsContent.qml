@@ -670,9 +670,63 @@ Item {
         Label {
             width: parent.width
             wrapMode: Text.WordWrap
-            text: qsTr("Games written for a real HP 48 run about five times too "
-                       + "fast otherwise. Everything else is quicker with this off.")
+            text: qsTr("Games written for a real HP 48 run several times too fast "
+                       + "otherwise. Everything else is quicker with this off.")
             color: "#7d7d7d"; font.pixelSize: TextSizes.dialogHint
+        }
+
+        // THE CALIBRATION, on screen because the number cannot be derived. The
+        // core counts INSTRUCTIONS and never Saturn cycles - emulate.c:2216 is
+        // the only counter in it - so nothing inside can say how fast a real 48
+        // would be. That has to come from outside and be compared. Gert: "What
+        // if we make a calibration program that runs from the calculator
+        // library, and that has a speed that's supposed to be exact, and then we
+        // can make this one time calibration on the screen using it?"
+        //
+        // Buttons rather than a field, for the reason the state folder row
+        // already gives at length: on a phone a field means a keyboard over half
+        // the screen and an Enter nobody trusts. Ten percent a tap, because what
+        // is being judged is proportional - twice too fast is twice too fast at
+        // any rate.
+        Column {
+            visible: realSpeedSwitch.checked
+            width: parent.width
+            spacing: 6
+
+            Row {
+                spacing: 6
+                Button {
+                    text: qsTr("Slower")
+                    onClicked: root.engine.realSpeedRate =
+                                   Math.round(root.engine.realSpeedRate / 1.1)
+                }
+                Button {
+                    text: qsTr("Faster")
+                    onClicked: root.engine.realSpeedRate =
+                                   Math.round(root.engine.realSpeedRate * 1.1)
+                }
+                Label {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: qsTr("%1 instructions a second").arg(root.engine.realSpeedRate)
+                    color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
+                }
+            }
+
+            // x48's own reading, not ours. It holds the calculator's clock true
+            // by measuring this against the host clock eight times a second, and
+            // has done all along - which is the answer to "Don't you see the
+            // clock tiks?"
+            Label {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                text: root.engine.measuredRate > 0
+                      ? qsTr("Running at %1 a second right now. This falls away "
+                             + "while the calculator is asleep, which is most of "
+                             + "the time - it means something while a program is "
+                             + "actually running.").arg(root.engine.measuredRate)
+                      : qsTr("Measuring…")
+                color: "#7d7d7d"; font.pixelSize: TextSizes.dialogHint
+            }
         }
 
         Item { width: 1; height: 8 }

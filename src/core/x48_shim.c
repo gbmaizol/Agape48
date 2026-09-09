@@ -352,6 +352,11 @@ int x48_run_slice(int max_cycles)
     return n;
 }
 
+long x48_instructions_per_second(void)
+{
+    return s_ready ? saturn.i_per_s : 0;
+}
+
 bool x48_is_asleep(void)
 {
     return s_asleep;
