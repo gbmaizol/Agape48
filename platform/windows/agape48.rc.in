@@ -1,0 +1,51 @@
+// The Windows resource block: the icon Explorer draws on agape48.exe, and the
+// version its Properties page and Task Manager read.
+//
+// GENERATED from this template by CMake, because both halves already live
+// somewhere else. The icon is installer/agape48.ico, which tools/make-icon.py
+// writes and .gitignore deliberately keeps out of the tree; the version is the
+// one project() declares. Typing either one in here would only be a second
+// place to forget it.
+//
+// Until 2026sep09 the executable had neither, and main.cpp said so about the
+// first half: "Windows only looked right by accident: the icon he liked
+// belonged to the Start-menu shortcut the installer creates, so a window
+// opened any other way had nothing either, and the executable itself still has
+// no icon." Measured on the built binary before this file existed -
+// FileVersion, ProductVersion and FileDescription were all three empty. By
+// then Android had five densities and a real adaptive icon, both drawn from
+// the same photograph. This is that job on this side.
+
+// Icon 1 is the one Explorer, the taskbar and Alt-Tab take for an executable.
+// FORWARD SLASHES: a backslash opens an escape sequence in an .rc string, on
+// windres and on rc.exe alike, and CMake hands out forward slashes anyway.
+1 ICON "@AGAPE48_WINDOWS_ICO@"
+
+// Windows version numbers are four fields and project() declares three, so the
+// fourth - the build number - stays 0.
+1 VERSIONINFO
+FILEVERSION    @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+PRODUCTVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+FILEOS         0x40004L
+FILETYPE       0x1L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        // 0409 US English, 04b0 Unicode. Not translated: this block is read by
+        // Explorer and Task Manager, not by the program.
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName",      "Agape48\0"
+            VALUE "FileDescription",  "@PROJECT_DESCRIPTION@\0"
+            VALUE "FileVersion",      "@PROJECT_VERSION@\0"
+            VALUE "InternalName",     "agape48\0"
+            VALUE "OriginalFilename", "agape48.exe\0"
+            VALUE "ProductName",      "Agape48\0"
+            VALUE "ProductVersion",   "@PROJECT_VERSION@\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

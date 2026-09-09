@@ -67,6 +67,23 @@ qt_add_executable(agape48
 # set this for you.
 if(WIN32)
     set_target_properties(agape48 PROPERTIES WIN32_EXECUTABLE TRUE)
+
+    # The icon on the executable itself, and the version block behind its
+    # Properties page. Both come out of platform/windows/agape48.rc.in.
+    #
+    # Compiled in only when the .ico is there, because it is a build product:
+    # tools/make-icon.py writes it and .gitignore keeps it out of the tree, so
+    # a fresh clone has no icon until that script has run. Saying so is the
+    # right answer there; failing the build for it is not.
+    set(AGAPE48_WINDOWS_ICO "${CMAKE_CURRENT_SOURCE_DIR}/installer/agape48.ico")
+    if(EXISTS "${AGAPE48_WINDOWS_ICO}")
+        configure_file(platform/windows/agape48.rc.in agape48.rc @ONLY)
+        target_sources(agape48 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/agape48.rc")
+    else()
+        message(STATUS
+            "agape48: installer/agape48.ico is missing, so the executable gets "
+            "no icon and no version block. Run: python tools/make-icon.py")
+    endif()
 endif()
 
 target_include_directories(agape48 PRIVATE src src/bridge src/core)
