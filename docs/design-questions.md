@@ -809,3 +809,15 @@ Two things that only showed up once it was built:
 `release()` is on `QCoreApplication::aboutToQuit` rather than the destructor alone: `Qt.quit()` from the menu tears the QML engine down in an order this object does not control. A crash still leaves a lock, which is exactly what the dead-pid check is for.
 
 **On testing.** Half of this evening's results were worthless: `cinnamon-screensaver` maps a full-screen window that swallows every XTEST event, so a healthy app looked completely dead - no key, no click, not even a hover highlight - while `_NET_ACTIVE_WINDOW` still named the right window. Everything here was redone on a nested `Xephyr :7` with a Danish layout, which the lock screen cannot reach and which does not fight the user for the keyboard. That is now the way to drive this app from outside.
+
+## Deferred, asked for on 2026sep09 and deliberately NOT done yet
+
+Gert, after an evening of speed measurements: *"the reason I didn't change the speed is because I could not see the control. (The toggles look too big, and the control is outside the settings window. But don't fix it now, just add a note to make it after. Along with make the 48GX underlined and get rid of the 3 dots, like the Android solution)"*
+
+**1. The Slower/Faster row was off the bottom of the settings window, and that cost a whole evening.** He never changed the rate because he never saw that he could - every number of that session was taken at the default. The row was already cut down to one line in `9470842` and it was still out of reach, so shortening is not the answer: **the window is `min(520, fitW) x min(430, fitH)` and his calculator window is around 356x599, so the dialog is far shorter than 430 and most of the content is below the fold.** It scrolls, and a scrollbar he did not notice is the same as not being there. Whatever replaces this has to be judged at HIS window size, not at 520x430.
+
+**2. The toggles look too big.** The Basic style's `Switch` is drawn for a phone. Three of them in a column at that size is most of what fits in his dialog, which is part of why anything below them is out of sight.
+
+**3. The 48GX becomes the menu on the desktop too, and the ⋮ goes away.** Android already works this way, from his own idea on 2026sep07: the golden "48GX" on the face carries a golden underline so it reads as a link, and tapping it opens the menu. `Calculator.qml` has the underline and the `TapHandler` gated `Qt.platform.os === "android"`, and `Main.qml` gates the `menuButton` the other way. Ungating both is most of the work; the desktop also wants a hover cursor, which a phone has no use for.
+
+Nothing here is a bug in the emulator and none of it blocks the speed work, which is why it is written down instead of done.
