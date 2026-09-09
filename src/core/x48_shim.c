@@ -352,6 +352,30 @@ int x48_run_slice(int max_cycles)
     return n;
 }
 
+bool x48_pin_timers(long instructions_per_second)
+{
+    extern int x48_timers_pinned;
+
+    if (instructions_per_second <= 0) {
+        x48_timers_pinned = 0;
+        return true;
+    }
+    /* t1_tick is a short in the core's saturn struct, so the pin only reaches
+     * rates whose 16 Hz divisor fits one. That is a little over half a million
+     * instructions a second, which is comfortably above a real HP 48 and far
+     * below free-running, so the one case that needs pinning is covered and the
+     * one that does not is refused rather than silently truncated. */
+    if (instructions_per_second / 16 > 32767)
+        return false;
+
+    saturn.t1_tick = (short)(instructions_per_second / 16);
+    saturn.t2_tick = (short)(instructions_per_second / 8192);
+    if (saturn.t2_tick < 1)
+        saturn.t2_tick = 1;
+    x48_timers_pinned = 1;
+    return true;
+}
+
 long x48_instructions_per_second(void)
 {
     return s_ready ? saturn.i_per_s : 0;

@@ -68,6 +68,7 @@ unsigned long	instructions = 0;
 unsigned long	old_instr = 0;
 
 int throttle;
+int x48_timers_pinned;      /* Agape48: see the note in schedule() */
 int		rece_instr = 0;
 int		device_check = 0;
 
@@ -2376,8 +2377,26 @@ schedule()
       t1_i_per_tick = 8192;
       t2_i_per_tick = 16;
     }
-    saturn.t1_tick = t1_i_per_tick;
-    saturn.t2_tick = t2_i_per_tick;
+    /* Agape48: NOT WHEN THE FRONTEND IS PACING US. Everything above measures
+     * how fast this host happens to be running and then moves the calculator's
+     * timer divisors so its clock keeps real time regardless. That is right
+     * when the emulator runs free, and wrong when the frontend is deliberately
+     * holding the instruction rate at a known figure: the sample is one per
+     * 0x7ffff instructions, which at half a million a second is once a second
+     * rather than eight times, it is smoothed over ten of those, and the 48
+     * parks in SHUTDN between key scans by design, which drags the average
+     * down. Measured on Gert's laptop 2026sep09, throttled to 500,000: t1_tick
+     * 21689 where 31250 was correct and t2_tick 129 where 61 was, so TICKS -
+     * and with it the clock, the alarms and WAIT - ran about two times wrong.
+     *
+     * When x48_pin_timers() has been told the rate, the divisors are simply
+     * arithmetic and are left alone here. i_per_s is still updated, because it
+     * is the honest measurement of what the host actually managed and the
+     * settings page shows it. */
+    if (!x48_timers_pinned) {
+      saturn.t1_tick = t1_i_per_tick;
+      saturn.t2_tick = t2_i_per_tick;
+    }
 
 #ifdef DEBUG_TIMER
     if (delta_t_1 > 0) {
