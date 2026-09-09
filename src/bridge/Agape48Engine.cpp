@@ -54,13 +54,20 @@ constexpr int  kIdleIntervalMs = 100;
 // 2 us each, which is 500,000/s. Neither is authoritative - which is exactly why
 // this one is derived from something observed on a real game instead of chosen
 // from the source.
-constexpr int    kRealSpeedInstrPerSec = 875000;
+// 500,000, and TWO INDEPENDENT MEASUREMENTS now agree on it. Emu48 with
+// Authentic Calculator Speed on runs a 500-iteration empty loop in
+// 1.30615234375 s, the same to the last digit on four consecutive runs; the same
+// loop under Agape48 at 875,000 had a median of 0.7291 s across 49 runs, which
+// puts a real machine at 488,446 - within 2.4% of the 500,000 implied by x48's
+// own dead busy-wait of 2 us per instruction. The first estimate of 875,000 came
+// from Gert's eye ("it's runing at 5x the speed it should be") and was high by
+// about 1.8x, which is a fair result for an eyeball against a stopwatch.
+constexpr int    kRealSpeedInstrPerSec = 500000;
 
 // The most time one slice may make up. A stall - the phone backgrounding us, a
 // long frame, waking out of the 100 ms idle tick - must not hand the Saturn a
 // burst and make a game jump; two ticks' worth is enough to ride out a late
 // timer and small enough that nothing visible can accumulate behind it.
-constexpr qint64 kPaceMaxCatchUpUs     = 2 * kTickIntervalMs * 1000;
 
 // What the rate may be set to. The ceiling is the free-running rate itself -
 // past that the throttle would be asking for more instructions than the tick
@@ -68,6 +75,17 @@ constexpr qint64 kPaceMaxCatchUpUs     = 2 * kTickIntervalMs * 1000;
 // obviously wrong on screen rather than to look like a hang.
 constexpr int    kRateFloor  = 50000;
 constexpr int    kRateCeiling = kCyclesPerTick * 1000 / kTickIntervalMs;
+
+// The most owed time a single slice may make up. This is a STALL threshold, not
+// a smoothing knob: past it the Saturn genuinely loses time, so it has to be far
+// longer than any ordinary late tick. 32 ms was the first value and it was much
+// too tight - see realSpeedBudget().
+constexpr qint64 kPaceMaxOwedUs = 250000;
+
+// And the most one slice may actually RUN, as a multiple of a tick's worth. The
+// debt above this stays owed and is paid off over the ticks that follow, so
+// nothing is lost and no single slice can burst.
+constexpr int    kPaceMaxSliceTicks = 4;
 
 // How often the speedometer is read. x48 resamples eight times a second, so
 // anything faster reads the same number twice; this is about twice a second.
@@ -899,14 +917,15 @@ void Agape48Engine::handOver()
 
 void Agape48Engine::setTickRate(int ms)
 {
-    if (m_tick.interval() != ms) {
+    // NO PACE RESET HERE. It used to set m_paceAt = 0 on every change, and the
+    // first slice after a reset hands out a whole tick's worth whatever the
+    // clock says - so every flip between the 16 ms run tick and the 100 ms idle
+    // tick was free instructions. The 48 drops into SHUTDN between key scans by
+    // design, so that flip happens constantly and the machine ran above its
+    // target by an amount nobody could predict. The elapsed-time arithmetic in
+    // realSpeedBudget() already handles a longer interval correctly.
+    if (m_tick.interval() != ms)
         m_tick.setInterval(ms);
-        // Waking out of the 100 ms idle tick must not read as 100 ms of owed
-        // time. The clamp would bound it anyway; starting the clock again makes
-        // it exact, and while parked the machine executes almost nothing so
-        // there is no real debt to lose.
-        m_paceAt = 0;
-    }
     if (m_ready && !m_tick.isActive()) {
         m_tick.start();
         emit runningChanged();
@@ -958,25 +977,37 @@ void Agape48Engine::setRealSpeed(bool on)
 int Agape48Engine::realSpeedBudget()
 {
     const qint64 now = m_clock.nsecsElapsed() / 1000;   // microseconds
-    if (m_paceAt == 0) {
-        // First slice of a run, or the first after the switch or the tick rate
-        // moved: hand it one tick's worth rather than nothing, so the
-        // calculator does not stall for a frame while the clock is established.
-        m_paceAt = now;
-        return int(qint64(kTickIntervalMs) * 1000 * m_realSpeedRate / 1000000);
-    }
+    if (m_paceAt == 0)
+        m_paceAt = now;                                 // the first slice only
 
     qint64 us = now - m_paceAt;
     m_paceAt = now;
-    if (us > kPaceMaxCatchUpUs)
-        us = kPaceMaxCatchUpUs;
+    // Only a genuine stall loses time. Measured 2026sep09: with this clamp at
+    // two ticks, 49 runs of one fixed loop had a standard deviation of 61% of
+    // their mean - 0.44 s to 3.17 s - against Emu48 producing the SAME NUMBER
+    // to twelve digits four times in a row. Anything above the clamp was
+    // discarded, and this laptop was building with -j 14 through most of that
+    // session, so ticks fired late constantly and the Saturn quietly lost the
+    // overflow every time.
+    if (us > kPaceMaxOwedUs)
+        us = kPaceMaxOwedUs;
 
     // The remainder is carried in instruction-microseconds. Without it every
     // tick would round down and the rate would drift low by up to one
     // instruction per tick - sixty a second, which is small but is a bias
     // rather than noise, so it never averages out.
     m_paceOwed += us * m_realSpeedRate;
-    const qint64 n = m_paceOwed / 1000000;
+    qint64 n = m_paceOwed / 1000000;
+
+    // Cap what one slice RUNS without cancelling what is owed: a burst of two
+    // hundred thousand instructions in one tick is a visible jump in a game,
+    // and throwing the debt away instead is the jitter above. Bounded above,
+    // paid off below.
+    const qint64 maxSlice = qint64(kPaceMaxSliceTicks) * kTickIntervalMs
+                            * 1000 * m_realSpeedRate / 1000000;
+    if (n > maxSlice)
+        n = maxSlice;
+
     m_paceOwed -= n * 1000000;
     return int(n);
 }
