@@ -8,6 +8,8 @@ One piece of art, every platform, so they cannot drift apart:
                                manager and the taskbar draw on EVERY platform
     installer/agape48.ico      Windows installer, Start-menu shortcut,
                                Add/Remove
+    platform/linux/hicolor/    the freedesktop icon theme at seven sizes: the
+                               menu entry, the dock and Alt-Tab
     platform/android/res/...   the adaptive icon: a foreground layer at five
                                densities, a background colour, and the legacy
                                square for anything older than API 26
@@ -60,9 +62,15 @@ SOURCE = HERE / "assets" / "icon-source.png"
 PNG = HERE / "assets" / "icon.png"
 ICO = HERE / "installer" / "agape48.ico"
 RES = HERE / "platform" / "android" / "res"
+HICOLOR = HERE / "platform" / "linux" / "hicolor"
 
 # Windows picks whichever of these fits: 16 in a title bar, 32 on the desktop,
 # 256 in large-icon view. The PNG is one 256 and Qt scales it down itself.
+#
+# The same seven are what Linux gets as separate files under hicolor, for the
+# same reason and with the same numbers: a menu draws 24 or 32, Alt-Tab draws
+# 48 or 64, and a desktop shell reaches for 128 or 256. Downscaling a 256 by
+# hand at draw time is exactly what these sizes exist to avoid.
 ICO_SIZES = [16, 24, 32, 48, 64, 128, 256]
 PNG_SIZE = 256
 
@@ -223,6 +231,22 @@ def android(art: Image.Image) -> None:
           compose(art, PNG_SIZE, FILL_DESKTOP, CLEAR))
 
 
+def linux(art: Image.Image) -> None:
+    """The freedesktop icon theme - one PNG per size, named after the Icon= key
+    of platform/linux/agape48.desktop, which is what a menu, a dock and Alt-Tab
+    all look up.
+
+    WRITTEN INTO THE TREE AND COMMITTED, like the Android res/ PNGs and unlike
+    installer/agape48.ico, which is generated and gitignored. The .ico can be
+    because Windows builds go through make-icon.py anyway; the Linux ones may
+    not, because `cmake --install` installs them and a fresh clone must be able
+    to do that without Python and Pillow. The cost is 190 KB of PNG in git and
+    a rule: change the art, run this script, commit what it wrote."""
+    for s in ICO_SIZES:
+        write(HICOLOR / f"{s}x{s}" / "apps" / "agape48.png",
+              compose(art, s, FILL_DESKTOP, CLEAR))
+
+
 def main() -> None:
     art = turned(Image.open(SOURCE).convert("RGBA"))
 
@@ -234,6 +258,7 @@ def main() -> None:
     frames[-1].save(ICO, format="ICO", sizes=[(s, s) for s in ICO_SIZES])
     print(f"wrote installer/agape48.ico ({ICO.stat().st_size} bytes, {len(ICO_SIZES)} sizes)")
 
+    linux(art)
     android(art)
 
 

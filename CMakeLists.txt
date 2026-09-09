@@ -221,6 +221,26 @@ endif()
 if(NOT ANDROID)
     include(GNUInstallDirs)
     install(TARGETS agape48 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+    # A menu entry and its icon: the Linux half of "the installers and the
+    # executables have the same fancy icon as Android". An ELF has no icon
+    # resource the way a PE does - there is nowhere inside the binary to put
+    # one - so on Linux the icon is a file the desktop looks up by NAME, and
+    # the .desktop entry is what does the naming. Without this pair a Linux
+    # install cannot appear in a menu at all.
+    #
+    # All eight files are tracked, written by tools/make-icon.py, so a clone
+    # can `cmake --install` without Python and Pillow.
+    if(UNIX AND NOT APPLE)
+        install(FILES platform/linux/agape48.desktop
+                DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+        foreach(_a48_px 16 24 32 48 64 128 256)
+            install(FILES
+                platform/linux/hicolor/${_a48_px}x${_a48_px}/apps/agape48.png
+                DESTINATION
+                ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${_a48_px}x${_a48_px}/apps)
+        endforeach()
+    endif()
     qt_generate_deploy_qml_app_script(
         TARGET agape48
         OUTPUT_SCRIPT AGAPE48_DEPLOY_SCRIPT
