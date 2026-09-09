@@ -110,7 +110,16 @@ Item {
 
             Column {
                 id: column
-                width: parent.width
+                // A GUTTER FOR THE SCROLLBAR. The bar is an overlay anchored to the
+                // Flickable's right edge, and this content was parent.width, so every
+                // full-width row - every wrapped paragraph and the two-column value
+                // grid - ran underneath it with no clearance at all. Gert, 2026sep09:
+                // "We also
+                // need to check that there's at least a bit of clearance around every
+                // object in the dialogs." Fourteen is the Basic style's bar plus air;
+                // when there is nothing to scroll the bar is hidden and this is just a
+                // slightly narrower column, which is invisible.
+                width: parent.width - 14
                 spacing: 14
 
                 Label {

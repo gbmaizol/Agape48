@@ -78,6 +78,8 @@ Item {
         // is the sum of its children and nothing measures back the other way.
         Column {
             width: parent.width
+            // Stacked labels with nothing between them until 2026sep09.
+            spacing: 6
             // NO COLOUR OF ITS OWN. A Dialog paints its own background from
             // the system palette - light on a laptop with no theme set, dark on
             // Gert's Windows - so ink fixed at either end is unreadable on the

@@ -274,7 +274,15 @@ Item {
 
     Column {
         id: column
-        width: parent.width
+        // A GUTTER FOR THE SCROLLBAR. The bar is an overlay anchored to the
+        // Flickable's right edge, and this content was parent.width, so every
+        // full-width row - the ROM field, the folder box, every wrapped hint -
+        // ran underneath it with no clearance at all. Gert, 2026sep09: "We also
+        // need to check that there's at least a bit of clearance around every
+        // object in the dialogs." Fourteen is the Basic style's bar plus air;
+        // when there is nothing to scroll the bar is hidden and this is just a
+        // slightly narrower column, which is invisible.
+        width: parent.width - 14
         spacing: 10
 
         // The reason this window opened, when it opened itself. Before dogfood
@@ -651,9 +659,18 @@ Item {
         // speed... This is necessary to make calculator games playable."
         //
         // ON EVERY PLATFORM, and he said which matters most: "It's needed for
-        // all builds, mainly the Android build." It costs less battery on,
-        // not more - the throttle is a smaller instruction budget per tick,
-        // never a wait. See kRealSpeedInstrPerSec in Agape48Engine.cpp.
+        // all builds, mainly the Android build." It costs less battery on, not
+        // more - the throttle is a smaller instruction budget per tick, never a
+        // wait. See kRealSpeedInstrPerSec in Agape48Engine.cpp.
+        //
+        // TWO ROWS AND NO PARAGRAPH, which is the second version. The first had
+        // a switch, a two-line hint, a button row and a four-line explanation,
+        // and in a 520x430 window that pushed Debug logging below the fold -
+        // Gert: "The speed toggle is replacing the previous log toggle... it
+        // should be placed in the small between them, not displace anything out
+        // of the dialog." The toggles above and below carry no hint text at all,
+        // so neither does this one; the calibration row appears only when it can
+        // do something.
         Row {
             spacing: 6
             Switch {
@@ -667,69 +684,42 @@ Item {
                 color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
             }
         }
-        Label {
-            width: parent.width
-            wrapMode: Text.WordWrap
-            text: qsTr("Games written for a real HP 48 run several times too fast "
-                       + "otherwise. Everything else is quicker with this off.")
-            color: "#7d7d7d"; font.pixelSize: TextSizes.dialogHint
-        }
 
-        // THE CALIBRATION, on screen because the number cannot be derived. The
+        // THE CALIBRATION, on screen because the number cannot be derived: the
         // core counts INSTRUCTIONS and never Saturn cycles - emulate.c:2216 is
         // the only counter in it - so nothing inside can say how fast a real 48
-        // would be. That has to come from outside and be compared. Gert: "What
-        // if we make a calibration program that runs from the calculator
-        // library, and that has a speed that's supposed to be exact, and then we
-        // can make this one time calibration on the screen using it?"
+        // would be. Gert: "What if we make a calibration program that runs from
+        // the calculator library... and then we can make this one time
+        // calibration on the screen using it?"
         //
-        // Buttons rather than a field, for the reason the state folder row
-        // already gives at length: on a phone a field means a keyboard over half
-        // the screen and an Enter nobody trusts. Ten percent a tap, because what
-        // is being judged is proportional - twice too fast is twice too fast at
-        // any rate.
-        Column {
+        // Buttons rather than a field, for the reason the state folder row gives
+        // at length: on a phone a field means a keyboard over half the screen
+        // and an Enter nobody trusts. Ten percent a tap, because what is being
+        // judged is proportional. The second number is x48's own reading, which
+        // it has always taken against the host clock to keep the calculator's
+        // clock true - the answer to "Don't you see the clock tiks?"
+        Row {
             visible: realSpeedSwitch.checked
-            width: parent.width
             spacing: 6
-
-            Row {
-                spacing: 6
-                Button {
-                    text: qsTr("Slower")
-                    onClicked: root.engine.realSpeedRate =
-                                   Math.round(root.engine.realSpeedRate / 1.1)
-                }
-                Button {
-                    text: qsTr("Faster")
-                    onClicked: root.engine.realSpeedRate =
-                                   Math.round(root.engine.realSpeedRate * 1.1)
-                }
-                Label {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: qsTr("%1 instructions a second").arg(root.engine.realSpeedRate)
-                    color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
-                }
+            Button {
+                text: qsTr("Slower")
+                onClicked: root.engine.realSpeedRate =
+                               Math.round(root.engine.realSpeedRate / 1.1)
             }
-
-            // x48's own reading, not ours. It holds the calculator's clock true
-            // by measuring this against the host clock eight times a second, and
-            // has done all along - which is the answer to "Don't you see the
-            // clock tiks?"
+            Button {
+                text: qsTr("Faster")
+                onClicked: root.engine.realSpeedRate =
+                               Math.round(root.engine.realSpeedRate * 1.1)
+            }
             Label {
-                width: parent.width
-                wrapMode: Text.WordWrap
+                anchors.verticalCenter: parent.verticalCenter
                 text: root.engine.measuredRate > 0
-                      ? qsTr("Running at %1 a second right now. This falls away "
-                             + "while the calculator is asleep, which is most of "
-                             + "the time - it means something while a program is "
-                             + "actually running.").arg(root.engine.measuredRate)
-                      : qsTr("Measuring…")
-                color: "#7d7d7d"; font.pixelSize: TextSizes.dialogHint
+                      ? qsTr("%1/s, doing %2").arg(root.engine.realSpeedRate)
+                                              .arg(root.engine.measuredRate)
+                      : qsTr("%1/s").arg(root.engine.realSpeedRate)
+                color: "#9a9a9a"; font.pixelSize: TextSizes.dialogHint
             }
         }
-
-        Item { width: 1; height: 8 }
 
         // Debug logging, asked for in dogfood #8: there was no record at all of
         // why a start had failed, only a banner that vanished after six seconds.
