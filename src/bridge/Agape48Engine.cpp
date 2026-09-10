@@ -698,6 +698,7 @@ void Agape48Engine::resumeFromBackground()
 
 void Agape48Engine::tick()
 {
+    ++m_tickCount;
     // OFF IS THE UNTOUCHED PATH. Not one clock read, not one branch taken
     // beyond this ternary, because "normally we want the calculator to run as
     // fast as it can" and a throttle that costs something when it is off is a
@@ -1645,6 +1646,34 @@ void Agape48Engine::reset(bool cold)
     setTickRate(kTickIntervalMs);
 }
 
+// DIAGNOSTIC, and meant to be removed once the rate is settled. Two of these
+// taken at two saves give instructions per wall second AND ticks per wall
+// second, neither of which needs saturn.i_per_s - which on 2026sep10 held
+// steady at 434000 while the wall clock said the same loop took 58.8 s and
+// then 10.3 s - nor the 48's own TICKS, which disagreed by a factor of twenty.
+// Gert's hypothesis for the variance is Windows treating an unfocused process
+// differently, and ticks per wall second is exactly the number that settles it.
+void Agape48Engine::writeSpeedProbe()
+{
+    const QString dir = m_state->location().toLocalFile();
+    if (dir.isEmpty())
+        return;
+    QFile f(QDir(dir).filePath(QStringLiteral("speed-probe.txt")));
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+        return;
+    QTextStream out(&f);
+    out << "uptime_ms    " << m_clock.elapsed() << '\n'
+        << "instructions " << qulonglong(x48_instructions_total()) << '\n'
+        << "ticks        " << m_tickCount << '\n'
+        << "tick_ms      " << m_tick.interval() << '\n'
+        << "asleep       " << (x48_is_asleep() ? 1 : 0) << '\n'
+        << "real         " << (m_realSpeed ? 1 : 0) << '\n'
+        << "rate         " << m_realSpeedRate << '\n'
+        << "i_per_s      " << x48_instructions_per_second() << '\n'
+        << "focused      "
+        << (QGuiApplication::focusWindow() != nullptr ? 1 : 0) << '\n';
+}
+
 bool Agape48Engine::saveState()
 {
     if (!m_ready)
@@ -1676,6 +1705,7 @@ bool Agape48Engine::saveState()
         return false;
     }
     m_savedRamDigest = digest;
+    writeSpeedProbe();
     return m_state->commit(x48_state_fingerprint());
 }
 

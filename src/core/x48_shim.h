@@ -103,6 +103,9 @@ bool        x48_is_asleep(void);
  * (emulate.c:2216 is the one and only counter), so it cannot say how fast a
  * real 48 would be. That number has to come from outside and be calibrated. */
 long        x48_instructions_per_second(void);
+/* Every step_instruction() this process has run. Not the core's own
+ * counter, which schedule() resets periodically. */
+unsigned long long x48_instructions_total(void);
 
 /* --- display ------------------------------------------------------------ */
 

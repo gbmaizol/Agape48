@@ -127,6 +127,7 @@ Pixmap XCreateBitmapFromData(Display *d, Window w, char *data, int a, int b)
 static void detect_rom_revision(void);   /* defined with the object interchange code */
 
 static bool s_asleep;
+static unsigned long long s_instr_total;   /* see x48_instructions_total() */
 static long s_shutdn_pc;      /* PC just after the SHUTDN we are parked on */
 
 int x48_shutdn_woke;          /* set by do_shutdown(), read below */
@@ -328,6 +329,7 @@ int x48_run_slice(int max_cycles)
      * wants roughly 17000 of these rather than the 70000 the header suggests. */
     exit_state = 1;
     int n = agape48_emulate_slice(max_cycles);
+    s_instr_total += (unsigned long long)n;
 
     /* blockConditionVariable() clears exit_state when the machine parks in
      * SHUTDN. Restore it so the next slice can run, and report the state. */
@@ -335,7 +337,9 @@ int x48_run_slice(int max_cycles)
      * making the machine wait for the next tick to act on the key. */
     if (!exit_state && x48_shutdn_woke && n < max_cycles) {
         exit_state = 1;
-        n += agape48_emulate_slice(max_cycles - n);
+        const int more = agape48_emulate_slice(max_cycles - n);
+        n += more;
+        s_instr_total += (unsigned long long)more;
     }
 
     if (!exit_state) {
@@ -355,6 +359,17 @@ int x48_run_slice(int max_cycles)
 long x48_instructions_per_second(void)
 {
     return s_ready ? saturn.i_per_s : 0;
+}
+
+/* OUR OWN COUNT, because the core's is not a total: schedule() resets
+ * instructions to 1 every SCHED_INSTR_ROLLOVER. agape48_emulate_slice()
+ * returns the exact number of step_instruction() calls it made, so adding
+ * those up is both exact and immune to the rollover. Diagnostic: two saves
+ * give instructions per wall second without trusting saturn.i_per_s, which
+ * disagreed with the wall clock by a factor of six on 2026sep10. */
+unsigned long long x48_instructions_total(void)
+{
+    return s_instr_total;
 }
 
 bool x48_is_asleep(void)

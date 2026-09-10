@@ -315,6 +315,7 @@ private:
     void finishRelease(int row, int mask);
     void setTickRate(int ms);
     int  realSpeedBudget();
+    void writeSpeedProbe();
     void queueTaps(const QStringList &keys);
     void shutdownCore();
     // Save, release, detach: the single way a calculator leaves this window,
@@ -328,6 +329,7 @@ private:
     void logStartupFacts() const;
 
     QTimer            m_tick;
+    qint64            m_tickCount = 0;
     // Polled rather than watched: the calculator being waited for is often not
     // the one this window has open, so its folder is not the one the watcher is
     // pointed at. One stat a second for at most a minute and a half.
