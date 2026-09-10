@@ -16,7 +16,7 @@ if(CMAKE_CONFIGURATION_TYPES)
 endif()
 
 project(Agape48
-    VERSION 0.1.0
+    VERSION 0.9.0
     DESCRIPTION "HP 48 emulator on the x48 core"
     LANGUAGES C CXX)
 
@@ -298,6 +298,10 @@ message(STATUS "  static Qt .......... ${AGAPE48_STATIC_QT}")
 message(STATUS "  LTO / ICF .......... ${AGAPE48_LTO} / ${AGAPE48_ICF}")
 message(STATUS "  QML cachegen ....... ${AGAPE48_QML_CACHEGEN}")
 message(STATUS "  core at -O2 ........ ${AGAPE48_CORE_OPTIMIZE_FOR_SPEED}")
+# La instalilo ne konas la versinumeron kaj ne devas koni ĝin: ĝi vivas ĉi tie,
+# en project(), kaj estas transdonata al ISCC per la komandlinio. Presita ĉi tie
+# por ke la konstruanto povu kopii ĝin sen kalkuli.
+message(STATUS "  installer .......... ISCC.exe /DAppVersion=${PROJECT_VERSION} installer\\agape48.iss")
 message(STATUS "")
 
 target_compile_definitions(agape48 PRIVATE AGAPE48_VERSION="${PROJECT_VERSION}")

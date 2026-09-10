@@ -80,15 +80,57 @@ A real HP 48 runs at about 2 MHz in 1990 silicon, and there is a switch for that
 
 Under 20 MB installed, one file per platform, no runtime to install first. The window resizes freely and keeps the calculator's proportions; you can make it a thin strip beside your work or fill the screen with it. Text sizes are adjustable, because a calculator you keep open all day is a calculator you should be able to read.
 
-## Running it
+## Installing it
 
-You need an **HP 48 ROM image** — the calculator's own firmware. Agape48 does not include one: it is HP's code, not ours, and a program that ships it is making a promise it has no paper for. ROM images are the single most-mirrored file in this hobby and are a search away; put the file next to the calculator's memory, name it `rom`, or just point *Settings* at it.
+One download per machine, no runtime to fetch first, and no account to make.
 
-Everything else is one download. Where the calculator's memory lives is printed at startup and is yours to move at any time.
+### Windows
+
+1. Download **`Agape48-0.9.0-windows-x64-setup.exe`**.
+2. **Windows will stop you**: *"Windows protected your PC"*. Click **More info**, then **Run anyway**. That message is not a virus warning — it is Windows saying the installer carries no code-signing certificate, which is a purchase rather than a build step. Nothing in the download is packed or obfuscated, and every byte of source that went into it is in this repository.
+3. **Next**, **Next**, **Install**. It goes into `Program Files` and adds a Start-menu entry.
+4. Start it from the Start menu. It uninstalls like any other program, from *Apps & features*.
+
+### Linux
+
+No root, nothing in `/opt`, and nothing to add to your package manager:
+
+```sh
+tar xzf Agape48-0.9.0-linux-x86_64.tar.gz
+./Agape48-0.9.0-linux-x86_64/install.sh
+```
+
+There is no `chmod` step: `tar` keeps the executable bit, so `install.sh` just runs. (If you unpacked with a graphical archiver that dropped permissions, `sh install.sh` works anyway.)
+
+Everything lands under `~/.local/share/agape48`, the menu entry turns up under **Education**, and typing `agape48` runs it if `~/.local/bin` is on your `PATH`. The Qt runtime travels inside the tarball, so there is no distribution package to chase and nothing to install first — which also means it cannot break when your distribution moves to the next Qt. To remove it: `~/.local/share/agape48/uninstall.sh`, which takes back exactly what it put down and leaves your calculators alone.
+
+The download is 37 MB and unpacks to 98 MB, nearly all of it Qt. It is built for **x86_64** against **glibc 2.39**, so Ubuntu 24.04, Mint 22, Debian 13 or anything newer. On an older distribution it stops at startup with a `GLIBC_2.xx not found` line, which reads like a crash and is not one. Tested on X11.
+
+### Android
+
+1. Download **`Agape48-0.9.0-arm64-v8a.apk`** onto the phone and tap it.
+2. **Android will refuse the first time** — *"your phone is not allowed to install unknown apps from this source"* — because the file did not come from the Play Store. Tap **Settings**, allow that one source, and come back. Android asks per *source*, so allowing your browser does not also allow your file manager.
+3. Play Protect may then warn about an app from an unrecognised developer. The **Install anyway** button is behind *More details*.
+4. Tap **Open**. On a phone the calculator fills the screen, the way Droid48 does.
+
+Both of those warnings are about *where the file came from*, not about what is inside it — and the second one is unavoidable for any app that is not distributed through the Play Store.
+
+Android **8.0 or newer**, and **arm64-v8a**, which is every phone sold since about 2016. A 32-bit phone, or an emulator image built for x86_64, will refuse to install it.
+
+## Then give it a ROM
+
+The one thing that is not in the download is the **HP 48 ROM image** — the calculator's own firmware. Agape48 does not include one: it is HP's code, not ours, and a program that ships it is making a promise it has no paper for.
+
+ROM images are the most-mirrored file in this hobby and are one search away. When you have one:
+
+- open **Settings → HP 48 ROM** and point it at the file. This works on all three systems, and the app copies the ROM into its own folder so it is found by itself next time; or
+- name the file `rom` and drop it straight into the calculator's own folder — `%LOCALAPPDATA%\Agape48\Agape48` on Windows, `~/.local/share/Agape48/Agape48` on Linux, and `Android/media/br.gbmaizol.agape48/Agape48 calculators` on Android. On Android that is the quicker of the two routes: the folder shows up in any file manager and over a USB cable, needs no permission at all, so you plug the phone in and drop a file called `rom` into it.
+
+Where that folder is gets printed at startup, and it is yours to move at any time — that is the same setting that lets a calculator live in Dropbox and be opened from either machine.
 
 ## Free software
 
-Agape48 is free software, and it has to be: it stands on the `x48` Saturn core written by Eddie C. Dost and the years of work that Droid48 put into it, both under the GNU General Public Licence. So the source is here, the whole of it, and anything you build on it stays free the same way. See `LICENSE`.
+Agape48 is free software under the **GNU General Public Licence, version 3**, and it has to be: it stands on the `x48` Saturn core written by Eddie C. Dost and the years of work that Droid48 put into it, both under the GPL. Dost's files say "version 2, or any later version", and version 3 is the later one this project takes — the version that also defends you against patent claims and against anyone shipping this on a device you are not allowed to change. So the source is here, the whole of it, and anything you build on it stays free the same way. The full text is in `LICENSE`.
 
 ## For programmers
 
