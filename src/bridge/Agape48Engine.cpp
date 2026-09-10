@@ -1003,7 +1003,15 @@ int Agape48Engine::realSpeedBudget()
     // hundred thousand instructions in one tick is a visible jump in a game,
     // and throwing the debt away instead is the jitter above. Bounded above,
     // paid off below.
-    const qint64 maxSlice = qint64(kPaceMaxSliceTicks) * kTickIntervalMs
+    // AGAINST THE CURRENT INTERVAL, not the 16 ms one. The 48 drops into SHUTDN
+    // between key scans by design, so setTickRate() moves this timer to
+    // kIdleIntervalMs constantly - and a 100 ms tick owes 50000 instructions
+    // at half a million a second while a cap of four 16 ms ticks would only
+    // ever pay 32000 of them. Ten ticks a second times 32000 is 320000, the
+    // debt grows for ever, and the calculator runs at two thirds of its target
+    // or worse. Measured 2026sep10: 84 samples of one fixed loop took minutes
+    // each instead of seconds.
+    const qint64 maxSlice = qint64(kPaceMaxSliceTicks) * m_tick.interval()
                             * 1000 * m_realSpeedRate / 1000000;
     if (n > maxSlice)
         n = maxSlice;
