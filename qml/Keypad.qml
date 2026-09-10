@@ -274,7 +274,7 @@ Item {
             // not depend on the system palette - the mistake the unsaved-path
             // dialog made with #e8e8e8 on a palette background.
             color: "#1b1b1b"
-            font.pixelSize: TextSizes.dialogHint
+            font: TextSizes.keyTip
             horizontalAlignment: Text.AlignHCenter
         }
     }
