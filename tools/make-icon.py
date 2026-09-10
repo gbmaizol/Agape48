@@ -155,11 +155,24 @@ CLEAR = (0, 0, 0, 0)
 # "The image is too small. make it larger, it doesn't matter if some corners will
 # be cut."
 #
-# 1,25 kaj ne pli. Preter proksimume 1,4 la tranĉitaj anguloj kuniĝas, la bildo
-# fariĝas simpla kvadrato, kaj du aferoj foriras kun ili: la klino ĉesas esti
-# videbla sur travidebla labortabla ikono, kaj la ardezo restas sen laboro. Je
-# 1,25 kojno da fono ankoraŭ montriĝas ĉe du anguloj, kaj tio estas kio tenas la
-# turnon legebla.
+# 1,85 DE 2026SEP10, kaj tio estas mezuro anstataŭ gusto. Gert, provinte la
+# Vindozan konstruon: "The icon is too small. Make it as big as possible, even if
+# it crops a little bit off the top and bottom edges", kaj tuj poste "It's also
+# fine to show only 50% of the ON button."
+#
+# Je 1,25 la arto pentris nur 56% de sia kvadrato. La aliaj 44% estis la kvar
+# travideblaj trianguloj kiujn la klino lasas ĉe la anguloj, kaj je 16 bilderoj
+# en taskostrio tio aspektas kiel makuleto kun malplena spaco ĉirkaŭ ĝi - kio
+# estas ekzakte lia plendo. Je 1,85 ĝi pentras 94%, la ON-klavo ankoraŭ montras
+# 82% de si, kaj ĉe la anguloj restas 5,6% da nenio, do la klino ankoraŭ havas
+# ion kontraŭ kio esti videbla kaj la mola ombro ankoraŭ havas lokon kie fali.
+#
+# La limo kiun li mem nomis estas la ON-klavo je duono, kaj tio estus 2,20. Sed
+# je 2,20 la tolo estas 99,6% opaka: la ikono estas simpla kvadrata fotografaĵo,
+# kaj la ombro estas fortranĉita kune kun la anguloj. Kvadrato ĝi vere fariĝas
+# je 2,30. La malnova komento ĉi tie asertis ke tio okazas "preter proksimume
+# 1,4"; tio estis argumento kaj ne mezuro, kaj mezurite ĝi estas malvera - je
+# 1,40 eĉ la netondita arto lasis 39% de la tolo nuda.
 #
 # DU NOMBROJ, ĉar la du platformoj volas kontraŭajn aferojn, kaj 2026sep08 estas
 # kiam tio klariĝis. Gert, rigardante la lanĉilon: "Why the launcher shows me a
@@ -180,9 +193,12 @@ CLEAR = (0, 0, 0, 0)
 # la sama kovro venas je 1,30, mezurite: 0,00% de la 72dp-masko nuda, kaj 1,49%
 # de la 80dp kiun lanĉilo atingas dum paralaksa animacio.
 #
-# La labortablo tenas 1,25 kaj sian travideblecon, ĉar tie la ikono vere estas
-# libera formo kaj la klino estas la tuta senco.
-FILL_DESKTOP = 1.25
+# Kaj tial la du nombroj nun kuŝas inverse al kio oni atendus: la ADAPTA estas
+# la malgranda. La cirklo de la lanĉilo jam fortranĉas ĉion krom la mezo, do
+# 1,30 sufiĉas por kovri ĝin tute kaj pli nur forĵetus arton kiun la cirklo
+# estus montrinta. La labortabla ikono havas nenion kiu tranĉas ĝin, do kion ĝi
+# ne plenigas restas simple malplena.
+FILL_DESKTOP = 1.85
 FILL_ADAPTIVE = 1.30
 
 # "Oh, and make the edges a bit blurry!" - Gert, 2026sep08. Frakcio de la propra
