@@ -844,3 +844,7 @@ Two things whoever builds this must keep:
 
 - **`suspend()` also saves.** The save on losing focus is what makes the state-folder handover safe and is how this session has been reading his stack at all. A toggle must keep saving on unfocus and only skip the `stop()`.
 - **It cannot simply be a third switch in Settings.** Deferred item 1 is that the dialog already overflows his window with what it has; adding a fourth row without fixing that hides something else. Items 1, 2 and 7 are one job.
+
+**On item 7, he settled it further the same morning:** *"Although it's totally ok to have games progress only when focused."* So suspending on deactivation is **wanted**, not tolerated, and the toggle is a convenience rather than a fix. Nobody should "repair" `Main.qml:982`.
+
+**And on whether the throttle needs a warm-up allowance: it does not.** Measured over the 200-sample run of 2026sep10, in run order: the first 20 clean samples mean 0.51505 s with an 11.4% spread, the last 20 mean 0.53967 s with a **1.2%** spread, total drift **+4.8%**, settled by about sample 37 - roughly **19 s of running**. His concern was *"I wouldn't like games to behave like this"*, and at under 5% for the first twenty seconds it is below anything a player can perceive. The factor-of-two "warm-up" claimed earlier in this project was the broken timer ruler settling, not the pacer.
