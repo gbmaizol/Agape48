@@ -848,3 +848,23 @@ Two things whoever builds this must keep:
 **On item 7, he settled it further the same morning:** *"Although it's totally ok to have games progress only when focused."* So suspending on deactivation is **wanted**, not tolerated, and the toggle is a convenience rather than a fix. Nobody should "repair" `Main.qml:982`.
 
 **And on whether the throttle needs a warm-up allowance: it does not.** Measured over the 200-sample run of 2026sep10, in run order: the first 20 clean samples mean 0.51505 s with an 11.4% spread, the last 20 mean 0.53967 s with a **1.2%** spread, total drift **+4.8%**, settled by about sample 37 - roughly **19 s of running**. His concern was *"I wouldn't like games to behave like this"*, and at under 5% for the first twenty seconds it is below anything a player can perceive. The factor-of-two "warm-up" claimed earlier in this project was the broken timer ruler settling, not the pacer.
+
+## Done on 2026sep10, and the one that is not
+
+*"Can we implement and build this fix and all of the deffered features now..."* — `d951f60`. Six of the seven, and the list above is left as written rather than edited, because what was asked for and why is worth more than a tidy checklist.
+
+| item | state |
+|---|---|
+| 1. Speed controls unreachable | **done** — moved to the Advanced window, which is where he asked for them |
+| 2. Toggles too big | **done** — `CompactSwitch`, sized from `TextSizes.dialogBody`, spacing 10 -> 6 |
+| 3. 48GX is the menu, ⋮ gone | **done** on every platform, verified on a screenshot |
+| 4. Key tooltips | **done** — 2 s, `<brackets>`, one per line, dark on yellow |
+| 5. Folder path a link | **done for the openable half** — see below |
+| 6. Pace by Saturn cycles | **NOT DONE, deliberately** — see below |
+| 7. Keep running when unfocused | **done**, off by default |
+
+**Item 5 is half-delivered and it is the half that exists.** `Qt.openUrlExternally` opens the folder; the "search ANY file manager for a window already showing it" half was not written, because there is nothing to write it against. Only Explorer reports the folder it is displaying (`Shell.Application`, `Windows()`, `LocationURL`); every other manager on Windows and all of them on Linux would leave title matching as the only option, which is unreliable. **Explorer's own behaviour now decides** whether an already-open window is raised. If it turns out to open a second window on a folder already showing, that is the moment the search earns its complexity - and not before.
+
+**Item 6 is not attempted, and the reason is not effort.** The vendored x48 core carries **no cycle counts at all** - `emulate.c:2216 instructions++` is the only counter in it, and the budget unit throughout the shim is one `step_instruction()`. Giving it cycles means a sourced cycle count for every opcode in the interpreter, and there is no such source in this tree. **A guessed table would silently undo a rate that is now accurate to 0.8%**, measured over 200 samples against a twelve-digit Emu48 reference, and the error would be invisible - which is the worst kind. It stays deferred with its own section above, and the honest precondition is: get a real Saturn cycle table first, then change the unit, then re-measure against the same loop.
+
+**What the new slider does NOT touch.** `speedFactor` is a multiplier over `realSpeedRate`, not a replacement for it. The rate is the measurement - three evenings, two independent routes, 4.05 cycles per instruction as the corroboration - and the slider must not be able to destroy it, so 1.0 in the middle always restores authentic speed exactly. If a future session finds the slider "redundant" with the rate, read this paragraph before merging them.
