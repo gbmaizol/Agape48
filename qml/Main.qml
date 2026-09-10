@@ -417,11 +417,17 @@ Window {
     // 2026aug28 keeps Controls off the calculator face, and this sits on it.
     Rectangle {
         id: menuButton
-        // Not on Android, where the underlined "48GX" on the face is the way
-        // in - Gert's design, and one command in one place. The geometry still
-        // matters there: an invisible item still has a position, and it is
-        // where the menu pops up.
-        visible: Qt.platform.os !== "android"
+        // NEVER DRAWN, on any platform, since 2026sep10. The underlined "48GX"
+        // on the face is the way in everywhere - Gert's design from 2026sep07
+        // for the phone, and on 2026sep10 for the desktop as well: "make the
+        // 48GX underlined and get rid of the 3 dots, like the Android
+        // solution". One command in one place.
+        //
+        // THE ITEM STAYS because its geometry is still the menu's position: an
+        // invisible item still has a position, and appMenu.popup() is given
+        // menuButton.x and .y. That kept the popup in the top right corner,
+        // beside the badge, without a second set of numbers to keep in step.
+        visible: false
         // Inset like the face is, and for the same reason. Measured on the
         // phone at e4ea219: the status bar is 162 px tall and this button was
         // drawn from y=22 to y=100, entirely inside it, so every tap on it went
@@ -644,6 +650,7 @@ Window {
     // and what Gert asked for.
     AdvancedPage {
         id: advancedPage
+        engine: engine
         x: root.pageX
         y: root.pageY
         width: root.pageW

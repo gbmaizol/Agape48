@@ -283,7 +283,10 @@ Item {
         // when there is nothing to scroll the bar is hidden and this is just a
         // slightly narrower column, which is invisible.
         width: parent.width - 14
-        spacing: 10
+        // 6 rather than 10: "the space between them smaller, more like the
+        // size and space of normal text" (2026sep10). Paired with CompactSwitch,
+        // this is what brings the whole page back inside his window.
+        spacing: 6
 
         // The reason this window opened, when it opened itself. Before dogfood
         // #8 the only copy of this text was a banner in the calculator window,
@@ -636,23 +639,13 @@ Item {
         // imposes the size, which is why 31be0c8 turned the aspect lock off
         // there. Gert, 2026sep07: "there are functions that don't make sense in
         // Android, like the resize option in the settings dialog."
-        Row {
+        CompactSwitch {
             id: liveResizeRow
             visible: Qt.platform.os !== "android"
-            spacing: 6
-            Switch {
-                id: liveResizeSwitch
-                checked: root.engine.liveResize
-                onToggled: root.engine.liveResize = checked
-            }
-            Label {
-                anchors.verticalCenter: parent.verticalCenter
-                text: qsTr("Resize the window live, without an outline")
-                color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
-            }
+            text: qsTr("Resize the window live, without an outline")
+            checked: root.engine.liveResize
+            onToggled: root.engine.liveResize = checked
         }
-
-        Item { width: 1; height: 8 }
 
         // Real calculator speed, asked for on 2026sep09: "a feature that's
         // required, default off in settings: Slow down to real calculator
@@ -671,73 +664,50 @@ Item {
         // of the dialog." The toggles above and below carry no hint text at all,
         // so neither does this one; the calibration row appears only when it can
         // do something.
-        Row {
-            spacing: 6
-            Switch {
-                id: realSpeedSwitch
-                checked: root.engine.realSpeed
-                onToggled: root.engine.realSpeed = checked
-            }
-            Label {
-                anchors.verticalCenter: parent.verticalCenter
-                text: qsTr("Slow down to real calculator speed")
-                color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
-            }
+        CompactSwitch {
+            id: realSpeedSwitch
+            text: qsTr("Slow down to real calculator speed")
+            checked: root.engine.realSpeed
+            onToggled: root.engine.realSpeed = checked
         }
 
-        // THE CALIBRATION, on screen because the number cannot be derived: the
-        // core counts INSTRUCTIONS and never Saturn cycles - emulate.c:2216 is
-        // the only counter in it - so nothing inside can say how fast a real 48
-        // would be. Gert: "What if we make a calibration program that runs from
-        // the calculator library... and then we can make this one time
-        // calibration on the screen using it?"
+        // Keep running when out of focus, asked for on 2026sep10 after he found
+        // the behaviour with a 200-sample program and a metronome: "It runs ONLY
+        // when the calculator in in focus!!!" Measured at the time: 78.1 s of
+        // running against 443.4 s of uptime, alive 17.6% of the elapsed time.
         //
-        // Buttons rather than a field, for the reason the state folder row gives
-        // at length: on a phone a field means a keyboard over half the screen
-        // and an Enter nobody trusts. Ten percent a tap, because what is being
-        // judged is proportional. The second number is x48's own reading, which
-        // it has always taken against the host clock to keep the calculator's
-        // clock true - the answer to "Don't you see the clock tiks?"
-        Row {
-            visible: realSpeedSwitch.checked
-            spacing: 6
-            Button {
-                text: qsTr("Slower")
-                onClicked: root.engine.realSpeedRate =
-                               Math.round(root.engine.realSpeedRate / 1.1)
-            }
-            Button {
-                text: qsTr("Faster")
-                onClicked: root.engine.realSpeedRate =
-                               Math.round(root.engine.realSpeedRate * 1.1)
-            }
-            Label {
-                anchors.verticalCenter: parent.verticalCenter
-                text: root.engine.measuredRate > 0
-                      ? qsTr("%1/s, doing %2").arg(root.engine.realSpeedRate)
-                                              .arg(root.engine.measuredRate)
-                      : qsTr("%1/s").arg(root.engine.realSpeedRate)
-                color: "#9a9a9a"; font.pixelSize: TextSizes.dialogHint
-            }
+        // OFF BY DEFAULT BECAUSE HE ASKED FOR IT THAT WAY, twice: "Maybe it's
+        // not a bug, but a feature. I can leave with that", then "Although it's
+        // totally ok to have games progress only when focused." So this is a
+        // way out for the one case that wants it - a long computation left to
+        // run - and not a repair.
+        //
+        // Not on a phone: Android stops the process when it pleases, so the
+        // switch would promise something the platform will not honour.
+        CompactSwitch {
+            visible: Qt.platform.os !== "android"
+            text: qsTr("Keep running when out of focus")
+            checked: root.engine.runUnfocused
+            onToggled: root.engine.runUnfocused = checked
         }
+
+        // THE CALIBRATION LIVES IN THE ADVANCED WINDOW NOW. Gert, 2026sep10:
+        // "I believe the speed adjustment setting (currently still invisible)
+        // can be relinquished to the advanced settings window." It was invisible
+        // because it sat below the fold of a window his face size makes about
+        // 356x599 - see deferred item 1 - and it belongs there anyway: the rate
+        // is a one-time per-machine calibration, not something to reach for.
 
         // Debug logging, asked for in dogfood #8: there was no record at all of
         // why a start had failed, only a banner that vanished after six seconds.
-        Row {
-            spacing: 6
-            // The label is a Label rather than the Switch's own text: the Basic
-            // style paints that in a dark ink meant for a light window, and on
-            // this background it was almost unreadable.
-            Switch {
-                id: logSwitch
-                checked: root.engine.debugLogging
-                onToggled: root.engine.debugLogging = checked
-            }
-            Label {
-                anchors.verticalCenter: parent.verticalCenter
-                text: qsTr("Debug logging")
-                color: "#e8e8e8"; font.pixelSize: TextSizes.dialogBody
-            }
+        // CompactSwitch paints its own label, which is why the Label that used
+        // to sit beside every one of these is gone: the Basic style draws
+        // Switch.text in a dark ink meant for a light window.
+        CompactSwitch {
+            id: logSwitch
+            text: qsTr("Debug logging")
+            checked: root.engine.debugLogging
+            onToggled: root.engine.debugLogging = checked
         }
         Label {
             width: parent.width

@@ -100,6 +100,10 @@ constexpr int    kRealSpeedInstrPerSec = 205000;
 // can deliver and would silently do nothing - and the floor is low enough to be
 // obviously wrong on screen rather than to look like a hang.
 constexpr int    kRateFloor  = 50000;
+// The far left of the speed slider. Gert asked for "sluggish 0.1" and meant it
+// as a toy; there is no lower bound worth defending below that, because a tenth
+// of a real 48 is already slower than anything anybody would sit through.
+constexpr double kFactorFloor = 0.1;
 constexpr int    kRateCeiling = kCyclesPerTick * 1000 / kTickIntervalMs;
 
 // The most owed time a single slice may make up. This is a STALL threshold, not
@@ -303,11 +307,19 @@ Agape48Engine::Agape48Engine(QObject *parent)
         setDebugLogging(true);
 
     m_liveResize = QSettings().value(QLatin1String("window/liveResize"), false).toBool();
+    m_runUnfocused = QSettings().value(QLatin1String("window/runUnfocused"),
+                                       false).toBool();
+    m_speedFactor = QSettings().value(QLatin1String("speed/factor"),
+                                      1.0).toDouble();
     m_realSpeed  = QSettings().value(QLatin1String("speed/real"), false).toBool();
     m_realSpeedRate = qBound(kRateFloor,
                              QSettings().value(QLatin1String("speed/rate"),
                                                kRealSpeedInstrPerSec).toInt(),
                              kRateCeiling);
+    // Clamped against the rate that was just loaded, because the far right of
+    // the slider is a function of it. A stored factor from a session with a
+    // different calibration must not push the budget past the ceiling.
+    m_speedFactor = qBound(kFactorFloor, m_speedFactor, speedFactorMax());
 
     m_clock.start();
     m_tick.setInterval(kTickIntervalMs);
@@ -699,7 +711,13 @@ void Agape48Engine::stop()
 
 void Agape48Engine::suspend()
 {
-    stop();
+    // THE SAVE HAPPENS EITHER WAY, and only the stop is optional. Losing focus
+    // is what writes the state folder, it is how the hand-over between the two
+    // laptops stays safe, and it is how every measurement in the speed work was
+    // read off disk at all - so a switch that skipped it would break something
+    // load-bearing to fix something cosmetic.
+    if (!m_runUnfocused)
+        stop();
     saveState();
 }
 
@@ -978,6 +996,50 @@ void Agape48Engine::setLiveResize(bool on)
     emit liveResizeChanged();
 }
 
+// The far right of the slider: the factor at which the paced budget reaches the
+// free-running ceiling. Beyond it the throttle would be asking for more
+// instructions a second than the tick can deliver, which is not "faster", it is
+// just an unpayable debt - see the note on kPaceMaxOwedUs.
+double Agape48Engine::speedFactorMax() const
+{
+    return m_realSpeedRate > 0 ? double(kRateCeiling) / m_realSpeedRate : 1.0;
+}
+
+int Agape48Engine::effectiveRate() const
+{
+    return qBound(kRateFloor,
+                  int(qRound(m_realSpeedRate * m_speedFactor)),
+                  kRateCeiling);
+}
+
+void Agape48Engine::setSpeedFactor(double factor)
+{
+    const double f = qBound(kFactorFloor, factor, speedFactorMax());
+    if (qFuzzyCompare(m_speedFactor, f))
+        return;
+    m_speedFactor = f;
+    QSettings().setValue(QLatin1String("speed/factor"), f);
+    // Start from now rather than settling a debt incurred at a different rate,
+    // the same reasoning as the switch and the rate.
+    m_paceAt   = 0;
+    m_paceOwed = 0;
+    emit speedFactorChanged();
+}
+
+void Agape48Engine::setRunUnfocused(bool on)
+{
+    if (m_runUnfocused == on)
+        return;
+    m_runUnfocused = on;
+    QSettings().setValue(QLatin1String("window/runUnfocused"), on);
+    // Take effect immediately rather than at the next alt-tab: if the window is
+    // inactive right now, the calculator is already stopped, and a switch the
+    // user has just turned on ought to start it.
+    if (on && m_ready && !m_detached)
+        start();
+    emit runUnfocusedChanged();
+}
+
 void Agape48Engine::setRealSpeed(bool on)
 {
     if (m_realSpeed == on)
@@ -1023,7 +1085,8 @@ int Agape48Engine::realSpeedBudget()
     // tick would round down and the rate would drift low by up to one
     // instruction per tick - sixty a second, which is small but is a bias
     // rather than noise, so it never averages out.
-    m_paceOwed += us * m_realSpeedRate;
+    const int rate = effectiveRate();
+    m_paceOwed += us * rate;
     qint64 n = m_paceOwed / 1000000;
 
     // Cap what one slice RUNS without cancelling what is owed: a burst of two
@@ -1039,7 +1102,7 @@ int Agape48Engine::realSpeedBudget()
     // or worse. Measured 2026sep10: 84 samples of one fixed loop took minutes
     // each instead of seconds.
     const qint64 maxSlice = qint64(kPaceMaxSliceTicks) * m_tick.interval()
-                            * 1000 * m_realSpeedRate / 1000000;
+                            * 1000 * rate / 1000000;
     if (n > maxSlice)
         n = maxSlice;
 
@@ -1695,6 +1758,8 @@ void Agape48Engine::writeSpeedProbe()
         << "asleep       " << (x48_is_asleep() ? 1 : 0) << '\n'
         << "real         " << (m_realSpeed ? 1 : 0) << '\n'
         << "rate         " << m_realSpeedRate << '\n'
+        << "factor       " << m_speedFactor << '\n'
+        << "effective    " << effectiveRate() << '\n'
         << "i_per_s      " << x48_instructions_per_second() << '\n'
         << "focused      "
         << (QGuiApplication::focusWindow() != nullptr ? 1 : 0) << '\n';

@@ -95,6 +95,7 @@ Window {
     // therefore desktop-only until it gets the same treatment as this one.
     AdvancedWindow {
         id: advanced
+        engine: root.engine
         transientParent: root
     }
 }

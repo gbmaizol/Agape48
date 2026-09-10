@@ -139,6 +139,93 @@ Item {
             color: "#ffffff"
             opacity: root.engine.pressedKeys.indexOf(modelData.key) >= 0 ? 0.22 : 0
             Behavior on opacity { NumberAnimation { duration: 60 } }
+
+            // Two seconds of a still pointer names the keyboard keys bound
+            // here. See the tooltip below.
+            HoverHandler {
+                onHoveredChanged: {
+                    if (hovered) {
+                        root.tipKey = parent.modelData
+                        tipBox.shown = false
+                        tipDelay.restart()
+                    } else if (root.tipKey === parent.modelData) {
+                        tipDelay.stop()
+                        tipBox.shown = false
+                        root.tipKey = null
+                    }
+                }
+            }
+        }
+    }
+
+    // --- what is this key on my keyboard? ------------------------------------
+    //
+    // Gert, 2026sep10: "When the mouse pointer halts for 2 seconds over a button
+    // on the calculator's face, each of it's assigned keyboard keys appears at a
+    // yellow tooltip, between angle brackets <>, and when they are more than one,
+    // separated by a newline."
+    //
+    // READ FROM Agape48Keymap, NEVER FROM A SECOND TABLE. bindingsFor() is the
+    // same function KeyBindingWindow lists and it already folds the user's
+    // overrides over the defaults, so a rebound key says the truth here the
+    // moment it is rebound. A copy of the map would start lying the first time
+    // he changed a binding - the constraint written down with the request in
+    // docs/design-questions.md.
+    //
+    // RAW QtQuick, not Controls' ToolTip: the usage rule of 2026aug28 keeps
+    // Quick Controls off the calculator face, and this is on it. Which is no
+    // loss, because the yellow he asked for is not what the Basic style paints
+    // anyway.
+    //
+    // Desktop in effect rather than by a platform test: a finger has no hover
+    // state, so HoverHandler never fires on a phone and this costs nothing there.
+    property var tipKey: null
+
+    readonly property string tipText: {
+        if (!tipKey)
+            return ""
+        const rows = Agape48Keymap.bindingsFor(tipKey.key)
+        if (!rows.length)
+            return ""
+        return rows.map(function (r) { return "<" + r.label + ">" }).join("\n")
+    }
+
+    Timer {
+        id: tipDelay
+        interval: 2000
+        onTriggered: tipBox.shown = true
+    }
+
+    Rectangle {
+        id: tipBox
+        property bool shown: false
+
+        visible: shown && root.tipText.length > 0
+        z: 100
+        // Under the key rather than over it, so the pointer is never on top of
+        // the words, and clamped to the face so a key at the right edge does
+        // not push its tooltip off the window.
+        x: root.tipKey ? Math.min(Math.max(0, root.tipKey.cap.x),
+                                  Math.max(0, root.width - width))
+                       : 0
+        y: root.tipKey ? root.tipKey.cap.y + root.tipKey.cap.height + 4 : 0
+        width:  tipLabel.implicitWidth + 10
+        height: tipLabel.implicitHeight + 6
+        radius: 3
+        color: "#fdf3a8"
+        border.width: 1
+        border.color: "#8a7c1e"
+
+        Text {
+            id: tipLabel
+            anchors.centerIn: parent
+            text: root.tipText
+            // Dark ink on the yellow, which is the one combination that does
+            // not depend on the system palette - the mistake the unsaved-path
+            // dialog made with #e8e8e8 on a palette background.
+            color: "#1b1b1b"
+            font.pixelSize: TextSizes.dialogHint
+            horizontalAlignment: Text.AlignHCenter
         }
     }
 

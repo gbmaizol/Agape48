@@ -318,7 +318,12 @@ Item {
             onBodyPressed: root.bodyPressed()
         }
 
-        // ANDROID'S WAY INTO THE MENU, and the only one there. Gert, 2026sep07,
+        // THE WAY INTO THE MENU ON EVERY PLATFORM since 2026sep10, when Gert
+        // asked for the phone's design on the desktop too: "make the 48GX
+        // underlined and get rid of the 3 dots, like the Android solution". So
+        // Main.qml's corner button is gone and this is the only door.
+        //
+        // It began as Android's, and only Android's. Gert, 2026sep07,
         // after the corner button turned out to be sitting under the status
         // bar: "in Android the '48GX' at the corner must be changed to look
         // like a web link, and clicking there opens the menu. This is the most
@@ -337,7 +342,7 @@ Item {
             readonly property var badge: root.engine.skin.badge
             readonly property rect box: badge && badge.rect ? badge.rect
                                                             : Qt.rect(0, 0, 0, 0)
-            visible: Qt.platform.os === "android" && box.width > 0
+            visible: box.width > 0
             // The target is bigger than the word: 16 face px on every side,
             // which on this phone is about 48 device px across once the face is
             // scaled to the screen. Still clear of the nameplate band, which
@@ -355,6 +360,10 @@ Item {
                                                           : "#c6aa60"
             }
             TapHandler { onTapped: root.menuRequested() }
+            // A pointer that says it can be clicked, which is the one thing the
+            // desktop needs and the phone has no use for. Underlining alone
+            // reads as a link; a hand cursor is what confirms it.
+            HoverHandler { cursorShape: Qt.PointingHandCursor }
         }
     }
 }

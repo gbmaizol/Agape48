@@ -14,6 +14,9 @@ import Agape48
 Window {
     id: root
 
+    // Passed through to the speed calibration. See AdvancedContent.qml.
+    property var engine: null
+
     readonly property bool opened: visible
 
     function open() {
@@ -25,7 +28,11 @@ Window {
     }
     function close() { hide() }
 
-    title: qsTr("Text sizes")
+    // "Advanced" rather than "Text sizes" since 2026sep10, when the speed
+    // calibration moved in here and made the old title a lie. It is also what
+    // the button that opens it says, and what Gert calls it: "the advanced
+    // settings window".
+    title: qsTr("Advanced")
     flags: Qt.Dialog
     color: "#1b1b1b"
     // Clamped to the screen; see SettingsWindow.qml for what a phone did to a
@@ -41,6 +48,7 @@ Window {
 
     AdvancedContent {
         anchors.fill: parent
+        engine: root.engine
         onCloseRequested: root.hide()
     }
 }

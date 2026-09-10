@@ -107,6 +107,7 @@ target_compile_definitions(agape48 PRIVATE
 set(AGAPE48_QML_FILES
     qml/Main.qml
     qml/Calculator.qml
+    qml/CompactSwitch.qml
     qml/Keypad.qml
     qml/SettingsWindow.qml
     qml/SettingsContent.qml

@@ -26,10 +26,18 @@ Item {
     // the ⋮ was buried under the status bar and went. Naming the wrong one is
     // worse than saying nothing - it sends him hunting for a button that is not
     // there, which is what "it mentioned an outdated menu" was about.
+    // The calculator, for the speed calibration below. Not required: the
+    // text-size half of this page works without one, and a page that refuses to
+    // open because no calculator is loaded would be a poor trade.
+    property var engine: null
+
     readonly property bool onPhone: Qt.platform.os === "android"
     readonly property string shellWord: onPhone ? qsTr("Page") : qsTr("Window")
     readonly property string shellHere: onPhone ? qsTr("page")  : qsTr("window")
-    readonly property string menuWord:  onPhone ? "48GX" : "\u22ee"
+    // "48GX" on both since 2026sep10: the three-dot button is gone from the
+    // desktop too, so naming it in the help text would send him looking for
+    // something that is no longer drawn.
+    readonly property string menuWord:  "48GX"
 
     // One row: label, slider, and the figure he is going to tell us about.
     component SizeRow: Column {
@@ -222,6 +230,144 @@ Item {
                                 font.pixelSize: TextSizes.dialogHint
                             }
                         }
+                    }
+                }
+
+                // ------------------------------------------------------------
+                // THE SPEED CALIBRATION. Gert, 2026sep10: "I believe the speed
+                // adjustment setting (currently still invisible) can be
+                // relinquished to the advanced settings window."
+                //
+                // It was invisible in Settings because it sat below the fold of
+                // a window his face size makes about 356x599, and he lost an
+                // evening of measurements to a rate he could not see. It also
+                // belongs here on its own merits: a one-time per-machine
+                // calibration, like the text sizes it now sits under.
+                Rectangle {
+                    width: parent.width
+                    height: 1
+                    color: "#333333"
+                    visible: root.engine !== null
+                }
+
+                Label {
+                    visible: root.engine !== null
+                    text: qsTr("Real calculator speed")
+                    color: "#f0f0f0"
+                    font.pixelSize: TextSizes.dialogTitle
+                    font.weight: Font.DemiBold
+                }
+
+                Label {
+                    visible: root.engine !== null
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    color: "#9a9a9a"
+                    font.pixelSize: TextSizes.dialogHint
+                    text: qsTr("Turn \"Slow down to real calculator speed\" on in "
+                             + "Settings first. The figure is instructions a second "
+                             + "and belongs to this machine, not to the calculator, "
+                             + "so it is not synced.")
+                }
+
+                // A SLIDER, AND 1.0 IS EXACTLY IN THE MIDDLE. Gert, 2026sep10:
+                // "Default is 1.0 at the middle, and the user and set it all the
+                // way to the left at sluggish 0.1 to all the way to the right at
+                // almost unregulated speed."
+                //
+                // TWO LOG HALVES rather than one scale, because his three
+                // numbers cannot all sit on a single logarithmic axis: 0.1 on the
+                // left and 1.0 at the centre would put 10 on the right, and the
+                // right end is the free-running ceiling, which on this machine is
+                // about 21x. So the left half runs 0.1 -> 1.0 and the right half
+                // 1.0 -> speedFactorMax, each logarithmic in itself. Both halves
+                // are proportional under the finger, which is what matters when
+                // what is being judged is a ratio, and the middle is a real
+                // detent rather than a number that happens to be near it.
+                //
+                // The slider does NOT bind to speedFactor. A control whose value
+                // is bound to what it writes loses the binding on the first drag
+                // and then silently stops tracking - the mistake TextSizes.qml
+                // documents at the top of its aliases. It is seeded once and the
+                // reset button moves both.
+                function sliderToFactor(v) {
+                    const max = root.engine ? root.engine.speedFactorMax : 10
+                    return v < 0.5 ? 0.1 * Math.pow(10, 2 * v)
+                                   : Math.pow(max, (v - 0.5) * 2)
+                }
+                function factorToSlider(f) {
+                    const max = root.engine ? root.engine.speedFactorMax : 10
+                    if (!(f > 0)) return 0.5
+                    return f <= 1 ? 0.5 * (Math.log(f) / Math.LN10 + 1)
+                                  : 0.5 + 0.5 * Math.log(f) / Math.log(max)
+                }
+
+                // ON TOP OF THE SLIDER, one decimal, and deliberately not large:
+                // Gert, 2026sep10, "Show the actual number as 'X.X' on top of
+                // the slider, but keep it not so big." Body size rather than the
+                // title size the headings above use.
+                Label {
+                    visible: root.engine !== null
+                    text: root.engine ? root.engine.speedFactor.toFixed(1) + "\u00d7" : ""
+                    color: "#f0f0f0"
+                    font.family: "monospace"
+                    font.pixelSize: TextSizes.dialogBody
+                }
+
+                Slider {
+                    id: speedSlider
+                    width: parent.width
+                    from: 0
+                    to: 1
+                    enabled: root.engine !== null
+                    Component.onCompleted:
+                        value = column.factorToSlider(root.engine ? root.engine.speedFactor : 1)
+                    onMoved: root.engine.speedFactor = column.sliderToFactor(value)
+                }
+
+                Row {
+                    visible: root.engine !== null
+                    width: parent.width
+                    spacing: 8
+                    Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        // The effective figure, and beside it x48's own reading,
+                        // taken against the host clock - the answer to "Don't you
+                        // see the clock tiks?" They differ: on 2026sep10 the core
+                        // read 215766 against a setting of 206660, the pacer
+                        // overshooting by about 4%, and that gap is exactly why
+                        // the measured number is worth showing next to the asked
+                        // for one rather than hidden.
+                        text: {
+                            if (!root.engine) return ""
+                            return root.engine.measuredRate > 0
+                                   ? qsTr("%1/s, doing %2").arg(root.engine.effectiveRate)
+                                                           .arg(root.engine.measuredRate)
+                                   : qsTr("%1/s").arg(root.engine.effectiveRate)
+                        }
+                        color: root.engine && root.engine.realSpeed ? "#9a9a9a" : "#6a6a6a"
+                        font.family: "monospace"
+                        font.pixelSize: TextSizes.dialogHint
+                    }
+                }
+
+                Row {
+                    visible: root.engine !== null
+                    spacing: 8
+                    Button {
+                        text: qsTr("Back to a real 48")
+                        enabled: root.engine && Math.abs(root.engine.speedFactor - 1) > 0.001
+                        onClicked: {
+                            root.engine.speedFactor = 1.0
+                            speedSlider.value = 0.5
+                        }
+                    }
+                    Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: qsTr("left: a tenth of a real 48   \u00b7   "
+                                 + "middle: authentic   \u00b7   right: unthrottled")
+                        color: "#7d7d7d"
+                        font.pixelSize: TextSizes.dialogHint
                     }
                 }
             }

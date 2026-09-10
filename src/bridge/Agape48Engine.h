@@ -72,6 +72,33 @@ class Agape48Engine : public QObject
     // Machine-local, like the window geometry and the keymap.
     Q_PROPERTY(bool liveResize READ liveResize WRITE setLiveResize NOTIFY liveResizeChanged)
 
+    // Keep the Saturn running while the window is not the active one. OFF by
+    // default, which is the behaviour this app has always had: Main.qml calls
+    // suspend() on deactivation, and suspend() stops the tick. Gert found that
+    // on 2026sep10 - "It runs ONLY when the calculator in in focus!!!" - and
+    // then decided it should stay: "Although it's totally ok to have games
+    // progress only when focused." So this is an escape hatch for a long
+    // computation left to run, not a repair. Machine-local, like liveResize.
+    Q_PROPERTY(bool runUnfocused READ runUnfocused WRITE setRunUnfocused NOTIFY runUnfocusedChanged)
+
+    // A MULTIPLIER OVER THE CALIBRATED RATE, for playing with rather than for
+    // getting right. Gert, 2026sep10: "We can let the user have fun with the
+    // speed calibration. Default is 1.0 at the middle, and the user and set it
+    // all the way to the left at sluggish 0.1 to all the way to the right at
+    // almost unregulated speed."
+    //
+    // SEPARATE FROM realSpeedRate ON PURPOSE. That one is the measurement - the
+    // instructions a second at which this machine matches a real 48, arrived at
+    // over three evenings and worth 0.8% - and dragging a slider must not be
+    // able to destroy it. So the slider moves this instead, 1.0 means "what a
+    // real 48 does", and coming back to the middle restores authentic speed
+    // exactly. speedFactorMax is the far right: the factor at which the pacing
+    // budget reaches the free-running ceiling, so the calculator is as fast as
+    // it can be without the throttle being switched off.
+    Q_PROPERTY(double speedFactor READ speedFactor WRITE setSpeedFactor NOTIFY speedFactorChanged)
+    Q_PROPERTY(double speedFactorMax READ speedFactorMax NOTIFY realSpeedRateChanged)
+    Q_PROPERTY(int effectiveRate READ effectiveRate NOTIFY speedFactorChanged)
+
     // Off by default, and off means the calculator runs as fast as the machine
     // allows - Gert's words: "Normally we want the calculator to run as fast as
     // it can." On, the Saturn is paced to a real HP 48's instruction rate,
@@ -115,6 +142,10 @@ public:
     bool soundEnabled() const   { return m_sound; }
     bool debugLogging() const   { return m_debugLogging; }
     bool liveResize() const     { return m_liveResize; }
+    bool runUnfocused() const   { return m_runUnfocused; }
+    double speedFactor() const  { return m_speedFactor; }
+    double speedFactorMax() const;
+    int  effectiveRate() const;
     bool realSpeed() const      { return m_realSpeed; }
     int  realSpeedRate() const  { return m_realSpeedRate; }
     int  measuredRate() const   { return m_measuredRate; }
@@ -125,6 +156,8 @@ public:
     void setSoundEnabled(bool on);
     void setDebugLogging(bool on);
     void setLiveResize(bool on);
+    void setRunUnfocused(bool on);
+    void setSpeedFactor(double factor);
     void setRealSpeed(bool on);
     void setRealSpeedRate(int instructionsPerSecond);
 
@@ -278,6 +311,8 @@ signals:
     void realSpeedRateChanged();
     void measuredRateChanged();
     void liveResizeChanged();
+    void runUnfocusedChanged();
+    void speedFactorChanged();
 
     void frameReady();                      // LcdItem listens; fires only on change
     void waitingChanged();
@@ -362,6 +397,8 @@ private:
     qint64            m_paceAt    = 0;
     qint64            m_paceOwed  = 0;
     bool              m_liveResize    = false;
+    bool              m_runUnfocused  = false;
+    double            m_speedFactor   = 1.0;
     bool              m_displayOff = false;
     bool              m_detached = false;
     bool              m_heldElsewhere = false;

@@ -124,12 +124,45 @@ Item {
             text: qsTr("Calculators in this state folder")
             color: "#f0f0f0"; font.pixelSize: TextSizes.dialogTitle; font.weight: Font.DemiBold
         }
+        // A LINK TO THE FOLDER. Gert, 2026sep10: "I also would like the folder
+        // path in the 'Calculators' window to be underlined and clickable, so
+        // that it will open in a new window of the default file manager when
+        // clicked, if there's no result after searching for an already open
+        // window in ANY file manager program showing this folder to bring it to
+        // focus."
+        //
+        // THE FIRST HALF IS HERE AND THE SECOND HALF IS THE PLATFORM'S. What
+        // deferred item 5 says about this is worth repeating where the code is:
+        // there is no cross-program way to ask "is any file manager already
+        // showing this folder?" - only Explorer answers, through the
+        // Shell.Application Windows() collection and its LocationURL, and every
+        // other manager on Windows and all of them on Linux would be reduced to
+        // matching window titles, which is unreliable. So what is written is
+        // openUrlExternally, and Explorer's own behaviour decides whether an
+        // already-open window is raised or a new one appears. If it opens a
+        // second window on a folder that is already showing, THAT is the point
+        // at which the Shell.Application search earns its complexity - and not
+        // before, because on the evidence it may already do the right thing.
+        //
+        // Only when the folder is somewhere the platform can open: an Android
+        // content:// tree has no local path and nothing to hand a file manager.
         Label {
             id: pathLabel
             width: parent.width
             text: root.engine.state.displayName
-            color: "#7d7d7d"; font.pixelSize: TextSizes.dialogHint
+            color: pathLink.containsMouse ? "#9fc8ff" : "#7d7d7d"
+            font.pixelSize: TextSizes.dialogHint
+            font.underline: pathLink.enabled
             elide: Text.ElideMiddle
+
+            MouseArea {
+                id: pathLink
+                anchors.fill: parent
+                enabled: root.engine.state.location.toString().substring(0, 5) === "file:"
+                hoverEnabled: true
+                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                onClicked: Qt.openUrlExternally(root.engine.state.location)
+            }
         }
 
         Rectangle {
