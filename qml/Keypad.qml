@@ -167,17 +167,16 @@ Item {
     property var tipKey: null
     property point tipAnchor: Qt.point(-99, -99)
 
-    // KIOM LA VIZAĜO ESTAS SKALITA ĈIRKAŬ NI, transdonita de Calculator.qml,
-    // ĉar la ŝpruchelpilo estas la ununura afero sur ĉi tiu vizaĝo kiu ne
-    // devas skaliĝi kun ĝi: klavo estas parto de la bildo de la kalkulilo, sed
-    // ŝpruchelpilo estas fenestra ĉirkaŭaĵo, kaj ĉirkaŭaĵo havas la saman
-    // grandon ĉiam. Gert, 2026sep10: "I just found that key size of the
-    // tooltips depend on the size of the calculator! It shouldn't."
-    //
-    // Math.min de la du aksoj: sur ĉiu labortablo ili estas identaj, kaj sur
-    // Androido, kie ili ne estas, neniu ŝpruchelpilo iam aperas, ĉar fingro
-    // ne havas ŝveban staton.
-    property real faceScale: 1
+    // ĈU LA HORLOĜO FINIS. La flava skatolo mem ne plu estas ĉi tie: ĝi pendas
+    // en Calculator.qml, ekster la vizaĝo, kaj legas ĉi tiujn tri proprecojn.
+    // Gert, 2026sep10, provinte la konstruon: "It's cropped by the edge of the
+    // calculator face, so the buttons at the edges are less than half-displayed.
+    // Couldn't the scale problem and this problem be more elegantly solved by
+    // making the tooltip arise from" - la frazo estas tranĉita, la respondo
+    // estas jes, kaj la kialoj staras tie kie la skatolo nun vivas. Kio restas
+    // ĉi tie estas la sensilo: kiu klavo, kie, kaj ĉu la montrilo haltis
+    // sufiĉe longe.
+    property bool tipShown: false
 
     // THERE IS NO HOVER SENSOR ON THIS FACE, AND THERE CANNOT BE ONE. Qt Quick
     // delivers hover front to back and stops at the first item whose subtree
@@ -216,21 +215,21 @@ Item {
                    || Math.abs(p.y - root.tipAnchor.y) > 3
         if (k !== root.tipKey) {
             root.tipKey = k
-            tipBox.shown = false
+            root.tipShown = false
         }
         if (!k) {
             tipDelay.stop()
-            tipBox.shown = false
+            root.tipShown = false
         } else if (moved) {
             root.tipAnchor = p
-            tipBox.shown = false
+            root.tipShown = false
             tipDelay.restart()
         }
     }
 
     function hoverLeft() {
         tipDelay.stop()
-        tipBox.shown = false
+        root.tipShown = false
         root.tipKey = null
         root.tipAnchor = Qt.point(-99, -99)
     }
@@ -247,55 +246,7 @@ Item {
     Timer {
         id: tipDelay
         interval: 2000
-        onTriggered: tipBox.shown = true
-    }
-
-    Rectangle {
-        id: tipBox
-        property bool shown: false
-
-        // Malfari la vizaĝskalon. Ĉio ĉi tie estas mezurita en vizaĝbilderoj,
-        // do multiplikite per la zomo ĝi elvenas konstanta sur la ekrano - kaj
-        // width kaj height restas veraj vizaĝbilderoj, kio estas kial ĉi tio
-        // estas multipliko kaj ne kontraŭa Scale: la ĉi-suba limigo al la
-        // dekstra rando bezonas larĝon kiun ĝi povas kompari kun root.width.
-        readonly property real zoom: root.faceScale > 0 ? 1 / root.faceScale : 1
-
-        visible: shown && root.tipText.length > 0
-        z: 100
-        // Under the key rather than over it, so the pointer is never on top of
-        // the words, and clamped to the face so a key at the right edge does
-        // not push its tooltip off the window.
-        x: root.tipKey ? Math.min(Math.max(0, root.tipKey.cap.x),
-                                  Math.max(0, root.width - width))
-                       : 0
-        y: root.tipKey ? root.tipKey.cap.y + root.tipKey.cap.height + 4 * zoom : 0
-        width:  tipLabel.implicitWidth + 10 * zoom
-        height: tipLabel.implicitHeight + 6 * zoom
-        radius: 3 * zoom
-        color: "#fdf3a8"
-        border.width: 1 * zoom
-        border.color: "#8a7c1e"
-
-        Text {
-            id: tipLabel
-            anchors.centerIn: parent
-            text: root.tipText
-            // PLAIN, AND SAYING SO. Text defaults to AutoText, which sniffs the
-            // string and switches to rich text when it looks like markup - and
-            // every label here is wrapped in angle brackets, so <S> on the SIN
-            // key was parsed as HTML's strikethrough tag and drawn as an empty
-            // one: a yellow sliver eight pixels wide, which is exactly what the
-            // hover rig captured. Same for <B>, <I>, <U>, <A>, <P>, <Q> and
-            // every other binding whose name collides with a tag.
-            textFormat: Text.PlainText
-            // Dark ink on the yellow, which is the one combination that does
-            // not depend on the system palette - the mistake the unsaved-path
-            // dialog made with #e8e8e8 on a palette background.
-            color: "#1b1b1b"
-            font: TextSizes.keyTipAt(tipBox.zoom)
-            horizontalAlignment: Text.AlignHCenter
-        }
+        onTriggered: root.tipShown = true
     }
 
     // Right-click, no modifier. A MultiPointTouchArea only ever sees the left

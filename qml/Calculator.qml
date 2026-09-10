@@ -318,8 +318,6 @@ Item {
             id: keypad
             anchors.fill: parent
             engine: root.engine
-            // Por ke la ŝpruchelpiloj povu malfari ĝin; vidu Keypad.qml.
-            faceScale: Math.min(root.scaleX, root.scaleY)
             onRemapRequested: (k) => root.remapRequested(k)
             onCustomizeCancelled: root.customizeCancelled()
             onUnassignedKey: (label) => root.unassignedKey(label)
@@ -372,6 +370,78 @@ Item {
             // desktop needs and the phone has no use for. Underlining alone
             // reads as a link; a hand cursor is what confirms it.
             HoverHandler { cursorShape: Qt.PointingHandCursor }
+        }
+    }
+
+    // LA KLAVA ŜPRUCHELPILO, EKSTER LA VIZAĜO KAJ SUPER ĜI.
+    //
+    // Ĝi pendis interne de `face`, kaj tial ĝi heredis du aferojn kiujn ĝi ne
+    // volis. La Scale-transformon, kiun ĝi devis malfari per 1/skalo sur ĉiu
+    // numero kiun ĝi desegnis - tio funkciis, sed ĝi estis kontraŭpezo kaj ne
+    // solvo. Kaj la randojn de la vizaĝo, kiuj estas la randoj de la fenestro
+    // kiam la vizaĝo plenigas ĝin: ŝpruchelpilo de klavo el la malsupra vico
+    // naskiĝis sub la fundo de la fenestro kaj estis fortranĉita. Gert,
+    // 2026sep10: "It's cropped by the edge of the calculator face, so the
+    // buttons at the edges are less than half-displayed. Couldn't the scale
+    // problem and this problem be more elegantly solved by making the tooltip
+    // arise from" - la frazo haltas tie, sed ĝia fino estas ĉi tiu dosiero.
+    //
+    // Ĉi tie ekster la transformo ĉio estas mezurita en ekranaj bilderoj, do
+    // nenio bezonas malfaron: 12 punktoj restas 12 punktoj ĉe ĉia
+    // fenestrogrando, kaj la bordero estas unu bildero anstataŭ skalita versio
+    // de unu bildero.
+    //
+    // La klavo mem tamen ankoraŭ estas mezurita en vizaĝbilderoj, do ĝi devas
+    // esti mapita ĉi tien. Per aritmetiko kaj ne per mapToItem, ĉar ligo ne
+    // re-taksiĝas kiam transformo ŝanĝiĝas - la sama kalkulo kiel lcdCenterY
+    // supre, tra la centro de la vizaĝo kaj ne tra ĝia origino.
+    Rectangle {
+        readonly property rect cap: keypad.tipKey ? keypad.tipKey.cap
+                                                  : Qt.rect(0, 0, 0, 0)
+        readonly property real capX: face.x + face.width / 2
+                                     + (cap.x - face.width / 2) * root.scaleX
+        readonly property real capY: face.y + face.height / 2
+                                     + (cap.y - face.height / 2) * root.scaleY
+        readonly property real capW: cap.width * root.scaleX
+        readonly property real capH: cap.height * root.scaleY
+
+        visible: keypad.tipShown && keypad.tipText.length > 0
+        z: 100
+        width: tipLabel.implicitWidth + 10
+        height: tipLabel.implicitHeight + 6
+        radius: 3
+        color: "#fdf3a8"
+        border.width: 1
+        border.color: "#8a7c1e"
+
+        // Centrita sub la klavo, kaj tenata interne de la fenestro sur ĉiuj
+        // kvar flankoj. Super la klavo kiam sub ĝi ne restas loko, kio estas la
+        // malsupra vico: nur ŝovi ĝin supren ĝis ĝi konvenas metus ĝin sub la
+        // montrilon, kaj la tuta senco estas ke la montrilo neniam staru sur
+        // la vortoj.
+        x: Math.max(0, Math.min(capX + capW / 2 - width / 2, root.width - width))
+        y: capY + capH + 4 + height <= root.height
+           ? capY + capH + 4
+           : Math.max(0, capY - 4 - height)
+
+        Text {
+            id: tipLabel
+            anchors.centerIn: parent
+            text: keypad.tipText
+            // PLAIN, AND SAYING SO. Text defaults to AutoText, which sniffs the
+            // string and switches to rich text when it looks like markup - and
+            // every label here is wrapped in angle brackets, so <S> on the SIN
+            // key was parsed as HTML's strikethrough tag and drawn as an empty
+            // one: a yellow sliver eight pixels wide, which is exactly what the
+            // hover rig captured. Same for <B>, <I>, <U>, <A>, <P>, <Q> and
+            // every other binding whose name collides with a tag.
+            textFormat: Text.PlainText
+            // Dark ink on the yellow, which is the one combination that does
+            // not depend on the system palette - the mistake the unsaved-path
+            // dialog made with #e8e8e8 on a palette background.
+            color: "#1b1b1b"
+            font.pointSize: TextSizes.keyTip
+            horizontalAlignment: Text.AlignHCenter
         }
     }
 }
