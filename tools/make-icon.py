@@ -37,9 +37,11 @@ dosiero. Nur la propraj bajtoj de la kodilo diferencas, plus CRLF sur la du
 XML-dosieroj kiujn write_text() faras. Do diferenco kiu montras la ikonojn
 ŝanĝiĝintaj post relanĉo estas rekodigo, ne nova ikono: `git checkout -- assets
 platform/android/res platform/linux/hicolor` kaj enarbigu nur kion vi intencis
-ŝanĝi. (La tondo kaj la kontrasto de 2026sep10 estas novaj kaj ankoraŭ ne estis
-kontrolitaj sur la Linuksa komputilo; ImageEnhance kaj crop estas ambaŭ
-determinismaj, sed tio estas argumento kaj ne mezuro.)
+ŝanĝi. (Mezurita ankaŭ por la tondo kaj la kontrasto de 2026sep10, sur la
+Linuksa komputilo la saman tagon: Pillow 10.2.0 reskribis 18 el la 19 PNG-oj
+kiujn Pillow 12.2.0 enarbigis, kaj ĉiuj 18 estas bildero post bildero identaj -
+maksimuma diferenco de kanalo 0. Nur la bajtoj de la kodilo moviĝis; la 16x16
+eĉ ne tio.)
 
 LA FOTOGRAFAĴO ESTAS TURNITA 30 GRADOJN MALDEKSTRUME. Gert, 2026sep08: "one
 quirk to make it different from Droid48: Rotate it 30 counter-clockwise. But
