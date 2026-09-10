@@ -240,6 +240,12 @@ if(NOT ANDROID)
     include(GNUInstallDirs)
     install(TARGETS agape48 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+    # La permesilo vojaĝas kun la programo. GPLv3 postulas ke la teksto akompanu
+    # la binaron, ne nur la fonton, kaj ĝis nun nek la tar-arĥivo nek `cmake
+    # --install` portis ĝin. Ekster la Linuksa gardilo sube: ĉiu labortabla
+    # instalo bezonas ĝin, ne nur tiu kiu havas menuon.
+    install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/agape48)
+
     # A menu entry and its icon: the Linux half of "the installers and the
     # executables have the same fancy icon as Android". An ELF has no icon
     # resource the way a PE does - there is nowhere inside the binary to put

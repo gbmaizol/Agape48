@@ -32,6 +32,7 @@ echo "Installing Agape48 into $prefix"
 rm -rf "$prefix"
 mkdir -p "$prefix" "$bindir" "$apps"
 cp -a "$here/bin" "$here/lib" "$here/plugins" "$here/qml" "$prefix/"
+cp "$here/LICENSE" "$prefix/LICENSE"
 cp "$here/uninstall.sh" "$prefix/uninstall.sh"
 chmod +x "$prefix/uninstall.sh"
 

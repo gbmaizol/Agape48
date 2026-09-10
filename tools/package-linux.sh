@@ -76,6 +76,10 @@ done
 
 install -m 755 "$root/platform/linux/install.sh" "$stage/install.sh"
 install -m 755 "$root/platform/linux/uninstall.sh" "$stage/uninstall.sh"
+# Ankaŭ ĉe la radiko, apud la du skriptoj: `cmake --install` metis ĝin en
+# share/doc/agape48/, kio estas la ĝusta loko por sistema instalo kaj la lasta
+# loko kie iu rigardus post malpaki tar-arĥivon.
+install -m 644 "$root/LICENSE" "$stage/LICENSE"
 
 rm -rf "$out/$name" "$out/$name.tar.gz"
 cp -a "$stage" "$out/$name"
