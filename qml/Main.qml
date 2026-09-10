@@ -987,7 +987,7 @@ Window {
     }
 
     // Haptics and beeps. Both are platform calls, not Qt Multimedia - see
-    // README "Sound and haptics" for why QSoundEffect is not an option here.
+    // Readme_Programmers.md "Sound and haptics" for why QSoundEffect is not an option here.
     // TODO: add src/bridge/Feedback.{h,cpp} as a QML_SINGLETON wrapping
     //   Android : Vibrator / VibrationEffect + AudioTrack, via QJniObject
     //   Linux   : libcanberra-less ALSA square wave, or nothing

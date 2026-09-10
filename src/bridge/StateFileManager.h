@@ -16,7 +16,7 @@
 // the path can actually be opened.
 //
 // The hard part is not the transport, it is the conflict: two devices editing
-// one .ram between syncs. See conflictDetected() and README "Sync conflicts".
+// one .ram between syncs. See conflictDetected() and Readme_Programmers.md "Sync conflicts".
 // ---------------------------------------------------------------------------
 #pragma once
 

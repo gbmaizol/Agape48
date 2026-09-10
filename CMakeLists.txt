@@ -3,7 +3,7 @@
 # "HP" in Brazilian Portuguese is "aga-pe" == Greek agape.
 #
 # Size is a first-class requirement. Every knob below is documented in
-# README.md, section "Size budget". Defaults are the small ones.
+# Readme_Programmers.md, section "Size budget". Defaults are the small ones.
 # -----------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.21)
 
@@ -32,7 +32,7 @@ option(AGAPE48_LTO                     "Link-time optimisation (biggest single s
 option(AGAPE48_ICF                     "Identical code folding (needs lld or gold)" ON)
 option(AGAPE48_QML_CACHEGEN            "Bake compiled QML bytecode in (faster start, larger binary)" OFF)
 option(AGAPE48_CORE_OPTIMIZE_FOR_SPEED "Build the Saturn interpreter at -O2 instead of -Os" OFF)
-option(AGAPE48_WEBP_PLUGIN             "Link Qt's qwebp image plugin (see README: WebP is NOT in QtGui)" ON)
+option(AGAPE48_WEBP_PLUGIN             "Link Qt's qwebp image plugin (see Readme_Programmers.md: WebP is NOT in QtGui)" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(Agape48Size)   # defines the agape48::size INTERFACE target
@@ -159,14 +159,14 @@ endif()
 if(AGAPE48_WEBP_PLUGIN)
     # QImage cannot read WebP out of the box: the qwebp plugin lives in the
     # separate qtimageformats module. Guarded so a Qt build without it still
-    # configures - see README for the libwebp-direct alternative.
+    # configures - see Readme_Programmers.md for the libwebp-direct alternative.
     if(TARGET Qt6::QWebpPlugin)
         qt_import_plugins(agape48 INCLUDE Qt6::QWebpPlugin)
     else()
         message(WARNING
             "AGAPE48_WEBP_PLUGIN=ON but Qt6::QWebpPlugin was not found. "
             "Install qtimageformats, or set AGAPE48_WEBP_PLUGIN=OFF and decode "
-            "the skin with libwebp directly (see README).")
+            "the skin with libwebp directly (see Readme_Programmers.md).")
     endif()
 endif()
 

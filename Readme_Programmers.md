@@ -1,4 +1,4 @@
-# Agape48
+# Agape48, for programmers
 
 *Arguably the most friendly and beautiful HP 48 emulator.*
 
@@ -6,7 +6,56 @@ An HP 48 emulator: the `x48` Saturn core, a Qt 6 / QML frontend, one binary per 
 
 "HP" spoken in Brazilian Portuguese is *agá-pê*, which is the Greek ἀγάπη. The calculator that people are unreasonably fond of, named after the word for it.
 
-Last updated: 2026aug31-22h25
+`README.md` is the one for people who want to use the calculator. This is the one for people who want to change it.
+
+Last updated: 2026sep10-13h20
+
+## The comments are in Esperanto
+
+**Every comment in the code Agape48 owns is written in Esperanto**, and new ones are expected to be. The project is called `esperanto-en-uzo` in git for a reason: this is a working codebase that happens to be one of the places the language is actually used, rather than talked about.
+
+What that does and does not cover:
+
+- **Comments and commit messages.** Identifiers, strings, log messages and `qsTr()` text stay English: nothing a compiler, a linker or a *user* ever reads changes language.
+- **Quoted material stays verbatim.** Somebody's own words, a UI string being discussed, a compiler diagnostic, a file name — those are evidence, and evidence is not translated. An Esperanto comment quoting `Cannot assign to non-existent default property` in English is correct, and so is one quoting a request in the language it was made in.
+- **Not the vendored core.** `src/core/x48/` is Eddie C. Dost's code as Droid48 left it, vendored and not forked (see `src/core/VENDORING.md`), and the whole point of vendoring is that it can still be diffed against and re-taken from upstream. Its comments are its author's words and stay in English. The seam is `x48_shim.c`/`.h`, which is ours and is in Esperanto.
+- **Diacritics, not the x-system.** `ĉ ĝ ĥ ĵ ŝ ŭ`, written properly, in UTF-8 without a BOM. That is safe here because every toolchain in the build is told so or defaults to it: GCC and Clang read UTF-8 by default, MSVC gets `/utf-8` from `agape48::size`, `qmlcachegen` and Qt's QML engine are UTF-8 by definition, CMake and Python 3 both default to it.
+- **The exceptions are about encoding, not taste.** `platform/android/*.gradle` and the Java under `platform/android/src/` are compiled by toolchains whose default source encoding is the platform's, not UTF-8, and `installer/agape48.iss` is read by Inno Setup, which wants a BOM before it will believe in Unicode. Comments in those four files stay ASCII — Esperanto is perfectly writable without the accented six if you pick your words, and where it is not, those files say so.
+
+When you put Esperanto into a file that is still English, do **whole files at a time** — never half of one, so a reader can always tell which language the file in front of them is in.
+
+And if you do not read Esperanto yet: that is the invitation, not the obstacle. It is the most regular language anybody has ever built on purpose — no irregular verbs, no genders to memorise, spelling that says exactly what it sounds like — and people get to the point of reading prose like these comments in weeks rather than years. There will be no English edition. Have a go at the language instead; the calculator will wait for you.
+
+## The merge rule
+
+**A pull request is merged only if all three of these are true.** This is not a style preference that a good patch can be excused from.
+
+1. **Every comment in the diff is in Esperanto.** Not most of them. One English comment is a request for changes.
+2. **Every chunk of code that does something non-obvious carries a comment.** The rule is not "write no comments and pass" — a diff that explains nothing fails it from the other side. If a reviewer has to ask why, the answer belonged in the file, in Esperanto.
+3. **The title and the description are in Esperanto, and only in Esperanto.** No English underneath: a translation underneath means nobody ever reads the Esperanto.
+
+**Issues too.** A bug report, a question or a feature request that is not in Esperanto is closed unread, with one reply — in Esperanto — asking for it in Esperanto. That is checked automatically, so it happens in seconds rather than a week later, and reopening is a matter of editing the post and saying so.
+
+Yes, that means the effort is on the person asking. That is the point: an issue in Esperanto has already been written by somebody who chose to be here.
+
+Why be this strict about it, in a project about a calculator? Because a codebase's comments are the only part of it written for people, and a language chosen on purpose says something about who those people are. Esperanto was built so that nobody arrives holding the home-turf advantage: the Brazilian, the Pole and the Californian all learned it, all learned it the same way, and none of them is doing it in somebody else's mother tongue. English in this file would have quietly picked a winner. This does not.
+
+And the bar is far lower than it looks. Esperanto is the one language where a determined evening a week gets you reading real prose inside a couple of months — `lernu.net` and any of the free courses will do it — and the comments in here are technical prose, which is the easiest kind. Several thousand lines of it are sitting in this repository as your reader.
+
+### How it is checked
+
+`.github/scripts/cxu_esperanto.py` is the whole of it, it has no dependencies, and **you can run it yourself before you push**:
+
+```
+python3 .github/scripts/cxu_esperanto.py mia-teksto.md
+python3 .github/scripts/cxu_esperanto.py --diff mia.diff
+```
+
+It counts words rather than pretending to understand them — Esperanto is unusually easy to recognise mechanically, because its function words are few and its endings are regular. It **deliberately ignores fenced code blocks and `>` quotations**, so a report that pastes an English compiler message is judged on the prose around it and not on the evidence inside it. Measured on the samples in this repository's history, English prose scores about 0.05 and Esperanto about 0.8 on the same scale, against a threshold of 0.12 — the margin is not close, which is why a word-counter is enough. Under six words it declines to judge, because silence is not a crime.
+
+`.github/workflows/nur-esperanto.yml` runs it on issues, on issue comments and on pull requests. It closes an issue as *not planned* and labels it `ne-esperanta` rather than deleting anything, so nothing is lost and the whole pile stays one filter away. A pull request is never closed — the check simply fails, which is what a human can fix. **Make that workflow a required check on `main` and the rule stops being a request.**
+
+
 
 ## Layout
 
