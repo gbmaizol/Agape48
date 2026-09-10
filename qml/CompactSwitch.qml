@@ -1,32 +1,36 @@
 import QtQuick
 import QtQuick.Controls
 
-// A switch drawn to sit in a line of dialog text, and carrying its own label.
+// Ŝaltilo desegnita por sidi en linio de dialoga teksto, kaj portanta sian
+// propran etikedon.
 //
 // Gert, 2026sep10: "making the toggles and the space between them smaller, more
-// like the size and space of normal text". The Basic style's Switch is drawn
-// for a thumb on a phone - about 40 px of indicator per row - and four of them
-// in a column was most of what fitted in his settings window, which is half of
-// why the speed controls below them were off the bottom and cost him an evening
-// of measurements taken at a rate he could not see. See deferred items 1 and 2
-// in docs/design-questions.md.
+// like the size and space of normal text". La Switch de la stilo Basic estas
+// desegnita por dikfingro sur telefono - ĉirkaŭ 40 bilderoj da indikilo por
+// vico - kaj kvar el ili en kolumno estis la plimulto de tio kio enkadriĝis en
+// lian agordan fenestron, kio estas duono de la kialo pro kiu la rapidregiloj
+// sub ili estis trans la malsupra rando kaj kostis al li vesperon da mezuroj
+// prenitaj je rapido kiun li ne povis vidi. Vidu prokrastitajn erojn 1 kaj 2 en
+// docs/design-questions.md.
 //
-// THE LABEL IS PART OF THE CONTROL rather than a Label beside it, which every
-// call site used to need for a reason worth keeping: the Basic style paints
-// Switch.text in a dark ink meant for a light window, and on this background it
-// was almost unreadable. Overriding contentItem fixes that once instead of four
-// times, and it also means the words are clickable, which they were not before.
+// LA ETIKEDO ESTAS PARTO DE LA REGILO prefere ol Label apud ĝi, kion ĉiu
+// vokloko antaŭe bezonis, pro kialo inda je konservo: la stilo Basic pentras
+// Switch.text per malhela inko destinita por hela fenestro, kaj sur ĉi tiu fono
+// ĝi estis preskaŭ nelegebla. Superregi contentItem korektas tion unufoje
+// anstataŭ kvarfoje, kaj tio ankaŭ signifas ke la vortoj estas klakeblaj, kio
+// ili antaŭe ne estis.
 //
-// Sized from TextSizes.dialogBody, so it tracks the text it sits beside when he
-// moves that slider rather than needing its own number.
+// Dimensiita el TextSizes.dialogBody, do ĝi sekvas la tekston apud kiu ĝi sidas
+// kiam li movas tiun ŝovbutonon, anstataŭ bezoni propran numeron.
 Switch {
     id: control
 
     padding: 0
     spacing: Math.round(TextSizes.dialogBody * 0.5)
 
-    // Height of a line of body text, width a little under twice that. Rounded
-    // to whole pixels: a radius on a fractional height leaves a soft edge.
+    // Alteco de linio de korpa teksto, larĝo iom malpli ol duoblo de tiu.
+    // Rondigita al plenaj bilderoj: radiuso sur frakcia alteco lasas molan
+    // randon.
     readonly property int trackHeight: Math.round(TextSizes.dialogBody * 1.05)
     readonly property int trackWidth:  Math.round(TextSizes.dialogBody * 1.85)
 

@@ -1,30 +1,30 @@
 import QtQuick
 import Agape48
 
-// Settings on a phone: the same contents the desktop window frames, in a page.
-// Everything about why is in PageShell.qml.
+// Agordoj sur telefono: la sama enhavo kiun la labortabla fenestro enkadrigas,
+// en paĝo. Ĉio pri la kialo estas en PageShell.qml.
 PageShell {
     id: root
     required property Agape48Engine engine
 
-    // Whoever placed this page places the next one too - see Main.qml. A page
-    // declared INSIDE a PageShell lands under its header, which put the Text
-    // sizes page below the Settings header on the phone: two back arrows
-    // stacked, the lower page hanging off the bottom edge by the height of the
-    // header it was pushed down by, and the top arrow dead because the modal
-    // page above it swallowed the tap. Measured at b221c14.
+    // Kiu metis ĉi tiun paĝon, tiu metas ankaŭ la sekvan - vidu Main.qml. Paĝo
+    // deklarita INTERNE de PageShell alvenas sub ĝian kapon, kio metis la
+    // tekstgrandan paĝon sub la Agordan kapon sur la telefono: du reensagoj unu
+    // super la alia, la malsupra paĝo pendanta trans la malsupra rando je la
+    // alteco de la kapo kiu forpuŝis ĝin, kaj la supra sago morta ĉar la modala
+    // paĝo super ĝi forglutis la frapeton. Mezurite ĉe b221c14.
     signal advancedRequested()
 
     title: qsTr("Settings")
-    // The back arrow asks the contents first, because only they know whether
-    // there is an unapplied path sitting in the folder field.
+    // La reensago demandas unue la enhavon, ĉar nur ĝi scias ĉu neaplikita
+    // vojo sidas en la dosieruja kampo.
     onBackRequested: content.requestClose()
 
-    // Closing on somebody else's say-so - the phone's back, which Main.qml
-    // turns into "shut everything and show me the calculator". It goes through
-    // the contents for the same reason the arrow does: a folder typed and not
-    // applied is still worth a question, and the gesture is if anything MORE
-    // likely to be the accident that loses it.
+    // Fermo laŭ ordono de iu alia - la "reen" de la telefono, kiun Main.qml
+    // konvertas al "fermu ĉion kaj montru al mi la kalkulilon". Ĝi pasas tra la
+    // enhavo pro la sama kialo kiel la sago: vojo tajpita kaj ne aplikita
+    // ankoraŭ meritas demandon, kaj la gesto estas, se io ajn, PLI verŝajne la
+    // akcidento kiu perdas ĝin.
     function dismiss() { content.requestClose() }
 
     SettingsContent {
@@ -32,8 +32,8 @@ PageShell {
         anchors.fill: parent
         engine: root.engine
         onCloseRequested: root.close()
-        // A page inside this page, which is what Gert asked for and what a
-        // phone's settings do everywhere else: "the advanced wouldn't be a new
+        // Paĝo interne de ĉi tiu paĝo, kio estas kion Gert petis kaj kion la
+        // agordoj de telefono faras ĉie aliloke: "the advanced wouldn't be a new
         // window. It would be a new page inside settings, right?"
         onAdvancedRequested: root.advancedRequested()
     }

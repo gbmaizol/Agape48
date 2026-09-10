@@ -1,11 +1,12 @@
 import QtQuick
 import Agape48
 
-// "This calculator is somebody else's just now.", in a window, on a desktop.
-// The contents and every word in them are in HandoverContent.qml; this is the
-// frame, and the frame is all that differs between a laptop and a phone. Same
-// split as Settings and the shelf, and made on the night the phone could first
-// reach it - see the note at the top of the contents.
+// "This calculator is somebody else's just now.", en fenestro, sur
+// labortablo. La enhavo kaj ĉiu vorto en ĝi estas en HandoverContent.qml; ĉi
+// tio estas la kadro, kaj la kadro estas ĉio kio diferencas inter tekokomputilo
+// kaj telefono. Sama divido kiel Agordoj kaj la breto, kaj farita en la nokto
+// kiam la telefono unuafoje povis atingi ĝin - vidu la noton ĉe la supro de la
+// enhavo.
 Window {
     id: root
     required property Agape48Engine engine
@@ -30,8 +31,8 @@ Window {
     title: qsTr("Calculator in use")
     flags: Qt.Dialog
     color: "#1b1b1b"
-    // Clamped to the screen; see SettingsWindow.qml for what a phone did to a
-    // dialog sized for a laptop.
+    // Limigita al la ekrano; vidu SettingsWindow.qml por tio, kion telefono
+    // faris al dialogo dimensiita por tekokomputilo.
     readonly property real fitW: Screen.desktopAvailableWidth  > 0
                                      ? Screen.desktopAvailableWidth  : 1e6
     readonly property real fitH: Screen.desktopAvailableHeight > 0

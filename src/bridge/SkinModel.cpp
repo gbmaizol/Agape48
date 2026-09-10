@@ -11,7 +11,7 @@ namespace {
 
 QRect rectFromJson(const QJsonValue &v)
 {
-    // Accepts [x, y, w, h] or { "x":, "y":, "w":, "h": }.
+    // Akceptas [x, y, w, h] aŭ { "x":, "y":, "w":, "h": }.
     if (v.isArray()) {
         const QJsonArray a = v.toArray();
         if (a.size() == 4)
@@ -36,7 +36,7 @@ QSize sizeFromJson(const QJsonValue &v)
     return {};
 }
 
-} // namespace
+} // nomspaco
 
 SkinModel::SkinModel(QObject *parent) : QObject(parent) {}
 
@@ -62,8 +62,8 @@ bool SkinModel::loadDefault()
 
 bool SkinModel::load(const QUrl &url)
 {
-    // QFile handles qrc:, local paths and - on Android - content: urls, so
-    // there is no per-platform branch here.
+    // QFile traktas qrc:, lokajn vojojn kaj - sur Androido - content:-adresojn,
+    // do ĉi tie estas nenia branĉo po platformo.
     const QString path = url.isLocalFile()
         ? url.toLocalFile()
         : (url.scheme() == QLatin1String("qrc")
@@ -135,7 +135,7 @@ bool SkinModel::loadJson(const QByteArray &data, const QUrl &base)
             k.cap = rectFromJson(o.value(QStringLiteral("cap")));
         if (o.contains(QStringLiteral("pressed")))
             k.pressed = rectFromJson(o.value(QStringLiteral("pressed")));
-        // A skin may address the matrix directly instead of by name.
+        // Haŭto povas adresi la matricon rekte anstataŭ per nomo.
         if (o.contains(QStringLiteral("code"))) {
             const QJsonArray c = o.value(QStringLiteral("code")).toArray();
             if (c.size() == 2) {
@@ -162,25 +162,26 @@ bool SkinModel::loadJson(const QByteArray &data, const QUrl &base)
             { QStringLiteral("id"),   o.value(QStringLiteral("id")).toString() },
             { QStringLiteral("bit"),  o.value(QStringLiteral("bit")).toInt() },
             { QStringLiteral("rect"), rectFromJson(o.value(QStringLiteral("rect"))) },
-            // Drawn by tools/makeface.py, one small PNG each. A glyph in a font
-            // would not survive the trip to Android or Windows.
+            // Desegnitaj de tools/makeface.py, po unu malgranda PNG. Signo el
+            // tiparo ne travivus la vojaĝon al Androido aŭ Vindozo.
             { QStringLiteral("image"), img.isEmpty() ? QUrl() : base.resolved(QUrl(img)) },
         });
     }
-    // Optional: a skin with nothing to say here simply omits it, and the
-    // nameplate is not drawn. Passed through as it is written rather than
-    // unpacked into properties of its own - it is one block that belongs to one
-    // Text item, and every field of it is the skin's business, not ours.
+    // Laŭvola: haŭto kun nenio por diri ĉi tie simple preterlasas ĝin, kaj la
+    // nomŝildo ne estas desegnita. Transdonita tia, kia ĝi estas skribita,
+    // prefere ol malpakita en proprajn atributojn - ĝi estas unu bloko kiu
+    // apartenas al unu Text-ero, kaj ĉiu kampo de ĝi estas afero de la haŭto,
+    // ne nia.
     const QJsonObject plate = root.value(QStringLiteral("nameplate")).toObject();
     if (!plate.isEmpty()) {
         m_nameplate = plate.toVariantMap();
         m_nameplate.insert(QStringLiteral("rect"),
                            rectFromJson(plate.value(QStringLiteral("rect"))));
     }
-    // The same, for the "48GX" the generator PRINTED into the face: QML has no
-    // way of knowing where a word baked into a photograph landed, and on
-    // Android that word is the menu. Optional in the same way - a skin that
-    // omits it gets no underline and no error.
+    // La samo, por la "48GX" kiun la generilo PRESIS en la vizaĝon: QML havas
+    // nenian manieron scii kie surbakita vorto en fotografio surteriĝis, kaj
+    // sur Androido tiu vorto estas la menuo. Laŭvola same - haŭto kiu
+    // preterlasas ĝin ricevas nenian substrekon kaj nenian eraron.
     const QJsonObject badge = root.value(QStringLiteral("badge")).toObject();
     if (!badge.isEmpty()) {
         m_badge = badge.toVariantMap();

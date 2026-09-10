@@ -2,9 +2,9 @@ import QtQuick
 import QtQuick.Controls
 import Agape48
 
-// The calculator shelf, in a window of its own. Desktop only - see
-// CalculatorPickerPage.qml for the phone, and CalculatorPickerContent.qml for
-// the part that is the same on both.
+// La kalkulilbreto, en propra fenestro. Nur labortabla - vidu
+// CalculatorPickerPage.qml por la telefono, kaj CalculatorPickerContent.qml por
+// la parto kiu estas sama sur ambaŭ.
 Window {
     id: root
     required property Agape48Engine engine
@@ -24,8 +24,8 @@ Window {
     title: qsTr("Calculators")
     flags: Qt.Dialog
     color: "#1b1b1b"
-    // Clamped to the screen; see SettingsWindow.qml for what a phone did to a
-    // dialog sized for a laptop.
+    // Limigita al la ekrano; vidu SettingsWindow.qml por tio, kion telefono
+    // faris al dialogo dimensiita por tekokomputilo.
     readonly property real fitW: Screen.desktopAvailableWidth  > 0
                                      ? Screen.desktopAvailableWidth  : 1e6
     readonly property real fitH: Screen.desktopAvailableHeight > 0

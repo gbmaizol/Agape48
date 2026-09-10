@@ -1,11 +1,11 @@
 import QtQuick
 import Agape48
 
-// Text sizes on a phone: a page over the settings page. See PageShell.qml.
+// Tekstgrandoj sur telefono: paĝo super la agordpaĝo. Vidu PageShell.qml.
 PageShell {
     id: root
 
-    // Passed through to the speed calibration. See AdvancedContent.qml.
+    // Transdonita al la rapidkalibrado. Vidu AdvancedContent.qml.
     property var engine: null
 
     title: qsTr("Advanced")

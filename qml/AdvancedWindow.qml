@@ -2,19 +2,19 @@ import QtQuick
 import QtQuick.Controls
 import Agape48
 
-// Text sizes, live, with the number showing.
+// Tekstgrandoj, vivaj, kun la numero videbla.
 //
-// Gert, 2026sep03: "I'll find a size that works and make it default." So the
-// point of this window is not the sliders, it is the NUMBER beside each one -
-// he drags until it looks right, reads the figure off, and that figure becomes
-// a default in TextSizes.qml. Every one of them applies instantly to the window
-// underneath, which is why this is a separate window rather than a page inside
-// Settings: Settings covers the calculator, and half of what is being tuned is
-// drawn on the calculator.
+// Gert, 2026sep03: "I'll find a size that works and make it default." Do la
+// celo de ĉi tiu fenestro ne estas la ŝovbutonoj, ĝi estas la NUMERO apud ĉiu
+// el ili - li ŝovas ĝis ĝi aspektas ĝusta, legas la ciferon, kaj tiu cifero
+// fariĝas defaŭlto en TextSizes.qml. Ĉiu el ili aplikiĝas tuj al la fenestro
+// sube, kaj tial ĉi tio estas aparta fenestro anstataŭ paĝo interne de Agordoj:
+// Agordoj kovras la kalkulilon, kaj duono de tio kion oni agordas estas
+// desegnita sur la kalkulilo.
 Window {
     id: root
 
-    // Passed through to the speed calibration. See AdvancedContent.qml.
+    // Transdonita al la rapidkalibrado. Vidu AdvancedContent.qml.
     property var engine: null
 
     readonly property bool opened: visible
@@ -28,15 +28,15 @@ Window {
     }
     function close() { hide() }
 
-    // "Advanced" rather than "Text sizes" since 2026sep10, when the speed
-    // calibration moved in here and made the old title a lie. It is also what
-    // the button that opens it says, and what Gert calls it: "the advanced
-    // settings window".
+    // "Advanced" prefere ol "Text sizes" ekde 2026sep10, kiam la rapidkalibrado
+    // enmoviĝis ĉi tien kaj faris mensogon el la malnova titolo. Ĝi estas ankaŭ
+    // kion diras la butono kiu malfermas ĝin, kaj kiel Gert nomas ĝin: "the
+    // advanced settings window".
     title: qsTr("Advanced")
     flags: Qt.Dialog
     color: "#1b1b1b"
-    // Clamped to the screen; see SettingsWindow.qml for what a phone did to a
-    // dialog sized for a laptop.
+    // Limigita al la ekrano; vidu SettingsWindow.qml por tio, kion telefono
+    // faris al dialogo dimensiita por tekokomputilo.
     readonly property real fitW: Screen.desktopAvailableWidth  > 0
                                      ? Screen.desktopAvailableWidth  : 1e6
     readonly property real fitH: Screen.desktopAvailableHeight > 0

@@ -1,11 +1,12 @@
 // ---------------------------------------------------------------------------
-// LcdItem - draws the x48 pixel buffer as a scene-graph texture node.
+// LcdItem - desegnas la bilderbufron de x48 kiel teksturnodon de la scengrafo.
 //
-// A custom QQuickItem rather than a QML Canvas: Canvas round-trips through a
-// JS 2D context and an FBO every frame, which on a phone is the difference
-// between "free" and "visible battery cost". This path is one texture upload
-// of 8.4 KB, only on frames the HP 48 actually changed, with nearest-neighbour
-// filtering so the pixels stay square at any zoom.
+// Propra QQuickItem prefere ol QML-a Canvas: Canvas iras tien kaj reen tra
+// JS-a dukampa kunteksto kaj FBO ĉiun kadron, kio sur telefono estas la
+// diferenco inter "senkosta" kaj "videbla bateria kosto". Ĉi tiu vojo estas
+// unu teksturalŝuto de 8,4 KB, nur je kadroj kiujn la HP 48 vere ŝanĝis, kun
+// filtrado laŭ la plej proksima najbaro por ke la bilderoj restu kvadrataj je
+// ĉia zomo.
 // ---------------------------------------------------------------------------
 #pragma once
 
@@ -24,9 +25,10 @@ class LcdItem : public QQuickItem
     Q_PROPERTY(Agape48Engine *engine READ engine WRITE setEngine NOTIFY engineChanged)
     Q_PROPERTY(QColor pixelColor      READ pixelColor      WRITE setPixelColor      NOTIFY pixelColorChanged)
     Q_PROPERTY(QColor backgroundColor READ backgroundColor WRITE setBackgroundColor NOTIFY backgroundColorChanged)
-    // The HP 48 fakes grey by toggling pixels between refreshes. Averaging two
-    // consecutive frames reproduces it; off by default because it doubles the
-    // upload rate for a feature most skins never exercise.
+    // La HP 48 falsas grizon per baskuligo de bilderoj inter refreŝigoj.
+    // Averaĝi du sinsekvajn kadrojn reproduktas tion; malŝaltita defaŭlte ĉar
+    // ĝi duobligas la alŝutrapidon por funkcio kiun plej multaj haŭtoj neniam
+    // uzas.
     Q_PROPERTY(bool grayscale READ grayscale WRITE setGrayscale NOTIFY grayscaleChanged)
 
 public:
@@ -56,10 +58,10 @@ private:
     void onFrameReady();
 
     Agape48Engine *m_engine = nullptr;
-    QImage  m_image;                  // Format_Indexed8, wraps the shim buffer
-    QImage  m_previous;               // only allocated when grayscale is on
+    QImage  m_image;                  // Format_Indexed8, ĉirkaŭas la bufron de la kudro
+    QImage  m_previous;               // asignita nur kiam grizoskalo estas ŝaltita
     QColor  m_pixelColor      { 0x00, 0x00, 0x00 };
-    QColor  m_backgroundColor { 0x9f, 0xbf, 0x7a };   // classic HP 48 green
+    QColor  m_backgroundColor { 0x9f, 0xbf, 0x7a };   // la klasika verdo de HP 48
     bool    m_grayscale = false;
     bool    m_textureDirty = true;
     quint64 m_lastSerial = 0;

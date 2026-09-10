@@ -3,40 +3,42 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 import Agape48
 
-// Settings, in a window of its own.
+// Agordoj, en propra fenestro.
 //
-// This was a bottom sheet lying over the calculator face until 2026aug29, and
-// Gert called that out three times running before asking outright why. The
-// honest answer is that it was written phone-first - a sheet sliding up from
-// the bottom edge is the Android idiom - and then never revisited when the
-// desktop build turned out to be the one that exists. On a 451-wide window it
-// did not fit, it hid the calculator, and it was the direct cause of the dead
-// keyboard in dogfood #5: its text fields took focus inside the main window
-// and nothing gave it back. A separate window cannot do that, because closing
-// it reactivates the main window, and the main window hands the keyboard back
-// to the keypad on the way in.
+// Ĉi tio estis malsupra folio kuŝanta super la kalkulila vizaĝo ĝis 2026aug29,
+// kaj Gert atentigis pri tio trifoje sinsekve antaŭ ol demandi rekte kial. La
+// honesta respondo estas ke ĝi estis skribita telefon-unue - folio glitanta
+// supren de la malsupra rando estas la Androida idiomaĵo - kaj poste neniam
+// rerigardita kiam la labortabla konstruo montriĝis esti tiu kiu ekzistas. Sur
+// fenestro larĝa je 451 ĝi ne enkadriĝis, ĝi kaŝis la kalkulilon, kaj ĝi estis
+// la rekta kaŭzo de la morta klavaro en dogfood #5: ĝiaj tekstkampoj prenis la
+// fokuson interne de la ĉefa fenestro kaj nenio redonis ĝin. Aparta fenestro ne
+// povas fari tion, ĉar fermi ĝin reaktivigas la ĉefan fenestron, kaj la ĉefa
+// fenestro redonas la klavaron al la klavaro de la kalkulilo survoje enen.
 //
-// Everything in here does something. Three controls were removed rather than
-// left looking real:
+// Ĉio ĉi tie faras ion. Tri regiloj estis forigitaj prefere ol lasitaj aspekti
+// veraj:
 //
-//   Copy stack / Paste / Save now - already in the ⋮ menu, and Gert's rule is
-//     that one command belongs in one place.
-//   Haptics / Beep - two switches over a Feedback singleton that is still a
-//     TODO, so they toggled nothing at all.
-//   Pick folder… - it called StateFileManager::requestLocation(), which on
-//     desktop only emits pickerRequested() and waits for a FolderDialog that
-//     nobody showed. Gert asked for a real one in dogfood #7, so the "…" button
-//     beside the state folder is now a QtQuick.Dialogs FolderDialog - native on
-//     this desktop, because Qt ships the gtk3 platform theme. That is one more
-//     Qt module against the lean-module rule, taken on his say-so.
-// Android note for later: a second top-level Window is a desktop idiom. When
-// the Android build happens this wants to become a full-screen page or a sheet
-// again, because a phone has no window manager to put it anywhere sensible.
+//   Copy stack / Paste / Save now - jam en la ⋮-menuo, kaj la regulo de Gert
+//     estas ke unu komando apartenas al unu loko.
+//   Haptics / Beep - du ŝaltiloj super Feedback-unuopaĵo kiu ankoraŭ estas
+//     TODO, do ili baskuligis absolute nenion.
+//   Pick folder… - ĝi vokis StateFileManager::requestLocation(), kiu sur
+//     labortablo nur eligas pickerRequested() kaj atendas FolderDialog kiun
+//     neniu montris. Gert petis veran en dogfood #7, do la "…"-butono apud la
+//     stata dosierujo nun estas QtQuick.Dialogs-a FolderDialog - denaska sur ĉi
+//     tiu labortablo, ĉar Qt liveras la platforman etoson gtk3. Tio estas unu
+//     plia Qt-modulo kontraŭ la maldika-modula regulo, prenita laŭ lia ordono.
+// Androida noto por poste: dua supranivela Window estas labortabla idiomaĵo.
+// Kiam la Androida konstruo okazos, ĉi tio volas fariĝi tutekrana paĝo aŭ
+// denove folio, ĉar telefono havas nenian fenestroadministrilon kiu metus ĝin
+// ien racian.
 Window {
     id: root
     required property Agape48Engine engine
 
-    // Main.qml asks this to decide whether the keypad may take the keyboard.
+    // Main.qml demandas ĉi tion por decidi ĉu la klavaro de la kalkulilo rajtas
+    // preni la klavaron.
     readonly property bool opened: visible
 
     function open() {
@@ -46,8 +48,8 @@ Window {
         }
         show(); raise(); requestActivate()
     }
-    // Both exits ask the contents first, because only they know whether there
-    // is an unapplied path in the folder field.
+    // Ambaŭ elirvojoj demandas unue la enhavon, ĉar nur ĝi scias ĉu estas
+    // neaplikita vojo en la dosieruja kampo.
     function close() { content.requestClose() }
 
     onActiveChanged: if (!active && content.statePending) content.warnUnsaved = true
@@ -62,17 +64,18 @@ Window {
     title: qsTr("Agape48 settings")
     flags: Qt.Dialog
     color: "#1b1b1b"
-    // Set once, not bound: a binding on a window's size fights the user's own
-    // drag and snaps it back, which is the trap Main.qml documents.
-    // Clamped to the screen, because a phone's screen can be smaller than a
-    // dialog written for a laptop. Measured on the phone at ef76dd2: the screen
-    // is 458 units wide and this window asked for 520, so it was centred on
-    // something wider than the display and clipped on BOTH edges - "P 48 ROM"
-    // for "HP 48 ROM", the browse buttons off the right. The minimums matter as
-    // much as the sizes: a minimumWidth wider than the screen would push it
-    // straight back out. The guard is for desktopAvailable* coming back 0
-    // before the window is mapped, which Main.qml documents; Math.min against 0
-    // would give a window with no size at all.
+    // Metita unufoje, ne ligita: ligo sur la grando de fenestro batalas kontraŭ
+    // la propra ŝovo de la uzanto kaj resnapas ĝin, kio estas la kaptilo kiun
+    // Main.qml dokumentas.
+    // Limigita al la ekrano, ĉar la ekrano de telefono povas esti pli malgranda
+    // ol dialogo skribita por tekokomputilo. Mezurite sur la telefono ĉe
+    // ef76dd2: la ekrano estas 458 unuojn larĝa kaj ĉi tiu fenestro petis 520,
+    // do ĝi estis centrita sur io pli larĝa ol la ekrano kaj detranĉita ĉe
+    // AMBAŬ randoj - "P 48 ROM" anstataŭ "HP 48 ROM", la foliumbutonoj trans la
+    // dekstra flanko. La minimumoj gravas tiom kiom la grandoj: minimumWidth pli
+    // larĝa ol la ekrano puŝus ĝin tuj reeksteren. La gardilo estas por
+    // desktopAvailable* revenanta kiel 0 antaŭ ol la fenestro estas mapita, kion
+    // Main.qml dokumentas; Math.min kontraŭ 0 donus fenestron kun neniu grando.
     readonly property real fitW: Screen.desktopAvailableWidth  > 0
                                      ? Screen.desktopAvailableWidth  : 1e6
     readonly property real fitH: Screen.desktopAvailableHeight > 0
@@ -90,9 +93,10 @@ Window {
         onAdvancedRequested: advanced.open()
     }
 
-    // Its own window rather than a page in here, because half of what it tunes
-    // is drawn on the calculator and this window covers it. A window, and
-    // therefore desktop-only until it gets the same treatment as this one.
+    // Propra fenestro prefere ol paĝo ĉi tie, ĉar duono de tio kion ĝi agordas
+    // estas desegnita sur la kalkulilo kaj ĉi tiu fenestro kovras ĝin.
+    // Fenestro, kaj tial nur labortabla ĝis ĝi ricevos la saman traktadon kiel
+    // ĉi tiu.
     AdvancedWindow {
         id: advanced
         engine: root.engine

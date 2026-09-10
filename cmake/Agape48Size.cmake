@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
-# agape48::size - an INTERFACE target carrying every size-reducing flag that the
-# active toolchain actually accepts. Flags are probed, never assumed, so the
-# same tree configures on gcc, clang, Android NDK clang and MSVC.
+# agape48::size - INTERFACE-celo portanta ĉiun grandon-reduktan flagon kiun la
+# aktiva ilaro vere akceptas. La flagoj estas sonditaj, neniam supozitaj, por ke
+# la sama arbo konfiguriĝu sur gcc, clang, la clang de la Androida NDK kaj MSVC.
 # -----------------------------------------------------------------------------
 include_guard(GLOBAL)
 include(CheckCCompilerFlag)
@@ -49,9 +49,9 @@ if(MSVC)
         /OPT:REF /OPT:ICF /INCREMENTAL:NO /DEBUG:NONE
     )
 else()
-    # --- codegen ---------------------------------------------------------
-    # -Os is set by CMAKE_*_FLAGS_MINSIZEREL; the rest is what MinSizeRel
-    # does not give you.
+    # --- kodgenerado -----------------------------------------------------
+    # -Os estas metita de CMAKE_*_FLAGS_MINSIZEREL; la restaĵo estas tio, kion
+    # MinSizeRel ne donas al vi.
     foreach(_f
         -ffunction-sections          # let --gc-sections work per function
         -fdata-sections
@@ -68,12 +68,13 @@ else()
 
     a48_try_cxx_flag(-fvisibility-inlines-hidden)
 
-    # Qt's headers use throw/catch and typeid in places, so exceptions and RTTI
-    # stay ON. Turning them off only pays if you also rebuild Qt with
-    # -no-exceptions -no-rtti; see README "Size budget".
+    # La kapdosieroj de Qt uzas throw/catch kaj typeid en kelkaj lokoj, do
+    # esceptoj kaj RTTI restas ŜALTITAJ. Malŝalti ilin pagas nur se vi ankaŭ
+    # rekonstruas Qt per -no-exceptions -no-rtti; vidu Readme_Programmers.md
+    # "Size budget".
     a48_try_compile_flag(-fasynchronous-unwind-tables)
 
-    # --- link ------------------------------------------------------------
+    # --- ligado ----------------------------------------------------------
     foreach(_f
         -Wl,--gc-sections
         -Wl,--as-needed
@@ -85,13 +86,13 @@ else()
     endforeach()
 
     if(AGAPE48_ICF)
-        # Identical code folding: only lld and gold implement it. Typically
-        # 3-6% off a Qt Quick binary because of template instantiations.
+        # Kunfaldo de identa kodo: nur lld kaj gold realigas ĝin. Kutime 3-6%
+        # for de Qt Quick-duumaĵo, pro ŝablonaj ekzempligoj.
         a48_try_link_flag(-Wl,--icf=all)
     endif()
 
-    # Strip in optimised builds - but not on Android, where androiddeployqt
-    # wants the unstripped .so to produce a symbol file first.
+    # Senigu je simboloj en optimumigitaj konstruoj - sed ne sur Androido, kie
+    # androiddeployqt volas la nesenigitan .so por unue produkti simboldosieron.
     if(NOT ANDROID)
         target_link_options(agape48_size INTERFACE
             "$<$<OR:$<CONFIG:MinSizeRel>,$<CONFIG:Release>>:-Wl,-s>")

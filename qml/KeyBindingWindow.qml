@@ -2,20 +2,22 @@ import QtQuick
 import QtQuick.Controls
 import Agape48
 
-// One calculator key's keyboard bindings. Design item 10.
+// La klavarligoj de unu kalkulila klavo. Fasona ero 10.
 //
-// Opened by Ctrl+clicking a key on the face, or by a plain click while the
-// ⋮ menu's "Customize keyboard…" mode is on. Gert changed the gesture from
-// Ctrl+right-click to Ctrl+click on 2026aug30, at the same time as making the
-// ⋮ icon the only way to the menu.
+// Malfermata per dekstra klako sur klavo de la vizaĝo, aŭ per simpla klako dum
+// la reĝimo "Customize keyboard…" de la ⋮-menuo estas ŝaltita. La gesto ŝanĝiĝis
+// de Stir+dekstra klako al Stir+klako je 2026aug30, samtempe kun fari la
+// ⋮-ikonon la sola vojo al la menuo, kaj poste al simpla dekstra klako je
+// 2026sep10, kiam Gert raportis ke la Stir-klavo interbatalas kun la kalkulilo.
 //
-// Edits apply as they are made and the list is the truth, so there is no Save
-// to be out of step with it. The original sketch had one, but its job was to be
-// greyed out during a conflict, and item 10a replaced blocking with stealing.
+// La redaktoj aplikiĝas dum ili estas faritaj kaj la listo estas la vero, do
+// ekzistas nenia Konservi kiu povus malakordi kun ĝi. La origina skizo havis
+// tian, sed ĝia tasko estis esti grizigita dum konflikto, kaj ero 10a
+// anstataŭigis blokadon per ŝtelado.
 //
-// Capture swallows every key except Esc, which is why Take it / Cancel stay
-// mouse-reachable: Esc belongs to the dialog, so it can never be captured, and
-// that is also the rule that keeps Esc permanently ON.
+// La kapto forglutas ĉiun klavon krom Esk, kaj tial Take it / Cancel restas
+// atingeblaj per la muso: Esk apartenas al la dialogo, do ĝi neniam povas esti
+// kaptita, kaj tio estas ankaŭ la regulo kiu tenas Esk konstante ŜALTITA.
 Window {
     id: root
     required property Agape48Engine engine
@@ -36,9 +38,9 @@ Window {
         capturing = false
         pendingId = ""
         refused = ""
-        // Reopening used to leave a conflict row from last time on screen, and
-        // its Take it then bound key 0 - a binding for a key that does not
-        // exist. Found by driving the dialog twice in a row.
+        // Remalfermo antaŭe lasis konfliktvicon de la antaŭa fojo sur la
+        // ekrano, kaj ĝia Take it tiam ligis klavon 0 - ligo por klavo kiu ne
+        // ekzistas. Trovita per stiri la dialogon dufoje sinsekve.
         pendingOwner = ""
         refresh()
         if (transientParent) {
@@ -49,9 +51,9 @@ Window {
     }
     function refresh() { rows = Agape48Keymap.bindingsFor(keyId) }
 
-    // The keymap speaks internal names - "N8", "SHL". The face speaks printed
-    // labels - "8", the violet arrow. The user only ever saw the second, so the
-    // conflict line has to translate rather than say "8 is currently N8".
+    // La klavmapo parolas internajn nomojn - "N8", "SHL". La vizaĝo parolas
+    // presitajn etikedojn - "8", la violan sagon. La uzanto vidis nur la duan,
+    // do la konfliktlinio devas traduki anstataŭ diri "8 is currently N8".
     function labelOf(name) {
         const keys = root.engine.skin.keys
         for (let i = 0; i < keys.length; ++i)
@@ -61,8 +63,9 @@ Window {
     }
 
     function accept(key, mods, text) {
-        // Fn on a ThinkPad arrives as Qt.Key_WakeUp and used to be recorded as
-        // a binding the calculator could never see again - dogfood #8 line 8.
+        // Fn sur ThinkPad alvenas kiel Qt.Key_WakeUp kaj antaŭe estis
+        // registrata kiel ligo kiun la kalkulilo neniam povus revidi - dogfood
+        // #8, linio 8.
         const id = Agape48Keymap.idFor(key, mods, text)
         if (!Agape48Keymap.isBindableId(id)) {
             refused = (key === Qt.Key_Escape)
@@ -72,21 +75,22 @@ Window {
         }
         refused = ""
         const owner = Agape48Keymap.ownerOfId(id)
-        if (owner === root.keyId) {          // already ours, nothing to do
+        if (owner === root.keyId) {          // jam nia, nenio por fari
             capturing = false
             pendingId = ""
             return
         }
         pendingId = id
-        if (owner === "") {                  // free: take it straight away
+        if (owner === "") {                  // libera: prenu ĝin tuj
             Agape48Keymap.bindId(id, root.keyId)
             capturing = false
             pendingId = ""
             refresh()
             return
         }
-        // Taken. Show who has it and offer the steal - item 10a chose stealing
-        // over blocking, because blocking means three dialogs for one change.
+        // Prenita. Montru kiu havas ĝin kaj proponu la ŝtelon - ero 10a elektis
+        // ŝteladon super blokado, ĉar blokado signifas tri dialogojn por unu
+        // ŝanĝo.
         pendingOwner = owner
         capturing = false
     }
@@ -103,8 +107,8 @@ Window {
     title: qsTr("Keyboard for %1").arg(keyLabel)
     flags: Qt.Dialog
     color: "#1b1b1b"
-    // Clamped to the screen; see SettingsWindow.qml for what a phone did to a
-    // dialog sized for a laptop.
+    // Limigita al la ekrano; vidu SettingsWindow.qml por tio, kion telefono
+    // faris al dialogo dimensiita por tekokomputilo.
     readonly property real fitW: Screen.desktopAvailableWidth  > 0
                                      ? Screen.desktopAvailableWidth  : 1e6
     readonly property real fitH: Screen.desktopAvailableHeight > 0
@@ -114,9 +118,9 @@ Window {
     minimumWidth: Math.min(340, fitW)
     minimumHeight: Math.min(260, fitH)
 
-    // Esc cancels a capture if one is running, otherwise closes the window.
-    // A key handler rather than a Shortcut, for the reason in SettingsWindow.qml:
-    // a Shortcut in a secondary window keeps grabbing after the window is gone.
+    // Esk nuligas kapton se iu funkcias, alie fermas la fenestron. Klavtraktilo
+    // prefere ol Shortcut, pro la kialo en SettingsWindow.qml: Shortcut en
+    // duaranga fenestro plu kaptas post kiam la fenestro malaperis.
     Item {
         anchors.fill: parent
         focus: !root.capturing
@@ -135,7 +139,7 @@ Window {
             color: "#f0f0f0"; font.pixelSize: TextSizes.dialogTitle; font.weight: Font.DemiBold
         }
 
-        // --- what is bound now ------------------------------------------------
+        // --- kio estas ligita nun ---------------------------------------------
         Column {
             width: parent.width
             spacing: 4
@@ -168,7 +172,7 @@ Window {
             }
         }
 
-        // --- add one ----------------------------------------------------------
+        // --- aldonu unu -------------------------------------------------------
         Button {
             text: qsTr("+   Add a key")
             visible: !root.capturing && root.pendingOwner === ""
@@ -233,9 +237,9 @@ Window {
 
     }
 
-    // The capture sink. It has to swallow everything so that a captured chord
-    // does not also drive the dialog's own buttons; Esc is handled by the
-    // key handler above and never reaches here as a binding.
+    // La kaptilo. Ĝi devas forgluti ĉion por ke kaptita klavkombino ne ankaŭ
+    // stiru la proprajn butonojn de la dialogo; Esk estas traktata de la
+    // klavtraktilo supre kaj neniam atingas ĉi tien kiel ligo.
     Item {
         id: capture
         anchors.fill: parent

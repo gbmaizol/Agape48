@@ -1,16 +1,16 @@
 import QtQuick
 import Agape48
 
-// The calculator shelf on a phone: a page, not a window. Everything about why
-// is in PageShell.qml - a second Window makes the platform plugin acquire a
-// surface, and that call aborts the process. Measured on Gert's phone: Settings
-// 0 opened out of 10 as a window and 10 out of 10 as a page, while this one -
-// left as a window on purpose, as the control - stayed at 0 out of 5.
+// La kalkulilbreto sur telefono: paĝo, ne fenestro. Ĉio pri la kialo estas en
+// PageShell.qml - dua Window igas la platforman kromaĵon akiri surfacon, kaj
+// tiu voko abortas la procezon. Mezurite sur la telefono de Gert: Agordoj
+// malfermiĝis 0 el 10 fojoj kiel fenestro kaj 10 el 10 kiel paĝo, dum ĉi tiu -
+// intence lasita fenestro, kiel la kontrolo - restis ĉe 0 el 5.
 //
-// So this is the same fix applied to the last thing the menu could still reach.
-// It matters more than Settings did: the shelf is the ONLY way to a calculator
-// that arrived from another machine, which makes it the whole point of putting
-// the state folder in a synced folder in the first place.
+// Do jen la sama korekto aplikita al la lasta afero kiun la menuo ankoraŭ povis
+// atingi. Ĝi gravas pli ol Agordoj gravis: la breto estas la SOLA vojo al
+// kalkulilo kiu alvenis de alia maŝino, kio faras ĝin la tuta celo de meti la
+// statan dosierujon en sinkronigatan dosierujon unuavice.
 PageShell {
     id: root
     required property Agape48Engine engine

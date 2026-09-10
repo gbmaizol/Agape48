@@ -1,15 +1,16 @@
 import QtQuick
 import Agape48
 
-// "This calculator is somebody else's just now.", as a page, on a phone.
-// Everything about why this is a page and not a window is in PageShell.qml;
-// everything about what it says is in HandoverContent.qml.
+// "This calculator is somebody else's just now.", kiel paĝo, sur telefono.
+// Ĉio pri kial ĉi tio estas paĝo kaj ne fenestro estas en PageShell.qml; ĉio
+// pri tio kion ĝi diras estas en HandoverContent.qml.
 //
-// It matters more here than the other two pages did. On a desktop this dialog
-// is a courtesy - both Agape48s are usually on the same machine, and the loser
-// can be closed by hand. On a phone the other holder is ANOTHER DEVICE, on the
-// end of a sync client, and this page is the only way to ask it for the
-// calculator, watch the countdown, or decide to take it anyway.
+// Ĝi gravas pli ĉi tie ol la aliaj du paĝoj gravis. Sur labortablo ĉi tiu
+// dialogo estas ĝentilaĵo - ambaŭ Agape48-oj kutime estas sur la sama maŝino,
+// kaj la malgajninton oni povas fermi permane. Sur telefono la alia tenanto
+// estas ALIA APARATO, ĉe la fino de sinkroniga kliento, kaj ĉi tiu paĝo estas
+// la sola vojo peti de ĝi la kalkulilon, rigardi la retronombradon, aŭ decidi
+// preni ĝin malgraŭe.
 PageShell {
     id: root
     required property Agape48Engine engine
@@ -24,9 +25,9 @@ PageShell {
     function showUnanswered(name, host, why) { content.showUnanswered(name, host, why) }
 
     title: qsTr("Calculator in use")
-    // Both ways out mean the same thing here - there is nothing typed to lose,
-    // and no page under this one to go up to. Leaving stops the wait, or the
-    // engine would go on counting for a dialog nobody can see.
+    // Ambaŭ elirvojoj signifas la samon ĉi tie - nenio tajpita estas
+    // perdebla, kaj nenia paĝo sub ĉi tiu al kiu supreniri. Foriro haltigas la
+    // atendon, alie la motoro plu nombrus por dialogo kiun neniu povas vidi.
     onBackRequested: root.leave()
     onDismissRequested: root.leave()
 
