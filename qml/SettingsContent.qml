@@ -228,7 +228,11 @@ Item {
     FileDialog {
         id: romPicker
         title: qsTr("Choose an HP 48 ROM image")
-        nameFilters: [qsTr("ROM images (rom rom.* *.rom *.bin)"), qsTr("All files (*)")]
+        // gxrom-* kaj sxrom-* ĉar tiel hpcalc.org nomas ilin, kaj tio estas la
+        // arkivo al kiu la README sendas la homon: filtro kiu kaŝas ekzakte la
+        // dosierojn kiujn la instrukcio diras elŝuti estas filtro kiu malhelpas.
+        nameFilters: [qsTr("ROM images (rom rom.* *.rom *.bin gxrom-* sxrom-*)"),
+                      qsTr("All files (*)")]
         onAccepted: { root.engine.romSource = selectedFile; root.engine.start() }
     }
 

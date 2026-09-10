@@ -117,16 +117,45 @@ Both of those warnings are about *where the file came from*, not about what is i
 
 Android **8.0 or newer**, and **arm64-v8a**, which is every phone sold since about 2016. A 32-bit phone, or an emulator image built for x86_64, will refuse to install it.
 
-## Then give it a ROM
+## Then give it a ROM, and this is the only fiddly step
 
-The one thing that is not in the download is the **HP 48 ROM image** — the calculator's own firmware. Agape48 does not include one: it is HP's code, not ours, and a program that ships it is making a promise it has no paper for.
+The one thing not in the download is the **ROM image** — the calculator's own firmware, the code HP burned into the real machine. Agape48 does not include it, because it is HP's code and not ours.
 
-ROM images are the most-mirrored file in this hobby and are one search away. When you have one:
+It is, however, a free download, and that is not a wink: **HP gave permission for these ROMs to be downloaded in mid-2000**, and they have been on hpcalc.org ever since. That is the archive the whole HP hobby uses.
 
-- open **Settings → HP 48 ROM** and point it at the file. This works on all three systems, and the app copies the ROM into its own folder so it is found by itself next time; or
-- name the file `rom` and drop it straight into the calculator's own folder — `%LOCALAPPDATA%\Agape48\Agape48` on Windows, `~/.local/share/Agape48/Agape48` on Linux, and `Android/media/br.gbmaizol.agape48/Agape48 calculators` on Android. On Android that is the quicker of the two routes: the folder shows up in any file manager and over a USB cable, needs no permission at all, so you plug the phone in and drop a file called `rom` into it.
+### Getting one
 
-Where that folder is gets printed at startup, and it is yours to move at any time — that is the same setting that lets a calculator live in Dropbox and be opened from either machine.
+1. Go to **<https://www.hpcalc.org/hp48/pc/emulators/>**.
+2. Scroll to the ROM images. There are eleven, and any of them works. If you want the one to stop thinking about, take **`gxrom-r.zip`** — the last revision of the 48GX, which is the calculator this skin is a photograph of. 314 KB.
+3. Unzip it. Inside is a single file called **`gxrom-r`** with no extension, 524,288 bytes. That file *is* the ROM: nothing to convert, nothing to unpack further.
+
+The others, if you are curious rather than in a hurry: `gxrom-k` to `gxrom-r` are 48GX revisions K, L, M, P and R, and `sxrom-a` to `sxrom-j` are the older 48SX. Later is generally better — R fixed bugs that K had — but a 48SX ROM turns Agape48 into a 48SX, which is the point of having the choice.
+
+### Putting it where the calculator looks
+
+Either way round works, and neither needs the other:
+
+**The sure way — rename and drop.** Rename the file to exactly **`rom`**, with no extension, and put it in the calculator's own folder:
+
+| | |
+|---|---|
+| Windows | `%LOCALAPPDATA%\Agape48\Agape48` |
+| Linux | `~/.local/share/Agape48/Agape48` |
+| Android | `Android/media/br.gbmaizol.agape48/Agape48 calculators` |
+
+On Android that is much the easier of the two routes: the folder is visible in any file manager and over a USB cable and needs no permission at all, so you plug the phone into a computer and drop the file in.
+
+**The quick way — point the app at it.** Start Agape48, open **Settings → HP 48 ROM**, and choose the file where it already sits. The calculator starts the moment you press Open, and the path is remembered, so you never do it again. One wrinkle: the file dialog lists ROM-shaped names, so if you kept the name `gxrom-r` and cannot see it, switch the dialog's filter to **All files**.
+
+### When to do it
+
+Whenever you like. Install first and start it, and if there is no ROM yet it says so and **prints the exact folder it looked in** — so the honest order is: install, start it once, read the folder off the screen, drop the file in, start it again.
+
+### The first screen, so it does not worry you
+
+With a fresh ROM the calculator asks **`Try To Recover Memory?`**, because its memory has never been written. That is the real HP 48 asking, exactly as a new one would. Press the **rightmost of the six blank keys** along the top — that is **NO** — and you have a clean calculator.
+
+Where that folder lives is yours to move at any time, which is the same setting that lets one calculator sit in Dropbox and be opened from either machine.
 
 ## Free software
 
