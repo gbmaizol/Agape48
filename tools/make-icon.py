@@ -1,69 +1,74 @@
 #!/usr/bin/env python3
-"""Build the application icon from a photograph of a real 48GX.
+"""Konstrui la aplikaĵan ikonon el fotografaĵo de vera 48GX.
 
-One piece of art, every platform, so they cannot drift apart:
+Unu peco da arto, ĉiu platformo, por ke ili ne povu disiĝi:
 
-    assets/icon.png            bundled in the binary; QGuiApplication::
-                               setWindowIcon uses it, which is what the window
-                               manager and the taskbar draw on EVERY platform
-    installer/agape48.ico      Windows installer, Start-menu shortcut,
-                               Add/Remove
-    platform/linux/hicolor/    the freedesktop icon theme at seven sizes: the
-                               menu entry, the dock and Alt-Tab
-    platform/android/res/...   the adaptive icon: a foreground layer at five
-                               densities, a background colour, and the legacy
-                               square for anything older than API 26
+    assets/icon.png            enmetita en la duumaĵon; QGuiApplication::
+                               setWindowIcon uzas ĝin, kaj tio estas kion la
+                               fenestroadministranto kaj la taskostrio desegnas
+                               sur ĈIU platformo
+    installer/agape48.ico      la Vindoza instalilo, la Start-menua ligilo, kaj
+                               Aldoni/Forigi
+    platform/linux/hicolor/    la ikontemo de freedesktop je sep grandoj: la
+                               menuero, la doko kaj Alt-Tab
+    platform/android/res/...   la adapta ikono: antaŭa tavolo je kvin densoj,
+                               fona koloro, kaj la malnova kvadrato por ĉio pli
+                               aĝa ol API 26
 
-THE SOURCE IS A PHOTOGRAPH, not the drawn face, since 2026sep08. Gert: "my wife
-is a designer, and she made me change my mind... rotate this image 30 degrees
-counter-clockwise instead, and this will be the base for the adaptive icon."
-assets/icon-source.png is her HP48GXDusty.png, a dusty close-up of the bottom
-left of a real keyboard - the shift keys, ON/CANCEL, ENTER - copied into the
-tree so the build does not depend on a file in Dropbox, and with its EXIF
-stripped (GIMP's own version string and two timestamps; no camera, no GPS).
-Stripped with exiftool rather than re-encoded, so the pixels are byte-identical.
+LA FONTO ESTAS FOTOGRAFAĴO, ne la desegnita vizaĝo, de 2026sep08. Gert: "my
+wife is a designer, and she made me change my mind... rotate this image 30
+degrees counter-clockwise instead, and this will be the base for the adaptive
+icon." assets/icon-source.png estas ŝia HP48GXDusty.png, polva proksimfoto de
+la malsupra maldekstra parto de vera klavaro - la ŝovklavoj, ON/CANCEL, ENTER -
+kopiita en la arbon por ke la konstruo ne dependu de dosiero en Dropbox, kaj kun
+forigita EXIF (la propra versinumero de GIMP kaj du tempindikoj; nek fotilo nek
+GPS). Forigita per exiftool anstataŭ per rekodigo, do la bilderoj estas
+bajt-identaj.
 
     python tools/make-icon.py
 
-It no longer reads makeface.py's output, so the two are independent: changing
-the face no longer changes the icon.
+Ĝi ne plu legas la eligon de makeface.py, do la du estas sendependaj: ŝanĝi la
+vizaĝon ne plu ŝanĝas la ikonon.
 
-RE-RUNNING IT CHANGES NOTHING, and that was measured rather than hoped for on
-2026sep09: this laptop has Pillow 10.2.0, the Windows one 12.2.0, and every PNG
-either writes is pixel-for-pixel identical to the committed file. Only the
-encoder's own bytes differ, plus CRLF on the two XML files write_text() makes.
-So a diff that shows icons changing after a re-run is a re-encode, not a new
-icon: `git checkout -- assets platform/android/res platform/linux/hicolor` and
-commit only what you meant to change.
+RELANĈI ĜIN ŜANĜAS NENION, kaj tio estis mezurita anstataŭ esperita je
+2026sep09: ĉi tiu komputilo havas Pillow 10.2.0, la Vindoza 12.2.0, kaj ĉiu PNG
+kiun ĉu unu ĉu la alia skribas estas bildero post bildero identa al la enarbigita
+dosiero. Nur la propraj bajtoj de la kodilo diferencas, plus CRLF sur la du
+XML-dosieroj kiujn write_text() faras. Do diferenco kiu montras la ikonojn
+ŝanĝiĝintaj post relanĉo estas rekodigo, ne nova ikono: `git checkout -- assets
+platform/android/res platform/linux/hicolor` kaj enarbigu nur kion vi intencis
+ŝanĝi. (La tondo kaj la kontrasto de 2026sep10 estas novaj kaj ankoraŭ ne estis
+kontrolitaj sur la Linuksa komputilo; ImageEnhance kaj crop estas ambaŭ
+determinismaj, sed tio estas argumento kaj ne mezuro.)
 
-THE PHOTOGRAPH IS TURNED 30 DEGREES COUNTER-CLOCKWISE. Gert, 2026sep08: "one
+LA FOTOGRAFAĴO ESTAS TURNITA 30 GRADOJN MALDEKSTRUME. Gert, 2026sep08: "one
 quirk to make it different from Droid48: Rotate it 30 counter-clockwise. But
-this needs to be the new icon for all OSs." It also solves a shape problem it
-was not asked to solve: the photo is 325x519, a ratio of 0.626, and turning it
-makes its bounding box 0.88 - so it fills a square, and a launcher's circle,
-far better than it could upright.
+this needs to be the new icon for all OSs." Tio ankaŭ solvas formoproblemon
+kiun ĝi ne estis petita solvi: turni altan bildon plilarĝigas ĝian ĉirkaŭskatolon
+kaj tial ĝi pli bone plenigas kvadraton, kaj la cirklon de lanĉilo, ol ĝi povus
+starante rekte.
 
-TRANSPARENT WHEREVER A FORMAT ALLOWS IT, and Gert's slate where one does not.
-His words, in that order: "make the background r66,g75,b92" and then "or
-transparent when possible". There is exactly one place it is not possible: an
-Android ADAPTIVE icon's background layer, which is required to be opaque and
-which some launchers paint black if it is not - black bars again, which is the
-complaint that started this. So:
+TRAVIDEBLA KIE AJN LA FORMATO PERMESAS, kaj la ardezo de Gert kie ne. Liaj
+vortoj, en tiu ordo: "make the background r66,g75,b92" kaj poste "or transparent
+when possible". Estas ekzakte unu loko kie tio ne eblas: la fona tavolo de
+Androida ADAPTA ikono, kiu devas esti opaka kaj kiun iuj lanĉiloj pentras nigra
+se ĝi ne estas - nigraj strioj denove, kio estas la plendo per kiu ĉi tio
+komenciĝis. Do:
 
-    the desktop PNG, the .ico and the legacy square     transparent, and the
-                tilted photograph floats on whatever is behind it
-    the adaptive FOREGROUND layer     transparent at the corners, but scaled to
-                cover the launcher's mask completely - see FILL_ADAPTIVE
-    the adaptive BACKGROUND layer     the slate, which by design is now only
-                seen while a launcher is animating the icon
+    la labortabla PNG, la .ico kaj la malnova kvadrato     travideblaj, kaj la
+                klinita fotografaĵo flosas super kio ajn estas malantaŭ ĝi
+    la ANTAŬA tavolo de la adapta ikono     travidebla ĉe la anguloj, sed skalita
+                por kovri la maskon de la lanĉilo tute - vidu FILL_ADAPTIVE
+    la FONA tavolo de la adapta ikono     la ardezo, kiu laŭ desegno nun estas
+                vidata nur dum lanĉilo animacias la ikonon
 
-The soft shadow is kept in every case. It is what stops a dark photograph from
-dissolving into a dark taskbar, and on transparency it simply travels with the
-picture.
+La mola ombro restas en ĉiu kazo. Ĝi estas kio malhelpas ke malluma fotografaĵo
+dissolviĝu en malluman taskostrion, kaj sur travidebleco ĝi simple vojaĝas kun
+la bildo.
 """
 
 import pathlib
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
 HERE = pathlib.Path(__file__).resolve().parent.parent
 SOURCE = HERE / "assets" / "icon-source.png"
@@ -72,92 +77,140 @@ ICO = HERE / "installer" / "agape48.ico"
 RES = HERE / "platform" / "android" / "res"
 HICOLOR = HERE / "platform" / "linux" / "hicolor"
 
-# Windows picks whichever of these fits: 16 in a title bar, 32 on the desktop,
-# 256 in large-icon view. The PNG is one 256 and Qt scales it down itself.
+# Vindozo elektas kiun ajn el ĉi tiuj kiu konvenas: 16 en titolstrio, 32 sur la
+# labortablo, 256 en grandikona vido. La PNG estas unu 256 kaj Qt malgrandigas
+# ĝin mem.
 #
-# The same seven are what Linux gets as separate files under hicolor, for the
-# same reason and with the same numbers: a menu draws 24 or 32, Alt-Tab draws
-# 48 or 64, and a desktop shell reaches for 128 or 256. Downscaling a 256 by
-# hand at draw time is exactly what these sizes exist to avoid.
+# La samaj sep estas kion Linukso ricevas kiel apartajn dosierojn sub hicolor,
+# pro la sama kaŭzo kaj kun la samaj nombroj: menuo desegnas 24 aŭ 32, Alt-Tab
+# desegnas 48 aŭ 64, kaj labortabla ŝelo prenas 128 aŭ 256. Malgrandigi 256 mane
+# je desegnotempo estas ekzakte kion ĉi tiuj grandoj ekzistas por eviti.
 ICO_SIZES = [16, 24, 32, 48, 64, 128, 256]
 PNG_SIZE = 256
 
-ANGLE = 30                              # counter-clockwise
+ANGLE = 30                              # maldekstrume
 
-# Gert's, given as three numbers: "make the background r66,g75,b92", and then
-# halved on 2026sep08 after he saw it cut into a circle on the launcher:
-# "Works! I see a circle with the calculator in it. Please make the background
-# half as dark."
+# LA TONDO, 2026sep10. Gert, vidinte la Androidan konstruon: "The icon that was
+# implemented in the latest Android build looks good to me in any size. Maybe it
+# should be made with just a little bit (20%) more contrast and brightness. Even
+# better if cropped better so that two thirds of the ON button appeared at the
+# bottom of the circle."
 #
-# HALF AS DARK, not half as bright - those are opposite operations and only one
-# of them is what he asked for. Darkness is 1 - L in HSL, so halving it takes
-# L from 0.310 to 0.655 while hue (219 degrees) and saturation (0.165) stay
-# exactly where they were. That is the difference between a lighter version of
-# HIS slate and a different colour that happens to be paler: rgb(66,75,92)
-# becomes rgb(153,163,181). Used ONLY where transparency is not allowed - see
-# the note at the top.
+# La ON-klavo estis TUTE NEVIDEBLA en la cirklo antaŭe: mezurite, 0,0% de ĝi
+# staris interne de la 72dp-masko. La fotografaĵo estas 325x519, la klavo sidas
+# ĉe ĝia malsupra maldekstra angulo, kaj cirklo montras nur la mezan trionon -
+# do la klavo neniam havis ŝancon.
+#
+# Kial tondo kaj ne ŝovo. Ŝovi la bildon supren enmetas la ON-klavon, sed ĝi
+# ankaŭ eltiras angulon el la masko: la turnita rektangulo havas nur 40
+# bilderojn da marĝeno sur sia mallonga akso, kaj suprena ŝovo de d konsumas
+# 0,5*d el ĝi. Tondo anstataŭe faras la bildon PLI KVADRATA, kaj kvadrata bildo
+# kovras cirklon per malpli da skalo: tial FILL_ADAPTIVE malsupriĝis de 1,6 al
+# 1,3 en la sama ŝanĝo. La fotografaĵo mem ne estas tuŝita; ĉi tio estas nombro
+# kiun oni povas malfari.
+#
+# Elektita per serĉo super la kvar randoj kaj la plenigo, mezurante du aferojn
+# je 432 bilderoj: kiom da la ON-klavo staras interne de la 72dp-cirklo, kaj kiom
+# de tiu cirklo restas nuda. El 144 kandidatoj ok kovras la maskon kaj montras la
+# klavon; ĉi tiu estas la plej proksima al "du trionoj, ĉe la fundo":
+#
+#   ON interne 69,5%     masko nuda 0,00% je 72dp, 1,49% je 80dp
+#   la klavo staras 7 bilderojn maldekstre de la centro kaj 63 sub ĝi, do
+#   ĉe la fundo kaj preskaŭ centrita
+#
+# Kion la cirklo nun montras: I/O, la 1, la verda dekstra ŝovsago, CONT OFF, kaj
+# la ON-klavo tranĉita de la malsupra rando.
+CROP = (0, 240, 230, 519)
+
+# +20%, liaj nombroj. Aplikataj POST la tondo, ĉar ImageEnhance.Contrast
+# kalkulas la mezvaloron de la bildo kiun oni donas al ĝi: enhavigi la
+# forĵetatan parton en tiun mezvaloron signifus agordi la ikonon laŭ bilderoj
+# kiujn neniu vidos.
+#
+# Ĝi ankaŭ atakas problemon kiun ĝi ne estis petita ataki: je 16 bilderoj sur
+# malluma taskostrio la ikono estas preskaŭ makuleto, kaj ĝiaj opakaj bilderoj
+# havis mezan lumecon de nur 51 el 255. Vidu la mezuron post la tondo en la
+# transdono.
+CONTRAST = 1.2
+BRIGHTNESS = 1.2
+
+# La lia, donita kiel tri nombroj: "make the background r66,g75,b92", kaj poste
+# duonigita je 2026sep08 post kiam li vidis ĝin tranĉita en cirklon sur la
+# lanĉilo: "Works! I see a circle with the calculator in it. Please make the
+# background half as dark."
+#
+# DUONE TIEL MALLUMA, ne duone tiel hela - tiuj estas kontraŭaj operacioj kaj nur
+# unu el ili estas kion li petis. Malluma estas 1 - L en HSL, do duonigi ĝin
+# prenas L de 0,310 al 0,655 dum la nuanco (219 gradoj) kaj la satureco (0,165)
+# restas ekzakte kie ili estis. Tio estas la diferenco inter pli hela versio de
+# LIA ardezo kaj alia koloro kiu hazarde estas pala: rgb(66,75,92) fariĝas
+# rgb(153,163,181). Uzata NUR kie travidebleco ne estas permesita - vidu la noton
+# supre.
 BACKGROUND = (153, 163, 181, 255)
 CLEAR = (0, 0, 0, 0)
 
-# How much of the canvas the photograph takes. OVER 1.0 ON PURPOSE: it is
-# scaled until its bounding box is a quarter wider than the icon, so the four
-# corners of the tilted picture fall outside and are cut off. Gert, 2026sep08:
-# "The image is too small. make it larger, it doesn't matter if some corners
-# will be cut."
+# Kiom da la tolo la fotografaĵo okupas. PLI OL 1,0 INTENCE: ĝi estas skalita
+# ĝis sia ĉirkaŭskatolo estas kvaronon pli larĝa ol la ikono, do la kvar anguloj
+# de la klinita bildo falas eksteren kaj estas fortranĉitaj. Gert, 2026sep08:
+# "The image is too small. make it larger, it doesn't matter if some corners will
+# be cut."
 #
-# 1.25 rather than more. Past about 1.4 the cut corners meet, the picture
-# becomes a plain square, and two things go with them: the tilt stops being
-# visible at all on a transparent desktop icon, and the slate is left with
-# nothing to do. At 1.25 a wedge of ground still shows at two corners, which is
-# what keeps the rotation legible.
+# 1,25 kaj ne pli. Preter proksimume 1,4 la tranĉitaj anguloj kuniĝas, la bildo
+# fariĝas simpla kvadrato, kaj du aferoj foriras kun ili: la klino ĉesas esti
+# videbla sur travidebla labortabla ikono, kaj la ardezo restas sen laboro. Je
+# 1,25 kojno da fono ankoraŭ montriĝas ĉe du anguloj, kaj tio estas kio tenas la
+# turnon legebla.
 #
-# TWO NUMBERS, because the two platforms want opposite things, and 2026sep08
-# is when that became clear. Gert, looking at the launcher: "Why the launcher
-# shows me a circle in the background of the icon instead of transparency?"
+# DU NOMBROJ, ĉar la du platformoj volas kontraŭajn aferojn, kaj 2026sep08 estas
+# kiam tio klariĝis. Gert, rigardante la lanĉilon: "Why the launcher shows me a
+# circle in the background of the icon instead of transparency?"
 #
-# It is showing a circle because on Android there is no such thing as a
-# free-form icon any more. An adaptive icon is two layers and the LAUNCHER
-# chooses the silhouette - a circle here, a squircle on other phones, a
-# rounded square elsewhere - and cuts both layers with it, so every icon on the
-# home screen is the same shape on purpose. Transparency cannot defeat that;
-# the background layer is required to be opaque, and a launcher handed a
-# transparent one paints it black, which is the black bars this whole icon
-# started as.
+# Ĝi montras cirklon ĉar sur Androido ne plu ekzistas io tia kiel libera formo de
+# ikono. Adapta ikono estas du tavoloj kaj la LANĈILO elektas la silueton -
+# cirklo ĉi tie, kvadratcirklo sur aliaj telefonoj, rondigita kvadrato aliloke -
+# kaj tranĉas ambaŭ tavolojn per ĝi, do ĉiu ikono sur la hejmekrano havas la
+# saman formon intence. Travidebleco ne povas venki tion; la fona tavolo devas
+# esti opaka, kaj lanĉilo kiu ricevas travideblan pentras ĝin nigra, kio estas
+# la nigraj strioj per kiuj ĉi tiu tuta ikono komenciĝis.
 #
-# What CAN be done is leave the launcher's shape nothing of ours to fill: scale
-# the photograph until it covers the whole mask, and the circle stops being a
-# coloured plate with a picture on it and becomes a circle of picture. 1.6
-# rather than 1.5: at 1.5 the circle is covered but the squircle still shows a
-# wedge at one corner, and phones do not agree on the shape. Measured inside the
-# mask - uncovered area at the 72dp the launcher shows: 10.65% at 1.25, 0.04% at
-# 1.5, 0.00% at 1.6, and 0.67% at 1.6 even for the 80dp a launcher reaches
-# during parallax.
+# Kion oni POVAS fari estas lasi nenion nian por la formo de la lanĉilo plenigi:
+# skali la fotografaĵon ĝis ĝi kovras la tutan maskon, kaj la cirklo ĉesas esti
+# kolora plato kun bildo sur ĝi kaj fariĝas cirklo el bildo. Ĝis 2026sep10 tio
+# postulis 1,6, ĉar la netondita fotografaĵo estas alta kaj mallarĝa. Kun CROP
+# la sama kovro venas je 1,30, mezurite: 0,00% de la 72dp-masko nuda, kaj 1,49%
+# de la 80dp kiun lanĉilo atingas dum paralaksa animacio.
 #
-# The desktop keeps 1.25 and its transparency, because there the icon really is
-# free-form and the tilt is the whole point. Past about 1.4 the cut corners meet
-# and the picture becomes a plain square, which on a transparent desktop icon
-# would throw the rotation away - so the number that is right for Android is
-# wrong there, and the other way about.
+# La labortablo tenas 1,25 kaj sian travideblecon, ĉar tie la ikono vere estas
+# libera formo kaj la klino estas la tuta senco.
 FILL_DESKTOP = 1.25
-FILL_ADAPTIVE = 1.6
+FILL_ADAPTIVE = 1.30
 
-# "Oh, and make the edges a bit blurry!" - Gert, 2026sep08. A fraction of the
-# icon's own size rather than a fixed number of pixels, so the softness looks
-# the same at 16 and at 432 instead of turning a small icon to mush. The fade
-# is pushed INWARDS first: blurring the mask alone would spread it outwards
-# over the black the rotation leaves outside the photograph, and hang a dirty
-# halo on every edge.
+# "Oh, and make the edges a bit blurry!" - Gert, 2026sep08. Frakcio de la propra
+# grando de la ikono anstataŭ fiksa nombro da bilderoj, por ke la moleco aspektu
+# same je 16 kaj je 432 anstataŭ igi malgrandan ikonon kaĉo. La fadenado estas
+# puŝita INTERNEN unue: malakrigi nur la maskon disvastigus ĝin eksteren super la
+# nigro kiun la turno lasas ekster la fotografaĵo, kaj pendigus malpuran
+# aŭreolon sur ĉiun randon.
 FEATHER = 0.018
 
-# 108dp foreground layers, and the 48dp legacy launcher icon, at the five
-# densities Android asks for.
+# Antaŭaj tavoloj je 108dp, kaj la malnova 48dp-lanĉikono, je la kvin densoj
+# kiujn Androido petas.
 DENSITIES = {"mdpi": 1, "hdpi": 1.5, "xhdpi": 2, "xxhdpi": 3, "xxxhdpi": 4}
 
 
+def prepared() -> Image.Image:
+    """La fonto tondita kaj agordita, antaŭ la turno. Ordo gravas: tondi, poste
+    kontrasti, ĉar ImageEnhance.Contrast mezuras la bildon kiun ĝi ricevas."""
+    src = Image.open(SOURCE).convert("RGB").crop(CROP)
+    src = ImageEnhance.Contrast(src).enhance(CONTRAST)
+    src = ImageEnhance.Brightness(src).enhance(BRIGHTNESS)
+    return src.convert("RGBA")
+
+
 def turned(src: Image.Image) -> Image.Image:
-    """Rotated about its centre, with an alpha mask of its own. The photograph
-    has no alpha channel, so rotating it directly fills the new corners with
-    black - which would put the bars back, at an angle."""
+    """Turnita ĉirkaŭ sia centro, kun propra alfa-masko. La fotografaĵo ne havas
+    alfa-kanalon, do turni ĝin rekte plenigus la novajn angulojn per nigro - kio
+    remetus la striojn, oblikve."""
     solid = Image.new("RGBA", src.size, (255, 255, 255, 255))
     rot = src.rotate(ANGLE, expand=True, resample=Image.BICUBIC)
     rot.putalpha(solid.rotate(ANGLE, expand=True, resample=Image.BICUBIC).getchannel("A"))
@@ -165,8 +218,8 @@ def turned(src: Image.Image) -> Image.Image:
 
 
 def compose(art: Image.Image, s: int, fill: float, background) -> Image.Image:
-    """The turned photograph on a square ground - which may be nothing at all -
-    with a soft shadow under it."""
+    """La turnita fotografaĵo sur kvadrata fono - kiu povas esti nenio entute -
+    kun mola ombro sub ĝi."""
     canvas = Image.new("RGBA", (s, s), background)
     inner = s * fill
     k = min(inner / art.width, inner / art.height)
@@ -174,18 +227,18 @@ def compose(art: Image.Image, s: int, fill: float, background) -> Image.Image:
                    Image.LANCZOS)
     x, y = (s - a.width) // 2, (s - a.height) // 2
 
-    # Soft edges. Erode by the blur radius, then blur, so the whole fade lives
-    # inside the picture and the 100%-opaque part still reaches nearly to the
-    # true edge.
+    # Molaj randoj. Erozii je la malakriga radiuso, poste malakrigi, por ke la
+    # tuta fadeno vivu interne de la bildo kaj la 100%-opaka parto ankoraŭ
+    # atingu preskaŭ ĝis la vera rando.
     r = max(1, round(s * FEATHER))
     alpha = a.getchannel("A")
     alpha = alpha.filter(ImageFilter.MinFilter(2 * r + 1))
     alpha = alpha.filter(ImageFilter.GaussianBlur(r))
     a.putalpha(alpha)
 
-    # A dark photograph still needs an edge to read as an object, on a mid
-    # ground or on a dark taskbar it would otherwise dissolve into. Taken from
-    # the softened alpha, so the shadow follows the same outline.
+    # Malluma fotografaĵo tamen bezonas randon por legiĝi kiel objekto, sur
+    # mezhela fono aŭ sur malluma taskostrio en kiun ĝi alie dissolviĝus. Prenita
+    # el la moligita alfao, do la ombro sekvas la saman konturon.
     shadow = Image.new("RGBA", (s, s), (0, 0, 0, 0))
     shadow.paste((0, 0, 0, 130), (x + max(1, s // 128), y + max(1, s // 96)), a)
     canvas = Image.alpha_composite(
@@ -202,10 +255,10 @@ def write(path: pathlib.Path, img: Image.Image) -> None:
 
 
 def android(art: Image.Image) -> None:
-    """The adaptive icon, its legacy fallback, and the two XML files that name
-    them. A legacy square drawable is masked or letterboxed by every modern
-    launcher, which is a second source of bars that no amount of transparency
-    would have removed."""
+    """La adapta ikono, ĝia malnova rezervo, kaj la du XML-dosieroj kiuj nomas
+    ilin. Malnovan kvadratan desegnaĵon maskas aŭ enkadrigas ĉiu moderna
+    lanĉilo, kaj tio estas dua fonto de strioj kiun nenia kvanto da travidebleco
+    forigus."""
     for name, k in DENSITIES.items():
         fg = compose(art, int(108 * k), FILL_ADAPTIVE, (0, 0, 0, 0))
         write(RES / f"mipmap-{name}" / "ic_launcher_foreground.png", fg)
@@ -232,36 +285,35 @@ def android(art: Image.Image) -> None:
         (RES / "mipmap-anydpi-v26" / leaf).write_text(adaptive)
         print(f"wrote platform/android/res/mipmap-anydpi-v26/{leaf}")
 
-    # The old square, kept in step rather than left to rot: it was a hand-placed
-    # copy this script did not write, so regenerating the icon used to change
-    # every platform except the one that asked.
+    # La malnova kvadrato, tenata en paŝo anstataŭ lasata putri: ĝi estis
+    # manmetita kopio kiun ĉi tiu skripto ne skribis, do regeneri la ikonon
+    # antaŭe ŝanĝis ĉiun platformon krom tiu kiu petis.
     write(RES / "drawable" / "icon.png",
           compose(art, PNG_SIZE, FILL_DESKTOP, CLEAR))
 
 
 def linux(art: Image.Image) -> None:
-    """The freedesktop icon theme - one PNG per size, named after the Icon= key
-    of platform/linux/agape48.desktop, which is what a menu, a dock and Alt-Tab
-    all look up.
+    """La ikontemo de freedesktop - unu PNG po grando, nomita laŭ la Icon=-ŝlosilo
+    de platform/linux/agape48.desktop, kiun menuo, doko kaj Alt-Tab ĉiuj serĉas.
 
-    WRITTEN INTO THE TREE AND COMMITTED, like the Android res/ PNGs and unlike
-    installer/agape48.ico, which is generated and gitignored. The .ico can be
-    because Windows builds go through make-icon.py anyway; the Linux ones may
-    not, because `cmake --install` installs them and a fresh clone must be able
-    to do that without Python and Pillow. The cost is 190 KB of PNG in git and
-    a rule: change the art, run this script, commit what it wrote."""
+    SKRIBITA EN LA ARBON KAJ ENARBIGITA, kiel la PNG-oj sub Android res/ kaj
+    malkiel installer/agape48.ico, kiu estas generita kaj gitignorita. La .ico
+    povas esti, ĉar Vindozaj konstruoj pasas tra make-icon.py ĉiuokaze; la
+    Linuksaj eble ne, ĉar `cmake --install` instalas ilin kaj freŝa klono devas
+    povi fari tion sen Python kaj Pillow. La kosto estas 190 KB da PNG en git kaj
+    unu regulo: ŝanĝu la arton, kuru ĉi tiun skripton, enarbigu kion ĝi skribis."""
     for s in ICO_SIZES:
         write(HICOLOR / f"{s}x{s}" / "apps" / "agape48.png",
               compose(art, s, FILL_DESKTOP, CLEAR))
 
 
 def main() -> None:
-    art = turned(Image.open(SOURCE).convert("RGBA"))
+    art = turned(prepared())
 
     write(PNG, compose(art, PNG_SIZE, FILL_DESKTOP, CLEAR))
 
     ICO.parent.mkdir(parents=True, exist_ok=True)
-    # ICO carries a full alpha channel, so Windows gets the transparent one too.
+    # ICO portas plenan alfa-kanalon, do Vindozo ankaŭ ricevas la travideblan.
     frames = [compose(art, s, FILL_DESKTOP, CLEAR) for s in ICO_SIZES]
     frames[-1].save(ICO, format="ICO", sizes=[(s, s) for s in ICO_SIZES])
     print(f"wrote installer/agape48.ico ({ICO.stat().st_size} bytes, {len(ICO_SIZES)} sizes)")
