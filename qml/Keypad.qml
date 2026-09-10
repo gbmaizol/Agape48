@@ -139,22 +139,6 @@ Item {
             color: "#ffffff"
             opacity: root.engine.pressedKeys.indexOf(modelData.key) >= 0 ? 0.22 : 0
             Behavior on opacity { NumberAnimation { duration: 60 } }
-
-            // Two seconds of a still pointer names the keyboard keys bound
-            // here. See the tooltip below.
-            HoverHandler {
-                onHoveredChanged: {
-                    if (hovered) {
-                        root.tipKey = parent.modelData
-                        tipBox.shown = false
-                        tipDelay.restart()
-                    } else if (root.tipKey === parent.modelData) {
-                        tipDelay.stop()
-                        tipBox.shown = false
-                        root.tipKey = null
-                    }
-                }
-            }
         }
     }
 
@@ -180,6 +164,55 @@ Item {
     // Desktop in effect rather than by a platform test: a finger has no hover
     // state, so HoverHandler never fires on a phone and this costs nothing there.
     property var tipKey: null
+    property point tipAnchor: Qt.point(-99, -99)
+
+    // ONE HANDLER ON THE KEYPAD, not one per key, and it hit-tests with the
+    // same keyIndexAt() the presses use. The first version put a HoverHandler
+    // on each of the highlight rectangles in the Repeater above - and those
+    // carry opacity 0 until their key is pressed, which is not a safe thing to
+    // hang hover delivery off. Gert, 2026sep10: "I can't see the tooltips."
+    //
+    // It is also the better shape regardless: one handler rather than
+    // forty-nine, the hit areas rather than the painted caps - `rect` is a few
+    // pixels larger than `cap` on every side - and the gaps between keys give
+    // -1 and dismiss the tooltip, which is what should happen there.
+    //
+    // "HALTS for 2 seconds", literally: any real movement restarts the timer,
+    // so the tooltip appears two seconds after the pointer stops rather than
+    // two seconds after it arrives. Three pixels of tolerance, because a hand
+    // resting on a mouse is never quite still and a strict test would never
+    // fire.
+    HoverHandler {
+        id: keyHover
+        enabled: !root.customizing
+        onPointChanged: {
+            const p = point.position
+            const i = root.keyIndexAt(p.x, p.y)
+            const k = i >= 0 ? root.engine.skin.keys[i] : null
+            const moved = Math.abs(p.x - root.tipAnchor.x) > 3
+                       || Math.abs(p.y - root.tipAnchor.y) > 3
+            if (k !== root.tipKey) {
+                root.tipKey = k
+                tipBox.shown = false
+            }
+            if (!k) {
+                tipDelay.stop()
+                tipBox.shown = false
+            } else if (moved) {
+                root.tipAnchor = p
+                tipBox.shown = false
+                tipDelay.restart()
+            }
+        }
+        onHoveredChanged: {
+            if (!hovered) {
+                tipDelay.stop()
+                tipBox.shown = false
+                root.tipKey = null
+                root.tipAnchor = Qt.point(-99, -99)
+            }
+        }
+    }
 
     readonly property string tipText: {
         if (!tipKey)
