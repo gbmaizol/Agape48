@@ -349,6 +349,10 @@ private:
     void markPressed(int row, int mask, bool down);
     void finishRelease(int row, int mask);
     void setTickRate(int ms);
+    // Re-read the settings that live in the state folder. Called at startup and
+    // again every time the folder changes, because a different folder is a
+    // different calculator with its own preferences.
+    void loadCalcSettings();
     int  realSpeedBudget();
     void writeSpeedProbe();
     void queueTaps(const QStringList &keys);

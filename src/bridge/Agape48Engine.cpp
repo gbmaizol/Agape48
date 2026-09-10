@@ -18,6 +18,8 @@
 #include <QHash>
 #include <QStringView>
 
+#include <memory>
+
 namespace {
 
 // Emulation pacing. The HP 48 Saturn runs at ~4 MHz (48G) / ~2 MHz (48S), so a
@@ -296,7 +298,53 @@ bool copyBytes(const QString &from, const QString &to)
     return out.error() == QFileDevice::NoError;
 }
 
+// --- the calculator's settings, as opposed to this computer's ---------------
+//
+// settings.ini beside the ROM, so a folder carried to another machine carries
+// its keymap and its preferences with it. What does NOT go in there is anything
+// that describes the machine: the window's geometry, the live-resize switch, and
+// above all speed/rate, which is a CALIBRATION - 205000 instructions a second is
+// what this laptop measured against a real 48, and another computer's number
+// will be different. Carrying that one across would make the calculator run at
+// the wrong speed on arrival, which is exactly the bug the whole speed
+// investigation of 2026sep09 turned out to be.
+std::unique_ptr<QSettings> calcSettings(StateFileManager *st)
+{
+    const QString path = st ? st->settingsFile().toLocalFile() : QString();
+    if (path.isEmpty())
+        return std::make_unique<QSettings>();
+    return std::make_unique<QSettings>(path, QSettings::IniFormat);
+}
+
+// FIRST RUN AFTER THE MOVE, and every first run in a NEW folder. These values
+// were machine-local until 2026sep10, so read the old place when the folder has
+// nothing to say - otherwise everyone's preferences reset themselves on upgrade.
+//
+// Deliberately NOT a one-shot copy, because the same fallback answers a second
+// question: what a folder that has never had settings of its own should start
+// from. The machine's old values, not the factory defaults - so making a new
+// shelf does not hand you a calculator with nothing set up. The first change
+// writes it into the folder, and from then on the folder is the answer.
+QVariant carried(QSettings *now, const char *key, const QVariant &def)
+{
+    const QString k = QLatin1String(key);
+    return now->contains(k) ? now->value(k) : QSettings().value(k, def);
+}
+
 } // namespace
+
+void Agape48Engine::loadCalcSettings()
+{
+    const auto s = calcSettings(m_state);
+    m_runUnfocused = carried(s.get(), "window/runUnfocused", false).toBool();
+    m_realSpeed    = carried(s.get(), "speed/real", false).toBool();
+    // Clamped against the rate in force, because the far right of the slider is
+    // a function of it. A factor stored where the calibration was different must
+    // not push the budget past the ceiling.
+    m_speedFactor  = qBound(kFactorFloor,
+                            carried(s.get(), "speed/factor", 1.0).toDouble(),
+                            speedFactorMax());
+}
 
 Agape48Engine::Agape48Engine(QObject *parent)
     : QObject(parent)
@@ -306,20 +354,16 @@ Agape48Engine::Agape48Engine(QObject *parent)
     if (QSettings().value(QLatin1String("debug/logging"), false).toBool())
         setDebugLogging(true);
 
+    // Machine-local, both of them: a workaround for a slow compositor and a
+    // measurement of this computer. See the note on calcSettings().
     m_liveResize = QSettings().value(QLatin1String("window/liveResize"), false).toBool();
-    m_runUnfocused = QSettings().value(QLatin1String("window/runUnfocused"),
-                                       false).toBool();
-    m_speedFactor = QSettings().value(QLatin1String("speed/factor"),
-                                      1.0).toDouble();
-    m_realSpeed  = QSettings().value(QLatin1String("speed/real"), false).toBool();
     m_realSpeedRate = qBound(kRateFloor,
                              QSettings().value(QLatin1String("speed/rate"),
                                                kRealSpeedInstrPerSec).toInt(),
                              kRateCeiling);
-    // Clamped against the rate that was just loaded, because the far right of
-    // the slider is a function of it. A stored factor from a session with a
-    // different calibration must not push the budget past the ceiling.
-    m_speedFactor = qBound(kFactorFloor, m_speedFactor, speedFactorMax());
+    // The rest belong to the calculator and are read from its folder. m_state
+    // already knows where that is: its own constructor loads the location.
+    loadCalcSettings();
 
     m_clock.start();
     m_tick.setInterval(kTickIntervalMs);
@@ -341,6 +385,13 @@ Agape48Engine::Agape48Engine(QObject *parent)
     // making the user quit and reopen to get a calculator. migrateTo() and the
     // house button both land here.
     connect(m_state, &StateFileManager::locationChanged, this, [this] {
+        // A different folder is a different calculator, with its own keymap and
+        // its own preferences. Read them before anything runs on them, and tell
+        // QML, which is showing the old ones.
+        loadCalcSettings();
+        emit runUnfocusedChanged();
+        emit realSpeedChanged();
+        emit speedFactorChanged();
         if (!m_ready) {
             start();
             return;
@@ -1018,7 +1069,7 @@ void Agape48Engine::setSpeedFactor(double factor)
     if (qFuzzyCompare(m_speedFactor, f))
         return;
     m_speedFactor = f;
-    QSettings().setValue(QLatin1String("speed/factor"), f);
+    calcSettings(m_state)->setValue(QLatin1String("speed/factor"), f);
     // Start from now rather than settling a debt incurred at a different rate,
     // the same reasoning as the switch and the rate.
     m_paceAt   = 0;
@@ -1031,7 +1082,7 @@ void Agape48Engine::setRunUnfocused(bool on)
     if (m_runUnfocused == on)
         return;
     m_runUnfocused = on;
-    QSettings().setValue(QLatin1String("window/runUnfocused"), on);
+    calcSettings(m_state)->setValue(QLatin1String("window/runUnfocused"), on);
     // Take effect immediately rather than at the next alt-tab: if the window is
     // inactive right now, the calculator is already stopped, and a switch the
     // user has just turned on ought to start it.
@@ -1045,7 +1096,7 @@ void Agape48Engine::setRealSpeed(bool on)
     if (m_realSpeed == on)
         return;
     m_realSpeed = on;
-    QSettings().setValue(QLatin1String("speed/real"), on);
+    calcSettings(m_state)->setValue(QLatin1String("speed/real"), on);
     // Start from now, and throw the debt away: flipping the switch is not a
     // reason to catch up on time the calculator spent running free.
     m_paceAt   = 0;

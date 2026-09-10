@@ -204,6 +204,14 @@ Window {
         }
     }
 
+    // The keymap is a singleton and cannot see the engine, so the engine's
+    // state folder is handed to it here - the one place that has both.
+    Binding {
+        target: Agape48Keymap
+        property: "storeUrl"
+        value: engine.state.settingsFile
+    }
+
     Agape48Engine {
         id: engine
         onRomRequired: settings.open()

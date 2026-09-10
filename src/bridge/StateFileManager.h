@@ -49,6 +49,16 @@ class StateFileManager : public QObject
     Q_PROPERTY(QString displayName READ displayName NOTIFY locationChanged)
     Q_PROPERTY(bool    writable    READ isWritable  NOTIFY locationChanged)
     Q_PROPERTY(bool    isDefault   READ isDefault   NOTIFY locationChanged)
+    // WHERE THE CALCULATOR'S OWN SETTINGS LIVE: beside the ROM, so they move
+    // when the folder moves. Gert, 2026sep10: "make this keyboard setting and
+    // all the settings that are like this live in the same folder as the ROM in
+    // a simple settings.ini text file, so they change and move together with
+    // the state folder."
+    //
+    // Empty when there is no local folder to put it in, which both QSettings
+    // and QML's Settings read as "use the default" - a degradation to
+    // machine-local storage rather than a lost write.
+    Q_PROPERTY(QUrl    settingsFile READ settingsFile NOTIFY locationChanged)
     Q_PROPERTY(QString lastError   READ lastError   NOTIFY lastErrorChanged)
 
     // Which calculator inside the state folder is open. The state folder is a
@@ -62,6 +72,7 @@ public:
     explicit StateFileManager(QObject *parent = nullptr);
 
     QUrl location() const { return m_location; }
+    QUrl settingsFile() const;
     QString displayName() const;
     bool isWritable() const;
     bool isDefault() const;

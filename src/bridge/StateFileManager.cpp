@@ -407,6 +407,18 @@ void StateFileManager::loadPersistedLocation()
     useDefaultLocation();
 }
 
+// Beside the ROM rather than inside the calculator's own subfolder: one shelf,
+// one keymap, one set of preferences, shared by every calculator in it. Which is
+// also what "the same folder as the ROM" says, and the ROM is shared the same
+// way.
+QUrl StateFileManager::settingsFile() const
+{
+    if (!m_location.isLocalFile())
+        return QUrl();
+    return QUrl::fromLocalFile(
+        QDir(m_location.toLocalFile()).filePath(QStringLiteral("settings.ini")));
+}
+
 void StateFileManager::persistLocation()
 {
     QSettings s;

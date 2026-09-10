@@ -323,6 +323,21 @@ Item {
                     Component.onCompleted:
                         value = column.factorToSlider(root.engine ? root.engine.speedFactor : 1)
                     onMoved: root.engine.speedFactor = column.sliderToFactor(value)
+
+                    // Seeded once and written on move, never bound - a control
+                    // whose value is bound to what it writes loses the binding
+                    // on the first drag. But the factor can now change from
+                    // somewhere else entirely, because switching folders reads
+                    // another calculator's, so the handle is moved by hand when
+                    // that happens and the user is not holding it.
+                    Connections {
+                        target: root.engine
+                        function onSpeedFactorChanged() {
+                            if (!speedSlider.pressed)
+                                speedSlider.value =
+                                    column.factorToSlider(root.engine.speedFactor)
+                        }
+                    }
                 }
 
                 Row {
