@@ -54,15 +54,41 @@ constexpr int  kIdleIntervalMs = 100;
 // 2 us each, which is 500,000/s. Neither is authoritative - which is exactly why
 // this one is derived from something observed on a real game instead of chosen
 // from the source.
-// 500,000, and TWO INDEPENDENT MEASUREMENTS now agree on it. Emu48 with
-// Authentic Calculator Speed on runs a 500-iteration empty loop in
-// 1.30615234375 s, the same to the last digit on four consecutive runs; the same
-// loop under Agape48 at 875,000 had a median of 0.7291 s across 49 runs, which
-// puts a real machine at 488,446 - within 2.4% of the 500,000 implied by x48's
-// own dead busy-wait of 2 us per instruction. The first estimate of 875,000 came
-// from Gert's eye ("it's runing at 5x the speed it should be") and was high by
-// about 1.8x, which is a fair result for an eyeball against a stopwatch.
-constexpr int    kRealSpeedInstrPerSec = 500000;
+// 205,000, MEASURED, and every earlier number in this comment's history was
+// wrong because it was taken through a ruler that was broken.
+//
+// The reference is Emu48 with Authentic Calculator Speed on: a 500-iteration
+// empty loop takes 1.30615234375 s, identical to the last digit on four
+// consecutive runs. Under Agape48 paced at 500,000, the same loop took 0.53588 s
+// - the mean of 186 samples with a standard deviation of 4.6%, out of 200 run in
+// one go on 2026sep10. So we were 2.437x too fast, and 500,000 / 2.437 is the
+// number above. (The other 14 samples of the 200 each spanned a moment when the
+// window lost focus, which stops the emulator outright - see Main.qml's
+// onActiveChanged - and they read 1.7 s to 27 s. Discarding them is not
+// cherry-picking: they measure Gert typing, not the calculator.)
+//
+// A SECOND MEASUREMENT, sharing nothing with the first, lands on a textbook
+// constant. speed-probe.txt counted 46,106,722 instructions across 142 of those
+// samples, which is 324,695 instructions per sample; over Emu48's 1.30615 s that
+// makes a real 48 execute 248,589 instructions a second. Emu48 stores
+// GXCycles = 123 cycles per timer2 tick, so 123 x 8192 = 1,007,616 cycles a
+// second, and 1007616 / 248589 = 4.05 CYCLES PER INSTRUCTION - the canonical
+// Saturn average. Two unrelated routes agreeing on 4 cycles is the only
+// corroboration this constant has ever had.
+//
+// The two numbers differ - 248,589 executed against 205,000 asked for - because
+// the pacer overshoots its target by about a fifth on this laptop. 205,000 is
+// therefore the SETTING that produces authentic speed here, not the machine's
+// instruction rate; per-machine is also why speed/rate is persisted.
+//
+// The estimates this replaces, and why each failed: 875,000 came from Gert's eye
+// ("it's runing at 5x the speed it should be") against the free-running
+// 4,375,000; 488,446 came from 49 runs whose median went through a t2_tick that
+// was being ratcheted from 61 to 3811 by get_t1_t2(); and 500,000 was x48's own
+// dead busy-wait of 2 us per instruction, a constant in code this build never
+// calls. x48's other internal figure, the timer fallback's 8192 instructions per
+// 1/16 s = 131,072/s, is 1.6x low.
+constexpr int    kRealSpeedInstrPerSec = 205000;
 
 // The most time one slice may make up. A stall - the phone backgrounding us, a
 // long frame, waking out of the 100 ms idle tick - must not hand the Saturn a
