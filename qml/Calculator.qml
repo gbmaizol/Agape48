@@ -318,6 +318,8 @@ Item {
             id: keypad
             anchors.fill: parent
             engine: root.engine
+            // Por ke la ŝpruchelpiloj povu malfari ĝin; vidu Keypad.qml.
+            faceScale: Math.min(root.scaleX, root.scaleY)
             onRemapRequested: (k) => root.remapRequested(k)
             onCustomizeCancelled: root.customizeCancelled()
             onUnassignedKey: (label) => root.unassignedKey(label)

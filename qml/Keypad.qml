@@ -167,6 +167,18 @@ Item {
     property var tipKey: null
     property point tipAnchor: Qt.point(-99, -99)
 
+    // KIOM LA VIZAĜO ESTAS SKALITA ĈIRKAŬ NI, transdonita de Calculator.qml,
+    // ĉar la ŝpruchelpilo estas la ununura afero sur ĉi tiu vizaĝo kiu ne
+    // devas skaliĝi kun ĝi: klavo estas parto de la bildo de la kalkulilo, sed
+    // ŝpruchelpilo estas fenestra ĉirkaŭaĵo, kaj ĉirkaŭaĵo havas la saman
+    // grandon ĉiam. Gert, 2026sep10: "I just found that key size of the
+    // tooltips depend on the size of the calculator! It shouldn't."
+    //
+    // Math.min de la du aksoj: sur ĉiu labortablo ili estas identaj, kaj sur
+    // Androido, kie ili ne estas, neniu ŝpruchelpilo iam aperas, ĉar fingro
+    // ne havas ŝveban staton.
+    property real faceScale: 1
+
     // THERE IS NO HOVER SENSOR ON THIS FACE, AND THERE CANNOT BE ONE. Qt Quick
     // delivers hover front to back and stops at the first item whose subtree
     // accepts it, and Main.qml's resize border is a full-window MouseArea with
@@ -242,6 +254,13 @@ Item {
         id: tipBox
         property bool shown: false
 
+        // Malfari la vizaĝskalon. Ĉio ĉi tie estas mezurita en vizaĝbilderoj,
+        // do multiplikite per la zomo ĝi elvenas konstanta sur la ekrano - kaj
+        // width kaj height restas veraj vizaĝbilderoj, kio estas kial ĉi tio
+        // estas multipliko kaj ne kontraŭa Scale: la ĉi-suba limigo al la
+        // dekstra rando bezonas larĝon kiun ĝi povas kompari kun root.width.
+        readonly property real zoom: root.faceScale > 0 ? 1 / root.faceScale : 1
+
         visible: shown && root.tipText.length > 0
         z: 100
         // Under the key rather than over it, so the pointer is never on top of
@@ -250,12 +269,12 @@ Item {
         x: root.tipKey ? Math.min(Math.max(0, root.tipKey.cap.x),
                                   Math.max(0, root.width - width))
                        : 0
-        y: root.tipKey ? root.tipKey.cap.y + root.tipKey.cap.height + 4 : 0
-        width:  tipLabel.implicitWidth + 10
-        height: tipLabel.implicitHeight + 6
-        radius: 3
+        y: root.tipKey ? root.tipKey.cap.y + root.tipKey.cap.height + 4 * zoom : 0
+        width:  tipLabel.implicitWidth + 10 * zoom
+        height: tipLabel.implicitHeight + 6 * zoom
+        radius: 3 * zoom
         color: "#fdf3a8"
-        border.width: 1
+        border.width: 1 * zoom
         border.color: "#8a7c1e"
 
         Text {
@@ -274,7 +293,7 @@ Item {
             // not depend on the system palette - the mistake the unsaved-path
             // dialog made with #e8e8e8 on a palette background.
             color: "#1b1b1b"
-            font: TextSizes.keyTip
+            font: TextSizes.keyTipAt(tipBox.zoom)
             horizontalAlignment: Text.AlignHCenter
         }
     }

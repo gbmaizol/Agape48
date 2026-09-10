@@ -62,11 +62,23 @@ QtObject {
     // pointSize estas -1 inverse. Vindozo plenigas ambaŭ, fontconfig sur
     // Linukso ne nepre. Meti ambaŭ sur unu tiparon estas rultempa averto, do
     // Qt.font() kun unu el ili anstataŭ du atribuoj.
-    readonly property font keyTip: {
+    //
+    // FUNKCIO KAJ NE PROPRAĴO, ĉar la ŝpruchelpilo pendas interne de la
+    // Scale-transformo de Calculator.qml, kaj tial ĉio kion ĝi desegnas jam
+    // estas multiplikita per la vizaĝskalo. Gert, 2026sep10: "I just found
+    // that key size of the tooltips depend on the size of the calculator! It
+    // shouldn't." La zomo kiun Keypad.qml transdonas estas 1/vizaĝskalo, do
+    // la teksto naskiĝas je 18 dividite per la skalo kaj la transformo
+    // remultiplikas ĝin al 18 sur la ekrano. Kaj ĉar la vizaĝo preskaŭ ĉiam
+    // estas malgrandigita, tio signifas rastrumi PLI GRANDE kaj malgrandigi,
+    // kio estas la akra direkto: kontraŭskali la pretan bildon estus la
+    // malklara.
+    function keyTipAt(zoom) {
         const f = Qt.application.font
+        const k = 1.5 * (zoom > 0 ? zoom : 1)
         return f.pixelSize > 0
-             ? Qt.font({ family: f.family, pixelSize: Math.round(f.pixelSize * 1.5) })
-             : Qt.font({ family: f.family, pointSize: f.pointSize * 1.5 })
+             ? Qt.font({ family: f.family, pixelSize: Math.round(f.pixelSize * k) })
+             : Qt.font({ family: f.family, pointSize: f.pointSize * k })
     }
 
     function reset() {
