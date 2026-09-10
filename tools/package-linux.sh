@@ -33,9 +33,15 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 build=${BUILD:-$root/build}
 out=${1:-$root/../dist-linux}
 
-# The version, from the one place that defines it: project(... VERSION x.y.z).
-# head -1 because qt_add_qml_module has a VERSION of its own, further down.
-version=$(sed -n 's/^[[:space:]]*VERSION \([0-9][0-9.]*\)[[:space:]]*$/\1/p' \
+# The version, from the build that is about to be packaged: the configure step
+# wrote CMakeCache.txt from project(... VERSION x.y.z), so it cannot disagree
+# with the binary and it does not care how that call is laid out. Reading
+# CMakeLists.txt is the fallback, and it is only right when VERSION sits alone
+# on its line - head -1 because qt_add_qml_module has a VERSION of its own.
+version=$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' "$build/CMakeCache.txt" \
+    2>/dev/null | head -1)
+[ -n "$version" ] || version=$(sed -n \
+    's/^[[:space:]]*VERSION \([0-9][0-9.]*\)[[:space:]]*$/\1/p' \
     "$root/CMakeLists.txt" | head -1)
 [ -n "$version" ] || { echo "cannot read VERSION from CMakeLists.txt" >&2; exit 1; }
 
