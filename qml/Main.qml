@@ -729,7 +729,8 @@ Window {
 
     // The resize border. It sits above everything and hands back any press that
     // is not within `margin` of an edge, so a click on a key still reaches the
-    // keypad underneath.
+    // keypad underneath - and for the same reason it has to hand back the
+    // pointer as well, see hoverForward() below.
     MouseArea {
         id: resizeBorder
         anchors.fill: parent
@@ -756,6 +757,28 @@ Window {
             if (e & (Qt.TopEdge | Qt.BottomEdge))  return Qt.SizeVerCursor
             return Qt.ArrowCursor
         }
+
+        // THE HOVER ROUTER. hoverEnabled above is what makes those cursor
+        // shapes work, and it is also the reason nothing on the calculator's
+        // face could ever be hovered: Qt Quick delivers hover front to back and
+        // stops at the first item whose subtree accepts it, and this one covers
+        // the whole window. Two rounds of key-tooltip fixes went underneath the
+        // roof before anybody looked at the roof - Keypad.qml has the
+        // measurement. So the border that already hands presses back to the
+        // keypad hands it the pointer too.
+        //
+        // Only while nothing is pressed. A resize drag has its own use for
+        // these coordinates, and on a touchscreen mouseX moves only while a
+        // finger is down, so a key held on a phone never grows a tooltip.
+        function hoverForward() {
+            if (pressed)
+                return
+            const s = mapToItem(null, mouseX, mouseY)
+            calculator.hoverAtScene(s.x, s.y)
+        }
+        onMouseXChanged: hoverForward()
+        onMouseYChanged: hoverForward()
+        onContainsMouseChanged: if (!containsMouse) calculator.hoverLeft()
 
         // Resized here rather than by QWindow::startSystemResize. The window
         // manager's own resize is interactive and ignores the height we set

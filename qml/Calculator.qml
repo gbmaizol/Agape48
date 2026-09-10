@@ -11,6 +11,12 @@ Item {
 
     // Passed through to the keypad, which owns the gesture.
     property alias customizing: keypad.customizing
+
+    // And the pointer, which comes DOWN from Main.qml's resize border because
+    // that border is the only item in the window that can be hovered. See the
+    // long note in Keypad.qml.
+    function hoverAtScene(sx, sy) { keypad.hoverAtScene(sx, sy) }
+    function hoverLeft() { keypad.hoverLeft() }
     signal remapRequested(var keyModel)
     signal customizeCancelled()
     signal unassignedKey(string label)
