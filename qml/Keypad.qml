@@ -243,10 +243,21 @@ Item {
         return rows.map(function (r) { return "<" + r.label + ">" }).join("\n")
     }
 
+    // NUR KIAM KLAVARO ESTAS KONEKTITA. Gert, provo 17, la sola problemo kiun la
+    // Androida duono trovis: "If I hold a button down for long in one place, it
+    // shows a keyboard shortcut. This should be disabled unless some kind of
+    // keyboard is connected." Kaj li pravas dufoje - fingro kiu tenas klavon ne
+    // demandas "kiu klavo de mia klavaro estas ĉi tiu", kaj sur telefono sen
+    // klavaro la respondo estus nomo de klavo kiun neniu povas premi.
+    //
+    // ĈI TIE KAJ NE EN hoverAtScene(): keyboardAttached() estas JNI-voko sur
+    // Androido, kaj hoverAtScene kuras dufoje po montrila movo. Ĉi tiu punkto
+    // kuras maksimume unu fojon po du sekundoj kaj demandas ekzakte kiam la
+    // respondo gravas, do klavaro alveninta post la lanĉo estas rimarkata.
     Timer {
         id: tipDelay
         interval: 2000
-        onTriggered: root.tipShown = true
+        onTriggered: root.tipShown = root.engine.keyboardAttached()
     }
 
     // Right-click, no modifier. A MultiPointTouchArea only ever sees the left

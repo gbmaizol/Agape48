@@ -321,7 +321,7 @@ Window {
             // null missed it. The question is "does the keypad have it", and
             // if not, whether anything with a better claim is on screen.
             if (settings.opened || appMenu.opened || rebind.opened
-                    || picker.opened || handover.opened)
+                    || picker.opened || handover.opened || about.opened)
                 return
             if (!calculator.hasKeyboardFocus())
                 calculator.grabKeyboardFocus()
@@ -409,6 +409,14 @@ Window {
                 else
                     banner.show(qsTr("There is nothing on level 1 to export."))
             }
+        }
+        MenuSeparator {}
+        // Propra sekcio super la du eroj kiuj fermas la programon, kaj ne sub
+        // ili: la lasta grupo restas "la du danĝeraj" kaj nenio sendanĝera
+        // sidas inter ili. La kialo por la pozicio staras en AboutContent.qml.
+        MenuItem {
+            text: qsTr("About Agape48…")
+            onTriggered: root.about.open()
         }
         MenuSeparator {}
         MenuItem {
@@ -540,6 +548,31 @@ Window {
         root.handover.showFor(holder, name)
     }
 
+    // ONE DIALOG, TWO SHELLS - la kvara, kaj la sola kiu neniam estis fenestro
+    // antaŭe. Gert petis ĝin je provo 17 linio 4; ĝi estas deklarita sur ambaŭ
+    // platformoj kaj nur unu el la du iam malfermiĝas, same kiel Agordoj, la
+    // breto kaj la transdono.
+    readonly property var about: Qt.platform.os === "android" ? aboutPage
+                                                              : aboutWindow
+
+    AboutWindow {
+        id: aboutWindow
+        engine: engine
+        transientParent: root
+        onOpenedChanged: focusGuard.restart()
+    }
+
+    AboutPage {
+        id: aboutPage
+        engine: engine
+        x: root.pageX
+        y: root.pageY
+        width: root.pageW
+        height: root.pageH
+        onOpenedChanged: focusGuard.restart()
+        onDismissRequested: root.closeAllPages()
+    }
+
     // THE PHONE'S BACK MEANS "OUT", not "up one". Gert, dogfood android-08:
     // "The back button should take out of every internal configs or selections,
     // stopping at the calculator", and on the line where back from Settings had
@@ -565,6 +598,7 @@ Window {
             handoverPage.leave()
         if (settingsPage.opened)
             settingsPage.dismiss()
+        aboutPage.close()
     }
 
     // ONE SHELF, TWO SHELLS. The same split as Settings, for the same reason,
@@ -776,8 +810,18 @@ Window {
         // keypad hands it the pointer too.
         //
         // Only while nothing is pressed. A resize drag has its own use for
-        // these coordinates, and on a touchscreen mouseX moves only while a
-        // finger is down, so a key held on a phone never grows a tooltip.
+        // these coordinates.
+        //
+        // THE SECOND HALF OF THAT SENTENCE USED TO BE A CLAIM AND IT WAS WRONG.
+        // It read "on a touchscreen mouseX moves only while a finger is down, so
+        // a key held on a phone never grows a tooltip" - which is true about the
+        // pointer and false about the conclusion. A touch press synthesises a
+        // mouse move, this border hands the press back because it is not on an
+        // edge, so `pressed` is false, the move gets forwarded, and a finger that
+        // then stays still for two seconds is EXACTLY the gesture the tooltip
+        // waits for. Gert found it on the phone at provo 17: "If I hold a button
+        // down for long in one place, it shows a keyboard shortcut." The gate is
+        // in Keypad.qml, on whether a keyboard is attached at all.
         function hoverForward() {
             if (pressed)
                 return

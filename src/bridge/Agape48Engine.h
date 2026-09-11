@@ -122,6 +122,12 @@ class Agape48Engine : public QObject
     Q_PROPERTY(int measuredRate READ measuredRate NOTIFY measuredRateChanged)
     Q_PROPERTY(QString logPath      READ logPath      CONSTANT)
 
+    // Kion la fenestro "About" montras. La versio jam estas en
+    // Qt.application.version; ĉi tiuj du ne havas QML-ekvivalenton, kaj
+    // buildStamp estas skribita je konstruotempo de cmake/BuildStamp.cmake.
+    Q_PROPERTY(QString buildStamp   READ buildStamp   CONSTANT)
+    Q_PROPERTY(QString qtVersion    READ qtVersion    CONSTANT)
+
     // Counts down while a sleep request is outstanding; 0 when nothing is.
     Q_PROPERTY(int waitSeconds READ waitSeconds NOTIFY waitSecondsChanged)
 
@@ -150,6 +156,19 @@ public:
     int  realSpeedRate() const  { return m_realSpeedRate; }
     int  measuredRate() const   { return m_measuredRate; }
     QString logPath() const;
+    QString buildStamp() const;
+    QString qtVersion() const;
+
+    // ĈU IU KLAVARO ESTAS KONEKTITA. Gert, provo 17, la sola problemo kiun la
+    // Androida duono trovis: "If I hold a button down for long in one place, it
+    // shows a keyboard shortcut. This should be disabled unless some kind of
+    // keyboard is connected."
+    //
+    // FUNKCIO KAJ NE PROPRECO, ĉar la respondo ŝanĝiĝas dum la programo kuras -
+    // Bludenta klavaro povas alveni kaj foriri - kaj propreco kun NOTIFY kiu
+    // neniam pafas estus kaŝmemorigita de la unua ligo por ĉiam. Ĝi estas vokata
+    // maksimume unu fojon po du sekundoj, kiam klavo estas ŝvebita.
+    Q_INVOKABLE bool keyboardAttached() const;
 
     void setRomSource(const QUrl &url);
     void setHapticsEnabled(bool on);

@@ -1,5 +1,12 @@
 #include "Agape48Engine.h"
 
+#include "agape48_build.h"
+
+#ifdef Q_OS_ANDROID
+#include <QJniObject>
+#include <QtCore/qcoreapplication_platform.h>
+#endif
+
 #include <QCoreApplication>
 
 #include "SkinModel.h"
@@ -645,8 +652,23 @@ bool Agape48Engine::start()
         emit romRequired();
         // Naming the folder is the whole difference between "something is
         // wrong" and "put a file called rom in here".
+        //
+        // KAJ DE KIE PRENI ĜIN, ekde provo 17. Gert, veninte al ĉi tiu strio kun
+        // freŝa instalo kaj nenio alia: "What if the red message says something
+        // in the lines of 'Download an official one at
+        // https://www.hpcalc.org/hp48/pc/emulators/ ctrl-f to search for "HP 48GX
+        // Revision"?'" Ĝi estas la sola ekrano kiun homo sen ROM certe vidos, kaj
+        // ĝi estis la sola loko kiu sciis pri la problemo kaj diris nenion pri la
+        // solvo. La serĉĉeno estas laŭvorte kion oni tajpas en Ctrl-F sur tiu
+        // paĝo: ĝi havas dek unu ROM-ojn inter multe da alia, kaj li ne trovis
+        // ilin.
         setError(tr("No HP 48 ROM. There is no file named \"rom\" in %1, and "
-                    "none has been chosen in Settings.")
+                    "none has been chosen in Settings.\n"
+                    "A free one: open https://www.hpcalc.org/hp48/pc/emulators/ "
+                    "and search the page for \"HP 48GX Revision\". Download "
+                    "gxrom-r.zip, unzip it, and choose the 524,288-byte file "
+                    "called gxrom-r that comes out - or rename it to \"rom\" and "
+                    "drop it in the folder above.")
                      .arg(m_state->location().toLocalFile()));
         return false;
     }
@@ -1029,6 +1051,51 @@ void Agape48Engine::setTickRate(int ms)
 }
 
 // --- keys -------------------------------------------------------------------
+
+// Ambaŭ estas konstantoj de la kompililo, do ili ne bezonas la motoron por ion
+// ajn; ili vivas ĉi tie ĉar la motoro estas kion QML jam havas ĉe la mano.
+QString Agape48Engine::buildStamp() const
+{
+    // fromUtf8, ne fromLatin1: la kaptilo portas "·" kaj BuildStamp.cmake skribas
+    // la dosieron en UTF-8, do Latin-1 faris el ĝi "Â·" - vidita sur la ekrano.
+    return QString::fromUtf8(AGAPE48_BUILD);
+}
+
+QString Agape48Engine::qtVersion() const
+{
+    return QString::fromLatin1(QT_VERSION_STR);
+}
+
+// Androido scias tion kaj Qt ne demandas ĝin: QInputDevice::primaryKeyboard()
+// elpensas "core keyboard"-aparaton kiam neniu estas registrita, do nombri la
+// aparatojn de Qt respondas "jes" sur ĉiu telefono. Configuration.keyboard
+// estas la kanona respondo - KEYBOARD_NOKEY = 1 - kaj hardKeyboardHidden
+// kaptas la duan kazon, klavaro kiu ekzistas sed estas fermita aŭ malkonektita
+// (HARDKEYBOARDHIDDEN_YES = 2).
+//
+// La labortabloj respondas jes senkondiĉe. Tekokomputilo sen klavaro ne estas
+// kazo kiun ĉi tiu programo bezonas trakti, kaj la ŝpruchelpilo tie estas
+// petita funkcio.
+bool Agape48Engine::keyboardAttached() const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject ctx(QNativeInterface::QAndroidApplication::context());
+    if (!ctx.isValid())
+        return false;
+    const QJniObject res =
+        ctx.callObjectMethod("getResources", "()Landroid/content/res/Resources;");
+    if (!res.isValid())
+        return false;
+    const QJniObject cfg =
+        res.callObjectMethod("getConfiguration", "()Landroid/content/res/Configuration;");
+    if (!cfg.isValid())
+        return false;
+    return cfg.getField<jint>("keyboard") != 1
+        && cfg.getField<jint>("hardKeyboardHidden") != 2;
+#else
+    return true;
+#endif
+}
 
 QString Agape48Engine::logPath() const
 {

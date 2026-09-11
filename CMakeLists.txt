@@ -16,7 +16,7 @@ if(CMAKE_CONFIGURATION_TYPES)
 endif()
 
 project(Agape48
-    VERSION 0.9.0
+    VERSION 0.9.1
     DESCRIPTION "HP 48 emulator on the x48 core"
     LANGUAGES C CXX)
 
@@ -78,6 +78,24 @@ if(WIN32)
     set(AGAPE48_WINDOWS_ICO "${CMAKE_CURRENT_SOURCE_DIR}/installer/agape48.ico")
     if(EXISTS "${AGAPE48_WINDOWS_ICO}")
         configure_file(platform/windows/agape48.rc.in agape48.rc @ONLY)
+        # WINDRES NE SCIAS KE LA .ico ESTAS ENIGAĴO, kaj tial la ikono enmetita
+        # en agape48.exe restis tiu de 2026sep08 tra du ŝanĝoj de la arto -
+        # provo 17, linioj 5 kaj 13: "the taskbar icon is the old one!".
+        #
+        # Mezurite sur la Vindoza komputilo 2026sep11: `ninja -t deps` por
+        # agape48.rc.obj presas "#deps 0". windres kuras la antaŭprocesoron, la
+        # antaŭprocesoro raportas #include-ojn, kaj `1 ICON "vojo"` ne estas
+        # #include - do la .ico neniam eniras la dependoliston. La sola enigaĵo
+        # kiun Ninja konas estas la TEKSTO de agape48.rc, kiu ne ŝanĝiĝas kiam
+        # la arto ŝanĝiĝas. La sep RT_ICON-oj en la exe kaj la sep en la .ico
+        # havis nenion komunan; ĉio alia sur tiu komputilo - la Start-menuo, la
+        # labortabla ligilo, Agordoj > Aplikaĵoj - legas {app}\agape48.ico kaj
+        # estis ĝusta, kio estas kial ĝi aspektis kiel kaŝmemora problemo.
+        #
+        # OBJECT_DEPENDS estas honorata de Ninja kaj de Makefiles kaj ignorata
+        # de Visual Studio kaj Xcode, kiujn ĉi tiu projekto ne uzas.
+        set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/agape48.rc"
+            PROPERTIES OBJECT_DEPENDS "${AGAPE48_WINDOWS_ICO}")
         target_sources(agape48 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/agape48.rc")
     else()
         message(STATUS
@@ -123,6 +141,9 @@ set(AGAPE48_QML_FILES
     qml/HandoverPage.qml
     qml/HandoverContent.qml
     qml/AdvancedWindow.qml
+    qml/AboutWindow.qml
+    qml/AboutPage.qml
+    qml/AboutContent.qml
     qml/Agape48Keymap.qml
     qml/TextSizes.qml
 )
@@ -311,3 +332,24 @@ message(STATUS "  installer .......... ISCC.exe /DAppVersion=${PROJECT_VERSION} 
 message(STATUS "")
 
 target_compile_definitions(agape48 PRIVATE AGAPE48_VERSION="${PROJECT_VERSION}")
+
+# La kaptilo de la konstruo, kiun la fenestro "About" montras. Propra celo kaj
+# ne string(TIMESTAMP) ĉi tie, ĉar ĉi tio devas kuri je KONSTRUOTEMPO: vidu
+# cmake/BuildStamp.cmake, kiu ankaŭ klarigas kial ĝi skribas nur kiam la teksto
+# ŝanĝiĝis.
+set(AGAPE48_BUILD_H "${CMAKE_CURRENT_BINARY_DIR}/agape48_build.h")
+add_custom_target(agape48_stamp
+    BYPRODUCTS "${AGAPE48_BUILD_H}"
+    COMMAND "${CMAKE_COMMAND}" "-DOUT=${AGAPE48_BUILD_H}"
+            "-DSRC=${CMAKE_CURRENT_SOURCE_DIR}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildStamp.cmake"
+    COMMENT "agape48: build stamp"
+    VERBATIM)
+add_dependencies(agape48 agape48_stamp)
+target_include_directories(agape48 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+
+# Kaj unu fojo je agordotempo, por ke la unua konstruo havu la dosieron antaŭ
+# ol la kompililo petas ĝin.
+execute_process(COMMAND "${CMAKE_COMMAND}" "-DOUT=${AGAPE48_BUILD_H}"
+                        "-DSRC=${CMAKE_CURRENT_SOURCE_DIR}"
+                        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildStamp.cmake")
