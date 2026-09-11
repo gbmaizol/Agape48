@@ -307,6 +307,24 @@ def compose(art: Image.Image, s: int, fill: float, background,
 
 def write(path: pathlib.Path, img: Image.Image) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    # SKRIBI NUR KIAM LA PIKSELOJ ŜANĜIĜIS, kaj ne kiam nur la bajtoj ŝanĝiĝis.
+    # Pillow 10 kaj Pillow 12 kodas la samajn pikselojn en malsamajn bajtojn -
+    # mezurite dufoje, en ambaŭ direktoj: 19 el 19 dosieroj identaj laŭpiksele
+    # kaj ĉiuj malsamaj laŭbajte. Senkondiĉa skribo do malpurigis 19 enarbigitajn
+    # dosierojn ĉe ĉiu kuro sur la komputilo kiu ne enarbigis ilin, kaj de
+    # 2026sep12 tio kostas pli ol ĝenon: build-windows.ps1 kuras ĉi tiun
+    # skripton kiel sian unuan paŝon, do cmake/BuildStamp.cmake trovis la arbon
+    # malpura kaj stampis "f6c83b78+" - la fenestro About diris "ĉi tiu duumaĵo
+    # ne kongruas kun sia enarbigo" pri tute pura elprenaĵo.
+    if path.exists():
+        try:
+            with Image.open(path) as old:
+                if (old.size == img.size
+                        and old.convert("RGBA").tobytes() == img.convert("RGBA").tobytes()):
+                    print(f"same  {path.relative_to(HERE)} ({path.stat().st_size} bytes, {img.width}x{img.height})")
+                    return
+        except OSError:
+            pass   # nelegebla aŭ difekta: superskribi ĝin estas la ĝusta respondo
     img.save(path, format="PNG")
     print(f"wrote {path.relative_to(HERE)} ({path.stat().st_size} bytes, {img.width}x{img.height})")
 
