@@ -712,10 +712,34 @@ Window {
     Rectangle {
         id: banner
         property bool isError: true
+
+        // KION LA STRIO RICEVIS, antaŭ ol ĝi fariĝis markita teksto. La du
+        // funkcioj sube skribis rekte en text.text ĝis 2026sep11; nun ili
+        // skribas ĉi tien kaj la etikedo estas ligo, ĉar ligo devas esti
+        // rekalkulita kaj ne stampita unufoje.
+        property string raw: ""
+
+        // LA URL ESTAS KLAKEBLA. Gert, 2026sep11, vidinte la novan sen-ROM
+        // mesaĝon: "Make the link to hpcal.org on the red strip clickable and
+        // taking to the default browser on all 3 systems."
+        //
+        // Farita ĉi tie kaj ne en la mesaĝo, do ĈIU strio kiu iam portos URL-on
+        // ricevas la saman konduton kaj neniu C++-ĉeno devas porti markadon.
+        // La eskapo venas UNUE: StyledText interpretas < kaj &, kaj mesaĝo kiu
+        // portas klavnomon inter angulaj krampoj estus parte manĝita alie.
+        function linkify(s) {
+            const esc = s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            // La linisaltoj kiujn la mesaĝo mem portas. StyledText traktas \n
+            // kiel spacon, do sen ĉi tio la alineo kiu diras "jen de kie preni
+            // ROM-on" kunfluus kun la frazo kiu diras ke ne estas ROM.
+            return esc.replace(/\n/g, "<br>")
+                      .replace(/(https?:\/\/[^\s<>"']+)/g, '<a href="$1">$1</a>')
+        }
+
         // Errors stay up long enough to read twice; a hint about a key nobody
         // claimed is not an error and goes after three seconds, as asked.
-        function show(msg) { isError = true;  text.text = msg; opacity = 1; hideTimer.interval = 12000; hideTimer.restart() }
-        function hint(msg) { isError = false; text.text = msg; opacity = 1; hideTimer.interval = 3000;  hideTimer.restart() }
+        function show(msg) { isError = true;  raw = msg; opacity = 1; hideTimer.interval = 12000; hideTimer.restart() }
+        function hint(msg) { isError = false; raw = msg; opacity = 1; hideTimer.interval = 3000;  hideTimer.restart() }
         // Over the centre of the calculator's SCREEN since 2026sep03, on Gert's
         // instruction. Along the bottom it lay across the bottom two rows of
         // keys; the top is still not available, for the reason above; and the
@@ -760,12 +784,33 @@ Window {
             id: text
             anchors { fill: parent; margins: 12 }
             color: "white"; wrapMode: Text.WordWrap; font.pixelSize: TextSizes.banner
+            // StyledText kaj ne RichText: ĝi konas <a href> kaj linkAt(), kostas
+            // neniun HTML-analizilon, kaj ne povas aranĝi la strion laŭ tabelo
+            // kiun neniu petis.
+            textFormat: Text.StyledText
+            text: banner.linkify(banner.raw)
+            // Ambra, ĉar ĝi devas legiĝi kaj sur la ruĝo de eraro kaj sur la
+            // ardezo de avizo, kaj la defaŭlta blua legiĝas sur nek unu.
+            linkColor: "#ffd9a0"
         }
         // Same on a deliberate dismissal, or the error the user just waved away
         // reappears the next time Settings is opened.
+        //
+        // LA LIGO UNUE. Ĉi tiu areo kuŝas super la teksto, do ĝi ricevas ĉiun
+        // klakon kaj onLinkActivated de la Text neniam pafus; do ĝi demandas la
+        // tekston kio estas sub la fingro kaj malfermas ĝin mem. Ekster ligo la
+        // klako ankoraŭ signifas "for".
         MouseArea {
+            id: bannerArea
             anchors.fill: parent
-            onClicked: banner.forget()
+            onClicked: (mouse) => {
+                const p = text.mapFromItem(bannerArea, mouse.x, mouse.y)
+                const link = text.linkAt(p.x, p.y)
+                if (link !== "")
+                    Qt.openUrlExternally(link)
+                else
+                    banner.forget()
+            }
         }
     }
 
