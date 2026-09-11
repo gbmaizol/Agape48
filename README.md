@@ -86,7 +86,7 @@ One download per machine, no runtime to fetch first, and no account to make.
 
 ### Windows
 
-1. Download **`Agape48-0.9.0-windows-x64-setup.exe`**.
+1. Download **`Agape48-0.9.1-windows-x64-setup.exe`**.
 2. **Windows will stop you**: *"Windows protected your PC"*. Click **More info**, then **Run anyway**. That message is not a virus warning — it is Windows saying the installer carries no code-signing certificate, which is a purchase rather than a build step. Nothing in the download is packed or obfuscated, and every byte of source that went into it is in this repository.
 3. **Next**, **Next**, **Install**. It goes into `Program Files` and adds a Start-menu entry.
 4. Start it from the Start menu. It uninstalls like any other program, from *Apps & features*.
@@ -96,8 +96,8 @@ One download per machine, no runtime to fetch first, and no account to make.
 No root, nothing in `/opt`, and nothing to add to your package manager:
 
 ```sh
-tar xzf Agape48-0.9.0-linux-x86_64.tar.gz
-./Agape48-0.9.0-linux-x86_64/install.sh
+tar xzf Agape48-0.9.1-linux-x86_64.tar.gz
+./Agape48-0.9.1-linux-x86_64/install.sh
 ```
 
 There is no `chmod` step: `tar` keeps the executable bit, so `install.sh` just runs. (If you unpacked with a graphical archiver that dropped permissions, `sh install.sh` works anyway.)
@@ -108,7 +108,7 @@ The download is 37 MB and unpacks to 98 MB, nearly all of it Qt. It is built for
 
 ### Android
 
-1. Download **`Agape48-0.9.0-arm64-v8a.apk`** onto the phone and tap it.
+1. Download **`Agape48-0.9.1-arm64-v8a.apk`** onto the phone and tap it.
 2. **Android will refuse the first time** — *"your phone is not allowed to install unknown apps from this source"* — because the file did not come from the Play Store. Tap **Settings**, allow that one source, and come back. Android asks per *source*, so allowing your browser does not also allow your file manager.
 3. Play Protect may then warn about an app from an unrecognised developer. The **Install anyway** button is behind *More details*.
 4. Tap **Open**. On a phone the calculator fills the screen, the way Droid48 does.
@@ -126,8 +126,10 @@ It is, however, a free download, and that is not a wink: **HP gave permission fo
 ### Getting one
 
 1. Go to **<https://www.hpcalc.org/hp48/pc/emulators/>**.
-2. Scroll to the ROM images. There are eleven, and any of them works. If you want the one to stop thinking about, take **`gxrom-r.zip`** — the last revision of the 48GX, which is the calculator this skin is a photograph of. 314 KB.
-3. Unzip it. Inside is a single file called **`gxrom-r`** with no extension, 524,288 bytes. That file *is* the ROM: nothing to convert, nothing to unpack further.
+2. That page is mostly emulators, not ROMs, and the ROM images are a long way down it. Do not scroll — press **Ctrl-F** (**⌘-F** on a Mac) and search the page for **`HP 48GX Revision`**. That lands you on them.
+3. There are eleven, and any of them works. If you want the one to stop thinking about, take **`gxrom-r.zip`** — the last revision of the 48GX, which is the calculator this skin is a photograph of. 314 KB.
+4. **Unzip it, and do that before you go looking for the file.** Inside is a single file called **`gxrom-r`** with no extension, 524,288 bytes. That file *is* the ROM: nothing to convert, nothing to unpack further. A file still sitting inside the `.zip` is invisible to Agape48 and to every file dialog, which is the likeliest reason for "I downloaded it and the program cannot see it".
+5. If you cannot find the unzipped file afterwards, **sort your Downloads folder by date and look at the oldest thing in it.** These ROMs carry their original timestamps from the early 2000s, so the newest file you have is the one that looks twenty-five years old.
 
 The others, if you are curious rather than in a hurry: `gxrom-k` to `gxrom-r` are 48GX revisions K, L, M, P and R, and `sxrom-a` to `sxrom-j` are the older 48SX. Later is generally better — R fixed bugs that K had — but a 48SX ROM turns Agape48 into a 48SX, which is the point of having the choice.
 
@@ -145,7 +147,9 @@ Either way round works, and neither needs the other:
 
 On Android that is much the easier of the two routes: the folder is visible in any file manager and over a USB cable and needs no permission at all, so you plug the phone into a computer and drop the file in.
 
-**The quick way — point the app at it.** Start Agape48, open **Settings → HP 48 ROM**, and choose the file where it already sits. The calculator starts the moment you press Open, and the path is remembered, so you never do it again. One wrinkle: the file dialog lists ROM-shaped names, so if you kept the name `gxrom-r` and cannot see it, switch the dialog's filter to **All files**.
+**The quick way — point the app at it.** Start Agape48 and click the underlined **48GX** in the top right corner of the calculator — that is the menu, and there is no other way in. Then **Settings → HP 48 ROM**, and choose the file where it already sits. The calculator starts the moment you press Open, and the path is remembered, so you never do it again.
+
+Two wrinkles, both about the file dialog. It cannot look inside a `.zip`, so unzip first. And it lists ROM-shaped names, which includes `gxrom-r` and `sxrom-a` — but if you renamed the file to something else and cannot see it, switch the dialog's filter to **All files**.
 
 ### When to do it
 

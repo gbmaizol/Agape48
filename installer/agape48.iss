@@ -2,7 +2,7 @@
 ;
 ; Built with:
 ;   python tools\make-icon.py
-;   & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=0.9.0 installer\agape48.iss
+;   & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=0.9.1 installer\agape48.iss
 ;
 ; The version number is NOT kept here. It lives in project(Agape48 VERSION ...)
 ; in CMakeLists.txt, and the CMake configure step prints the whole ISCC line
