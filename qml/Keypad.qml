@@ -106,6 +106,17 @@ Item {
                 const i = root.held[p.pointId]
                 if (i !== undefined) { root.releaseIndex(i); delete root.held[p.pointId] }
             }
+            // KAJ LA ŜPRUCHELPILO FORIRAS KUN LA FINGRO. Sur labortablo la
+            // montrilo restas post klako kaj la ŝvebo mem forprenas la
+            // skatolon kiam ĝi moviĝas; sur tuŝekrano ne estas montrilo post
+            // la levo, containsMouse de la rando neniam ŝanĝiĝas, kaj
+            // hoverLeft() do neniam kuras - do skatolo kiu aperis restis sur
+            // la ekrano senfine. Mezurite sur la telefono 2026sep12 kun
+            // virtuala klavaro: teni la ŝovklavon montris <F7>/<Shift>, kaj ĝi
+            // ankoraŭ pendis tie du premojn poste, super klavo kiun neniu
+            // tuŝis.
+            if (root.tipShown || tipDelay.running)
+                root.hoverLeft()
         }
         onCanceled: (points) => {
             // Gesture stolen by the system (notification shade, call). Let go of
