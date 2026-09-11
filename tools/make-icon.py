@@ -7,8 +7,9 @@ Unu peco da arto, ĉiu platformo, por ke ili ne povu disiĝi:
                                setWindowIcon uzas ĝin, kaj tio estas kion la
                                fenestroadministranto kaj la taskostrio desegnas
                                sur ĈIU platformo
-    installer/agape48.ico      la Vindoza instalilo, la Start-menua ligilo, kaj
-                               Aldoni/Forigi
+    installer/agape48.ico      la Vindoza instalilo, la Start-menua ligilo,
+                               Aldoni/Forigi, KAJ la ikono enmetita en
+                               agape48.exe mem per agape48.rc
     platform/linux/hicolor/    la ikontemo de freedesktop je sep grandoj: la
                                menuero, la doko kaj Alt-Tab
     platform/android/res/...   la adapta ikono: antaŭa tavolo je kvin densoj,
@@ -45,10 +46,10 @@ eĉ ne tio.)
 
 LA FOTOGRAFAĴO ESTAS TURNITA 30 GRADOJN MALDEKSTRUME. Gert, 2026sep08: "one
 quirk to make it different from Droid48: Rotate it 30 counter-clockwise. But
-this needs to be the new icon for all OSs." Tio ankaŭ solvas formoproblemon
-kiun ĝi ne estis petita solvi: turni altan bildon plilarĝigas ĝian ĉirkaŭskatolon
-kaj tial ĝi pli bone plenigas kvadraton, kaj la cirklon de lanĉilo, ol ĝi povus
-starante rekte.
+this needs to be the new icon for all OSs." La turno nun okazas ANTAŬ la tondo -
+vidu FENESTRO - do la klino vivas interne de la bildo anstataŭ esti ĝia silueto,
+kaj la ikono povas esti plena ĝis siaj randoj sen nigraj trianguloj ĉe la
+anguloj.
 
 TRAVIDEBLA KIE AJN LA FORMATO PERMESAS, kaj la ardezo de Gert kie ne. Liaj
 vortoj, en tiu ordo: "make the background r66,g75,b92" kaj poste "or transparent
@@ -57,20 +58,20 @@ Androida ADAPTA ikono, kiu devas esti opaka kaj kiun iuj lanĉiloj pentras nigra
 se ĝi ne estas - nigraj strioj denove, kio estas la plendo per kiu ĉi tio
 komenciĝis. Do:
 
-    la labortabla PNG, la .ico kaj la malnova kvadrato     travideblaj, kaj la
-                klinita fotografaĵo flosas super kio ajn estas malantaŭ ĝi
-    la ANTAŬA tavolo de la adapta ikono     travidebla ĉe la anguloj, sed skalita
-                por kovri la maskon de la lanĉilo tute - vidu FILL_ADAPTIVE
+    la labortabla PNG, la .ico kaj la malnova kvadrato     cirklo sur nenio,
+                do la fotografaĵo flosas super kio ajn estas malantaŭ ĝi
+    la ANTAŬA tavolo de la adapta ikono     kvadrato, ĉar la LANĉILO tenas la
+                tondilon tie - vidu FILL_ADAPTIVE
     la FONA tavolo de la adapta ikono     la ardezo, kiu laŭ desegno nun estas
                 vidata nur dum lanĉilo animacias la ikonon
 
-La mola ombro restas en ĉiu kazo. Ĝi estas kio malhelpas ke malluma fotografaĵo
-dissolviĝu en malluman taskostrion, kaj sur travidebleco ĝi simple vojaĝas kun
-la bildo.
+La mola ombro restas en ĉiu kazo krom la adapta antaŭa tavolo, kie ĝi nur
+manĝus kovron kiun la masko bezonas. Ĝi estas kio malhelpas ke malluma
+fotografaĵo dissolviĝu en malluman taskostrion.
 """
 
 import pathlib
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter
 
 HERE = pathlib.Path(__file__).resolve().parent.parent
 SOURCE = HERE / "assets" / "icon-source.png"
@@ -92,49 +93,65 @@ PNG_SIZE = 256
 
 ANGLE = 30                              # maldekstrume
 
-# LA TONDO, 2026sep10. Gert, vidinte la Androidan konstruon: "The icon that was
-# implemented in the latest Android build looks good to me in any size. Maybe it
-# should be made with just a little bit (20%) more contrast and brightness. Even
-# better if cropped better so that two thirds of the ON button appeared at the
-# bottom of the circle."
+# LA FENESTRO DE GERT, 2026sep11. Li mem tondis ĝin kaj metis ĝin en Dropbox
+# kiel Agape48-Cropped-Circle.png: "I made a manual crop... because this one
+# looks the coolest what cropped as a circle, showing the purple button, the
+# green button and the ON."
 #
-# La ON-klavo estis TUTE NEVIDEBLA en la cirklo antaŭe: mezurite, 0,0% de ĝi
-# staris interne de la 72dp-masko. La fotografaĵo estas 325x519, la klavo sidas
-# ĉe ĝia malsupra maldekstra angulo, kaj cirklo montras nur la mezan trionon -
-# do la klavo neniam havis ŝancon.
+# NE LIA PNG. Lia dosiero estas 134x134 bilderoj tonditaj el la antaŭrigarda
+# folio de 2026sep09, do ĝi jam pasis tra malgrandigo; uzi ĝin kiel fonton
+# signifus grandigi ĝin 3,2-oble por la 432-bildera Androida tavolo. Anstataŭe
+# lia fenestro estis LOKALIZITA en la fotografaĵo kaj ĉi tie estas rekonstruita
+# el la plena rezolucio. La mezuro, per ŝablona kongruo je 46 skaloj: lia tondo
+# sidas ĉe k=0,523 de la turnita arto - ekzakte la 1,25-plenigo de tiu tago,
+# 320/613 = 0,5224 - kun meza diferenco de kanalo 3,26 el 255, kio estas
+# resampliga bruo kaj nenio alia. Tio faras lian 134-bilderan kvadraton
+# 256x256 bilderoj de la turnita arto, kio estas PLI da detalo ol la malnova
+# ikono havis, ne malpli.
 #
-# Kial tondo kaj ne ŝovo. Ŝovi la bildon supren enmetas la ON-klavon, sed ĝi
-# ankaŭ eltiras angulon el la masko: la turnita rektangulo havas nur 40
-# bilderojn da marĝeno sur sia mallonga akso, kaj suprena ŝovo de d konsumas
-# 0,5*d el ĝi. Tondo anstataŭe faras la bildon PLI KVADRATA, kaj kvadrata bildo
-# kovras cirklon per malpli da skalo: tial FILL_ADAPTIVE malsupriĝis de 1,6 al
-# 1,3 en la sama ŝanĝo. La fotografaĵo mem ne estas tuŝita; ĉi tio estas nombro
-# kiun oni povas malfari.
-#
-# Elektita per serĉo super la kvar randoj kaj la plenigo, mezurante du aferojn
-# je 432 bilderoj: kiom da la ON-klavo staras interne de la 72dp-cirklo, kaj kiom
-# de tiu cirklo restas nuda. El 144 kandidatoj ok kovras la maskon kaj montras la
-# klavon; ĉi tiu estas la plej proksima al "du trionoj, ĉe la fundo":
-#
-#   ON interne 69,5%     masko nuda 0,00% je 72dp, 1,49% je 80dp
-#   la klavo staras 7 bilderojn maldekstre de la centro kaj 63 sub ĝi, do
-#   ĉe la fundo kaj preskaŭ centrita
-#
-# Kion la cirklo nun montras: I/O, la 1, la verda dekstra ŝovsago, CONT OFF, kaj
-# la ON-klavo tranĉita de la malsupra rando.
-CROP = (0, 240, 230, 519)
+# TONDO POST LA TURNO, ne antaŭ ĝi. Lia fenestro estas akse ordigita en la
+# TURNITA spaco, do ĝi ne estas esprimebla kiel rektangulo sur la fotografaĵo;
+# tial la malnova CROP=(0,240,230,519) malaperis kaj la ordo nun estas turni,
+# tondi, agordi. Kion tio ŝanĝas krom la kadro: la silueto de la ikono ne plu
+# ESTAS la klinita rektangulo. La klino nun montriĝas en la klavovicoj kiuj
+# kuras oblikve tra plena kadro, kaj la kvar travideblaj trianguloj - 44% de la
+# tolo je 1,25, kaj la kialo ke la ikono aspektis kiel makuleto - simple ne plu
+# ekzistas.
+FENESTRO = (170, 289, 426, 545)
 
-# +20%, liaj nombroj. Aplikataj POST la tondo, ĉar ImageEnhance.Contrast
-# kalkulas la mezvaloron de la bildo kiun oni donas al ĝi: enhavigi la
-# forĵetatan parton en tiun mezvaloron signifus agordi la ikonon laŭ bilderoj
-# kiujn neniu vidos.
-#
-# Ĝi ankaŭ atakas problemon kiun ĝi ne estis petita ataki: je 16 bilderoj sur
-# malluma taskostrio la ikono estas preskaŭ makuleto, kaj ĝiaj opakaj bilderoj
-# havis mezan lumecon de nur 51 el 255. Vidu la mezuron post la tondo en la
-# transdono.
+# +20%, liaj nombroj de 2026sep10: "Maybe it should be made with just a little
+# bit (20%) more contrast and brightness." Aplikataj POST la fenestro, ĉar
+# ImageEnhance.Contrast kalkulas la mezvaloron de la bildo kiun oni donas al ĝi:
+# enhavigi la forĵetatan parton en tiun mezvaloron signifus agordi la ikonon laŭ
+# bilderoj kiujn neniu vidos.
 CONTRAST = 1.2
 BRIGHTNESS = 1.2
+
+# LA DU ŜOVKLAVOJ, 2026sep11. Gert: "Please use this one, making the purple and
+# the green colors look more bright and shiny, to catch the eye."
+#
+# KIAL TIO NE POVAS ESTI FARITA LAŬ NUANCO. Mezurita sur lia fenestro: 87% de
+# ĉiuj saturitaj bilderoj kuŝas inter 180 kaj 250 gradoj, la verda ŝovklavo mem
+# havas mezan nuancon de 198 gradoj, kaj violkoloro - 270 ĝis 300 - havas 20
+# bilderojn en la tuta bildo. La fotografaĵo portas fortan bluan lumon, do la
+# violkolora ŝovklavo de vera 48GX aperas blu-blanka kaj la verda aperas
+# cejana. Nuanca masko elektus la tutan korpon de la kalkulilo kune kun la du
+# klavoj kaj nenio krom la du klavoj.
+#
+# Do la masko estas GEOMETRIA - la fenestro estas fiksita, do la du klavoj estas
+# ĉe fiksitaj koordinatoj - kaj interne de ĝi ĝi elektas la HELAN parton. Tio
+# estas la sama regulo por ambaŭ klavoj kaj ĝi estas la ĝusta parto en ambaŭ
+# kazoj: la maldekstra ŝovklavo estas malluma kun hela sago sur ĝi, la dekstra
+# estas hela plato kun malluma sago. La koloroj mem estas tiuj de vera 48GX
+# anstataŭ elektitaj: violkoloro kaj verdo estas kio estas presita sur la vera
+# klavaro, kaj la fotografaĵo perdis ilin al la blua lumo.
+#
+# cx cy rx ry nuanco saturo gajno
+TINT_LEFT = (29, 71, 29, 33, 280.0, 0.62, 1.22)
+TINT_RIGHT = (68, 151, 36, 25, 138.0, 0.72, 1.25)
+TINT_FEATHER = 2                        # bilderoj da malakrigo sur la elipso
+TINT_FLOOR = 0.40                       # sub tiu lumeco la bildero ne estas tuŝita
+TINT_RAMP = 0.26
 
 # La lia, donita kiel tri nombroj: "make the background r66,g75,b92", kaj poste
 # duonigita je 2026sep08 post kiam li vidis ĝin tranĉita en cirklon sur la
@@ -151,57 +168,40 @@ BRIGHTNESS = 1.2
 BACKGROUND = (153, 163, 181, 255)
 CLEAR = (0, 0, 0, 0)
 
-# Kiom da la tolo la fotografaĵo okupas. PLI OL 1,0 INTENCE: ĝi estas skalita
-# ĝis sia ĉirkaŭskatolo estas kvaronon pli larĝa ol la ikono, do la kvar anguloj
-# de la klinita bildo falas eksteren kaj estas fortranĉitaj. Gert, 2026sep08:
-# "The image is too small. make it larger, it doesn't matter if some corners will
-# be cut."
+# CIRKLO SUR LA LABORTABLO, 2026sep11, kaj tio estas lia dua frazo pri la sama
+# tondo: "some parts of it at the bottom must be made transparent, but they are
+# out of the circle crop."
 #
-# 1,85 DE 2026SEP10, kaj tio estas mezuro anstataŭ gusto. Gert, provinte la
-# Vindozan konstruon: "The icon is too small. Make it as big as possible, even if
-# it crops a little bit off the top and bottom edges", kaj tuj poste "It's also
-# fine to show only 50% of the ON button."
+# La partoj kiuj devas fariĝi travideblaj kaj la partoj kiujn cirklo fortranĉas
+# estas la samaj partoj, kaj tion oni povas vidi sur lia propra tondo: la
+# malsupra maldekstra angulo estas la nigra ombro sub CANCEL kaj la malsupra
+# dekstra estas la polva nigra maso sur la tablo. Kvadrata ikono portus ambaŭ
+# kiel nigran strion laŭ sia fundo, kio estas la plendo per kiu la tuta ikono
+# komenciĝis. Cirklo forigas ekzakte ilin kaj nenion alian.
 #
-# Je 1,25 la arto pentris nur 56% de sia kvadrato. La aliaj 44% estis la kvar
-# travideblaj trianguloj kiujn la klino lasas ĉe la anguloj, kaj je 16 bilderoj
-# en taskostrio tio aspektas kiel makuleto kun malplena spaco ĉirkaŭ ĝi - kio
-# estas ekzakte lia plendo. Je 1,85 ĝi pentras 94%, la ON-klavo ankoraŭ montras
-# 82% de si, kaj ĉe la anguloj restas 5,6% da nenio, do la klino ankoraŭ havas
-# ion kontraŭ kio esti videbla kaj la mola ombro ankoraŭ havas lokon kie fali.
+# Kaj ĝi estas la plej granda ikono kiun ĉi tiu kadro permesas: je plenigo 1,0
+# la cirklo tuŝas ĉiujn kvar randojn de la tolo.
+FILL_DESKTOP = 1.0
+
+# ANDROIDO NE RICEVAS LA CIRKLON, ĉar tie la tondilon tenas la lanĉilo. Adapta
+# ikono estas du tavoloj kaj la LANĈILO elektas la silueton - cirklo sur lia
+# telefono, kvadratcirklo aŭ rondigita kvadrato sur aliaj - kaj tranĉas ambaŭ
+# tavolojn per ĝi. Antaŭa tavolo kiu jam estas cirklo montrus la fonan ardezon
+# ĉe la kvar anguloj sur ĉiu telefono kies masko ne estas cirklo. Do la antaŭa
+# tavolo estas la plena kvadrato kaj la masko faras la ceteron.
 #
-# La limo kiun li mem nomis estas la ON-klavo je duono, kaj tio estus 2,20. Sed
-# je 2,20 la tolo estas 99,6% opaka: la ikono estas simpla kvadrata fotografaĵo,
-# kaj la ombro estas fortranĉita kune kun la anguloj. Kvadrato ĝi vere fariĝas
-# je 2,30. La malnova komento ĉi tie asertis ke tio okazas "preter proksimume
-# 1,4"; tio estis argumento kaj ne mezuro, kaj mezurite ĝi estas malvera - je
-# 1,40 eĉ la netondita arto lasis 39% de la tolo nuda.
+# 0,75 ESTAS MEZURO. La tolo estas 108dp, la masko 72dp, kaj lanĉilo atingas
+# 80dp dum paralaksa animacio. Kvadrato je plenigo f kovras f*108 dp, do 80dp
+# postulas f >= 0,741; 0,75 donas 81dp kaj nul nudan maskon eĉ dum la animacio.
+# Kaj ĝi estas la PLEJ MALGRANDA nombro kiu faras tion, kio gravas ĉar ĉio pli
+# granda forĵetus arton: je 0,75 la 72dp-cirklo montras 89% de la larĝo de lia
+# fenestro, do kion li vidas sur la hejmekrano estas preskaŭ ekzakte la tondo
+# kiun li faris.
 #
-# DU NOMBROJ, ĉar la du platformoj volas kontraŭajn aferojn, kaj 2026sep08 estas
-# kiam tio klariĝis. Gert, rigardante la lanĉilon: "Why the launcher shows me a
-# circle in the background of the icon instead of transparency?"
-#
-# Ĝi montras cirklon ĉar sur Androido ne plu ekzistas io tia kiel libera formo de
-# ikono. Adapta ikono estas du tavoloj kaj la LANĈILO elektas la silueton -
-# cirklo ĉi tie, kvadratcirklo sur aliaj telefonoj, rondigita kvadrato aliloke -
-# kaj tranĉas ambaŭ tavolojn per ĝi, do ĉiu ikono sur la hejmekrano havas la
-# saman formon intence. Travidebleco ne povas venki tion; la fona tavolo devas
-# esti opaka, kaj lanĉilo kiu ricevas travideblan pentras ĝin nigra, kio estas
-# la nigraj strioj per kiuj ĉi tiu tuta ikono komenciĝis.
-#
-# Kion oni POVAS fari estas lasi nenion nian por la formo de la lanĉilo plenigi:
-# skali la fotografaĵon ĝis ĝi kovras la tutan maskon, kaj la cirklo ĉesas esti
-# kolora plato kun bildo sur ĝi kaj fariĝas cirklo el bildo. Ĝis 2026sep10 tio
-# postulis 1,6, ĉar la netondita fotografaĵo estas alta kaj mallarĝa. Kun CROP
-# la sama kovro venas je 1,30, mezurite: 0,00% de la 72dp-masko nuda, kaj 1,49%
-# de la 80dp kiun lanĉilo atingas dum paralaksa animacio.
-#
-# Kaj tial la du nombroj nun kuŝas inverse al kio oni atendus: la ADAPTA estas
-# la malgranda. La cirklo de la lanĉilo jam fortranĉas ĉion krom la mezo, do
-# 1,30 sufiĉas por kovri ĝin tute kaj pli nur forĵetus arton kiun la cirklo
-# estus montrinta. La labortabla ikono havas nenion kiu tranĉas ĝin, do kion ĝi
-# ne plenigas restas simple malplena.
-FILL_DESKTOP = 1.85
-FILL_ADAPTIVE = 1.30
+# SEN FADENADO ĉi tie, malkiel ĉie aliloke. Mola rando sub masko estas nur
+# perdita kovro: ĝi mangus 2dp ĉe ĉiu flanko kaj devigus pli grandan plenigon
+# por rekompensi, kaj neniu iam vidos ĝin, ĉar la masko tranĉas antaŭ ĝi.
+FILL_ADAPTIVE = 0.75
 
 # "Oh, and make the edges a bit blurry!" - Gert, 2026sep08. Frakcio de la propra
 # grando de la ikono anstataŭ fiksa nombro da bilderoj, por ke la moleco aspektu
@@ -216,15 +216,6 @@ FEATHER = 0.018
 DENSITIES = {"mdpi": 1, "hdpi": 1.5, "xhdpi": 2, "xxhdpi": 3, "xxxhdpi": 4}
 
 
-def prepared() -> Image.Image:
-    """La fonto tondita kaj agordita, antaŭ la turno. Ordo gravas: tondi, poste
-    kontrasti, ĉar ImageEnhance.Contrast mezuras la bildon kiun ĝi ricevas."""
-    src = Image.open(SOURCE).convert("RGB").crop(CROP)
-    src = ImageEnhance.Contrast(src).enhance(CONTRAST)
-    src = ImageEnhance.Brightness(src).enhance(BRIGHTNESS)
-    return src.convert("RGBA")
-
-
 def turned(src: Image.Image) -> Image.Image:
     """Turnita ĉirkaŭ sia centro, kun propra alfa-masko. La fotografaĵo ne havas
     alfa-kanalon, do turni ĝin rekte plenigus la novajn angulojn per nigro - kio
@@ -235,9 +226,50 @@ def turned(src: Image.Image) -> Image.Image:
     return rot
 
 
-def compose(art: Image.Image, s: int, fill: float, background) -> Image.Image:
-    """La turnita fotografaĵo sur kvadrata fono - kiu povas esti nenio entute -
-    kun mola ombro sub ĝi."""
+def tinted(img: Image.Image, spec) -> Image.Image:
+    """Unu ŝovklavo, repentrita en sia propra koloro. Vidu TINT_LEFT.
+
+    Pure per Pillow kaj sen numpy, ĉar la sola devigo kiun ĉi tiu skripto havas
+    estas Pillow kaj la du komputiloj devas ambaŭ povi lanĉi ĝin."""
+    cx, cy, rx, ry, hue, sat, gain = spec
+    h, s, v = img.convert("HSV").split()
+
+    # La pezo: la elipso oble la hela parto interne de ĝi. Sub TINT_FLOOR nul,
+    # super TINT_FLOOR+TINT_RAMP unu, lineare inter ili - do la rando de la
+    # klavo transiras anstataŭ stampiĝi.
+    floor, ramp = TINT_FLOOR * 255, TINT_RAMP * 255
+    ring = Image.new("L", img.size, 0)
+    ImageDraw.Draw(ring).ellipse((cx - rx, cy - ry, cx + rx, cy + ry), fill=255)
+    w = ImageChops.multiply(
+        ring.filter(ImageFilter.GaussianBlur(TINT_FEATHER)),
+        v.point(lambda p: max(0, min(255, round((p - floor) * 255 / ramp)))))
+
+    flat = lambda value: Image.new("L", img.size, value)
+    res = Image.merge("HSV", (
+        Image.composite(flat(round(hue / 360 * 255)), h, w),
+        Image.composite(flat(round(sat * 255)), s, w),
+        Image.composite(v.point(lambda p: min(255, round(p * gain))), v, w),
+    )).convert("RGB")
+    res.putalpha(img.getchannel("A"))
+    return res
+
+
+def artwork() -> Image.Image:
+    """La fotografaĵo turnita, tondita al la fenestro de Gert, agordita, kaj kun
+    la du ŝovklavoj repentritaj. Ordo gravas dufoje: la turno antaŭ la tondo, ĉar
+    lia fenestro estas akse ordigita en la turnita spaco, kaj la kontrasto post
+    la tondo, ĉar ImageEnhance mezuras la bildon kiun ĝi ricevas."""
+    win = turned(Image.open(SOURCE).convert("RGB")).crop(FENESTRO)
+    rgb = ImageEnhance.Contrast(win.convert("RGB")).enhance(CONTRAST)
+    rgb = ImageEnhance.Brightness(rgb).enhance(BRIGHTNESS)
+    rgb.putalpha(win.getchannel("A"))
+    return tinted(tinted(rgb, TINT_LEFT), TINT_RIGHT)
+
+
+def compose(art: Image.Image, s: int, fill: float, background,
+            circle: bool = True, feather: bool = True) -> Image.Image:
+    """La arto sur kvadrata tolo - kiu povas esti nenio entute - kun mola ombro
+    sub ĝi. `circle` estas la labortabla formo; Androido petas la kvadraton."""
     canvas = Image.new("RGBA", (s, s), background)
     inner = s * fill
     k = min(inner / art.width, inner / art.height)
@@ -245,22 +277,29 @@ def compose(art: Image.Image, s: int, fill: float, background) -> Image.Image:
                    Image.LANCZOS)
     x, y = (s - a.width) // 2, (s - a.height) // 2
 
+    alpha = a.getchannel("A")
+    if circle:
+        mask = Image.new("L", a.size, 0)
+        ImageDraw.Draw(mask).ellipse((0, 0, a.width - 1, a.height - 1), fill=255)
+        alpha = Image.composite(alpha, Image.new("L", a.size, 0), mask)
+
     # Molaj randoj. Erozii je la malakriga radiuso, poste malakrigi, por ke la
     # tuta fadeno vivu interne de la bildo kaj la 100%-opaka parto ankoraŭ
     # atingu preskaŭ ĝis la vera rando.
-    r = max(1, round(s * FEATHER))
-    alpha = a.getchannel("A")
-    alpha = alpha.filter(ImageFilter.MinFilter(2 * r + 1))
-    alpha = alpha.filter(ImageFilter.GaussianBlur(r))
+    if feather:
+        r = max(1, round(s * FEATHER))
+        alpha = alpha.filter(ImageFilter.MinFilter(2 * r + 1))
+        alpha = alpha.filter(ImageFilter.GaussianBlur(r))
     a.putalpha(alpha)
 
     # Malluma fotografaĵo tamen bezonas randon por legiĝi kiel objekto, sur
     # mezhela fono aŭ sur malluma taskostrio en kiun ĝi alie dissolviĝus. Prenita
     # el la moligita alfao, do la ombro sekvas la saman konturon.
-    shadow = Image.new("RGBA", (s, s), (0, 0, 0, 0))
-    shadow.paste((0, 0, 0, 130), (x + max(1, s // 128), y + max(1, s // 96)), a)
-    canvas = Image.alpha_composite(
-        canvas, shadow.filter(ImageFilter.GaussianBlur(max(1, s / 72))))
+    if feather:
+        shadow = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+        shadow.paste((0, 0, 0, 130), (x + max(1, s // 128), y + max(1, s // 96)), a)
+        canvas = Image.alpha_composite(
+            canvas, shadow.filter(ImageFilter.GaussianBlur(max(1, s / 72))))
 
     canvas.paste(a, (x, y), a)
     return canvas
@@ -278,7 +317,8 @@ def android(art: Image.Image) -> None:
     lanĉilo, kaj tio estas dua fonto de strioj kiun nenia kvanto da travidebleco
     forigus."""
     for name, k in DENSITIES.items():
-        fg = compose(art, int(108 * k), FILL_ADAPTIVE, (0, 0, 0, 0))
+        fg = compose(art, int(108 * k), FILL_ADAPTIVE, CLEAR,
+                     circle=False, feather=False)
         write(RES / f"mipmap-{name}" / "ic_launcher_foreground.png", fg)
         legacy = compose(art, int(48 * k), FILL_DESKTOP, CLEAR)
         write(RES / f"mipmap-{name}" / "ic_launcher.png", legacy)
@@ -326,7 +366,7 @@ def linux(art: Image.Image) -> None:
 
 
 def main() -> None:
-    art = turned(prepared())
+    art = artwork()
 
     write(PNG, compose(art, PNG_SIZE, FILL_DESKTOP, CLEAR))
 
