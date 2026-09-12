@@ -129,7 +129,7 @@ It is, however, a free download, and that is not a wink: **HP gave permission fo
 
 1. Go to **<https://www.hpcalc.org/hp48/pc/emulators/>**.
 2. That page is mostly emulators, not ROMs, and the ROM images are a long way down it. Do not scroll — press **Ctrl-F** (**⌘-F** on a Mac) and search the page for **`HP 48GX Revision`**. That lands you on them.
-3. There are eleven, and any of them works. If you want the one to stop thinking about, take **`gxrom-r.zip`** — the last revision of the 48GX, which is the calculator this skin is a photograph of. 314 KB.
+3. There are eleven, and any of them works. If you want the one to stop thinking about, take **`gxrom-r.zip`** — the last revision of the 48GX, which is the calculator this skin is drawn from. 314 KB.
 4. **Unzip it, and do that before you go looking for the file.** Inside is a single file called **`gxrom-r`** with no extension, 524,288 bytes. That file *is* the ROM: nothing to convert, nothing to unpack further. A file still sitting inside the `.zip` is invisible to Agape48 and to every file dialog, which is the likeliest reason for "I downloaded it and the program cannot see it".
 5. If you cannot find the unzipped file afterwards, **sort your Downloads folder by date and look at the oldest thing in it.** These ROMs carry their original timestamps from the early 2000s, so the newest file you have is the one that looks twenty-five years old.
 

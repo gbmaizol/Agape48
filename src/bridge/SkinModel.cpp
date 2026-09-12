@@ -179,7 +179,7 @@ bool SkinModel::loadJson(const QByteArray &data, const QUrl &base)
                            rectFromJson(plate.value(QStringLiteral("rect"))));
     }
     // La samo, por la "48GX" kiun la generilo PRESIS en la vizaĝon: QML havas
-    // nenian manieron scii kie surbakita vorto en fotografio surteriĝis, kaj
+    // nenian manieron scii kie surbakita vorto en la vizaĝbildo surteriĝis, kaj
     // sur Androido tiu vorto estas la menuo. Laŭvola same - haŭto kiu
     // preterlasas ĝin ricevas nenian substrekon kaj nenian eraron.
     const QJsonObject badge = root.value(QStringLiteral("badge")).toObject();
