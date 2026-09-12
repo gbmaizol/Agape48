@@ -1,6 +1,6 @@
 # Agape48
 
-[English](README.md) · [Dansk](README.da.md) · [Español](README.es.md) · [Esperanto](README.eo.md) · **Português**
+[English](README.md) · [Dansk](README.da.md) · [Deutsch](README.de.md) · [Español](README.es.md) · [Esperanto](README.eo.md) · [Français](README.fr.md) · **Português**
 
 **O HP 48 que você já ama, no computador e no telefone que você usa de verdade — e ele leva a sua calculadora junto.**
 
