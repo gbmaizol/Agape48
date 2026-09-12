@@ -16,7 +16,7 @@ if(CMAKE_CONFIGURATION_TYPES)
 endif()
 
 project(Agape48
-    VERSION 0.9.1
+    VERSION 0.9.2
     DESCRIPTION "HP 48 emulator on the x48 core"
     LANGUAGES C CXX)
 

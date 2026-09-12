@@ -55,6 +55,27 @@ FONT_R = "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed.ttf"
 # --- the 49 keys, in grid order ---------------------------------------------
 # name, centre label, left-shift legend, right-shift legend, alpha letter
 #
+# THE LEGENDS ARE THE REAL MACHINE'S, GLYPH FOR GLYPH, and the arrow on EVAL is
+# the one that was missing until 2026sep12. The core's own button table carries
+# it as "aNUM", where the leading "a" is x48's encoding for the arrow; it is the
+# only prefixed label in that table, and the whole of the left-shift legend is
+# "→NUM" rather than "NUM".
+#
+# The rest of that table was diffed against this one, key by key, and agrees.
+# Its single lowercase labels - "r", "v", "t", "x", "\002", "\005" - are glyph
+# codes rather than text, and the glyphs they stand for are already drawn here:
+# ( ), « », [ ], { }, the comma and pi.
+#
+# ONE DISAGREEMENT THAT IS NOT ONE, worth writing down so it is not "fixed"
+# later. The core puts SOLVE, PLOT, SYMBOLIC, TIME, STAT, UNITS, I/O, LIBRARY
+# and EQ LIB in its RIGHT field with is_menu set - which would make them
+# right-shift green. They are not: is_menu is declared in that struct and never
+# read, because this vendored fork draws no face at all, so the slot carries no
+# meaning. Measured instead on the photograph of the real keyboard in
+# assets/icon-source.png: that ink is hue 203-206 against the left-shift key at
+# 213 and the right-shift key at 174. They are left-shift, which is what this
+# table already said.
+#
 # The alpha letters are the real machine's: A-F on the six soft keys, G-L on
 # the MTH row, M-R on the ' row, S-X on the SIN row, then Y on +/- and Z on
 # EEX. They used to start at MTH, which put every letter one row out and
@@ -69,7 +90,7 @@ K = [
     ("UP", "▲", "", "STACK", "K"),       ("NXT", "NXT", "PREV", "MENU", "L"),
 
     ("QUOTE", "'", "UP", "HOME", "M"),   ("STO", "STO", "DEF", "RCL", "N"),
-    ("EVAL", "EVAL", "NUM", "UNDO", "O"),("LEFT", "◀", "PICTURE", "", "P"),
+    ("EVAL", "EVAL", "→NUM", "UNDO", "O"),("LEFT", "◀", "PICTURE", "", "P"),
     ("DOWN", "▼", "VIEW", "", "Q"),      ("RIGHT", "▶", "SWAP", "", "R"),
 
     ("SIN", "SIN", "ASIN", "∂", "S"),    ("COS", "COS", "ACOS", "∫", "T"),

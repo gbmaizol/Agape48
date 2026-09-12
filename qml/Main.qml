@@ -98,9 +98,10 @@ Window {
             return
         }
         // 70% of the available height, never past the face's native size.
-        // Upscaling a photograph is the one thing a skin cannot recover from,
-        // which is why item 11 says ship the face at twice the phone width
-        // rather than reach for a cleverer resampler.
+        // Upscaling a raster skin is the one thing it cannot recover from, which
+        // is why item 11 says ship the face at twice the phone width rather than
+        // reach for a cleverer resampler. Drawn or photographed makes no
+        // difference once it is pixels.
         // desktopAvailableHeight can come back 0 before the window is mapped,
         // which sized the first Linux build at Qt's fallback instead of 70% of
         // the screen. Fall back to the raw screen height, then floor it.
