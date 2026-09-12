@@ -145,8 +145,9 @@ int main(int argc, char *argv[])
     // _GTK_APPLICATION_ID = "agape48" and _KDE_NET_WM_DESKTOP_FILE = "agape48".
     QGuiApplication::setDesktopFileName(QStringLiteral("agape48"));
 
-    // No multisampling: the LCD is nearest-filtered on purpose and the skin is
-    // a photograph. Asking for MSAA costs memory bandwidth and buys nothing.
+    // No multisampling: the LCD is nearest-filtered on purpose and the skin is a
+    // raster image with its edges already drawn in. Asking for MSAA costs memory
+    // bandwidth and buys nothing.
     QSurfaceFormat fmt = QSurfaceFormat::defaultFormat();
     fmt.setSamples(0);
     QSurfaceFormat::setDefaultFormat(fmt);

@@ -88,18 +88,18 @@ One download per machine, no runtime to fetch first, and no account to make.
 
 ### Windows
 
-1. Download **[`Agape48-0.9.1-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)**.
+1. Download **[`Agape48-0.9.2-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)**.
 2. **Windows will stop you**: *"Windows protected your PC"*. Click **More info**, then **Run anyway**. That message is not a virus warning — it is Windows saying the installer carries no code-signing certificate, which is a purchase rather than a build step. Nothing in the download is packed or obfuscated, and every byte of source that went into it is in this repository.
 3. **Next**, **Next**, **Install**. It goes into `Program Files` and adds a Start-menu entry.
 4. Start it from the Start menu. It uninstalls like any other program, from *Apps & features*.
 
 ### Linux
 
-No root, nothing in `/opt`, and nothing to add to your package manager. Take **[`Agape48-0.9.1-linux-x86_64.tar.gz`](https://github.com/gbmaizol/Agape48/releases/latest)**, then:
+No root, nothing in `/opt`, and nothing to add to your package manager. Take **[`Agape48-0.9.2-linux-x86_64.tar.gz`](https://github.com/gbmaizol/Agape48/releases/latest)**, then:
 
 ```sh
-tar xzf Agape48-0.9.1-linux-x86_64.tar.gz
-./Agape48-0.9.1-linux-x86_64/install.sh
+tar xzf Agape48-0.9.2-linux-x86_64.tar.gz
+./Agape48-0.9.2-linux-x86_64/install.sh
 ```
 
 There is no `chmod` step: `tar` keeps the executable bit, so `install.sh` just runs. (If you unpacked with a graphical archiver that dropped permissions, `sh install.sh` works anyway.)
@@ -110,7 +110,7 @@ The download is 37 MB and unpacks to 98 MB, nearly all of it Qt. It is built for
 
 ### Android
 
-1. Download **[`Agape48-0.9.1-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** onto the phone and tap it.
+1. Download **[`Agape48-0.9.2-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** onto the phone and tap it.
 2. **Android will refuse the first time** — *"your phone is not allowed to install unknown apps from this source"* — because the file did not come from the Play Store. Tap **Settings**, allow that one source, and come back. Android asks per *source*, so allowing your browser does not also allow your file manager.
 3. Play Protect may then warn about an app from an unrecognised developer. The **Install anyway** button is behind *More details*.
 4. Tap **Open**. On a phone the calculator fills the screen, the way Droid48 does.

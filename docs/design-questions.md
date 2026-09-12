@@ -373,7 +373,7 @@ It would not pay, because the two things being scaled want opposite treatment.
 
 **The LCD must stay nearest-neighbour.** 131x64 blown up to 800 px is a 6x upscale, and the HP 48's pixels are meant to be crisp squares - that is what Droid48 and Emu48 show, and any interpolation is a downgrade. `LcdItem.cpp:68` already sets `QSGTexture::Nearest` with the comment "square pixels, always". NOHALO here would be actively wrong.
 
-**The face is a photograph and is almost always being scaled *down*.** NOHALO is an upscaler; downscaling is not where it earns anything. The real quality problem when the calculator is made "really tiny" is aliasing - a downscaled photo shimmers and its key legends sparkle. The fix is mipmapping, which Qt has natively. `Calculator.qml:32` currently sets `smooth: true` and no `mipmap`, so today it will shimmer at small sizes. **Add `mipmap: true`.** It costs a third more texture memory and nothing on disk.
+**The face is a raster image and is almost always being scaled *down*.** NOHALO is an upscaler; downscaling is not where it earns anything. The real quality problem when the calculator is made "really tiny" is aliasing - a downscaled photo shimmers and its key legends sparkle. The fix is mipmapping, which Qt has natively. `Calculator.qml:32` currently sets `smooth: true` and no `mipmap`, so today it will shimmer at small sizes. **Add `mipmap: true`.** It costs a third more texture memory and nothing on disk.
 
 ### The one case that is genuinely upscaling, and the honest fix
 

@@ -1,8 +1,11 @@
 import QtQuick
 import Agape48
 
-// The calculator face: one photographic skin image, the LCD drawn over it, and
-// a multi-touch keypad on top. Everything is laid out in skin-image pixel
+// The calculator face: one skin image, the LCD drawn over it, and a multi-touch
+// keypad on top. THE SKIN IS DRAWN AND NOT PHOTOGRAPHED - tools/makeface.py
+// composes all 49 keys, their gradients and every legend from the numbers in
+// tools/face.json. It is made to read as a photograph; it is not one, and
+// nothing here should say otherwise. Everything is laid out in skin-image pixel
 // coordinates and scaled as a unit, so a skin author works in one coordinate
 // system and never thinks about device pixels.
 Item {
@@ -136,11 +139,11 @@ Item {
         Image {
             anchors.fill: parent
             source: root.engine.skin.faceImage
-            // The skin is a WebP photograph at its native size; let the GPU do
-            // the scaling and keep only one decoded copy in memory.
+            // The skin is a WebP image at its native size; let the GPU do the
+            // scaling and keep only one decoded copy in memory.
             sourceSize: Qt.size(root.faceSize.width, root.faceSize.height)
             // The face is nearly always being scaled DOWN, and a downscaled
-            // photograph aliases: the key legends sparkle and the whole face
+            // image of this kind aliases: the key legends sparkle and the face
             // shimmers when the window is small. Mipmaps are what fixes that -
             // smooth alone is bilinear on the full-size texture and does not.
             // Costs about a third more texture memory and nothing on disk.

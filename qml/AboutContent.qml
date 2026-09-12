@@ -87,8 +87,9 @@ Item {
                              + "on the screen is the calculator's own software rather than an "
                              + "imitation of it - the same RPN stack, the same menus, the same "
                              + "68 kilobytes of Saturn code, and the same behaviour when you "
-                             + "ask it something it does not like. The face is a photograph of "
-                             + "a real 48GX rather than a drawing of one.")
+                             + "ask it something it does not like. The face is not a photograph: "
+                             + "every key, legend and gradient is drawn from the real machine's "
+                             + "measurements, which is why the lettering stays sharp at any size.")
                 }
 
                 Text {
