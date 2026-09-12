@@ -12,7 +12,7 @@ The first release: an HP 48 on Windows, Linux and Android, from one source tree 
 | Linux | `Agape48-0.9.0-linux-x86_64.tar.gz` |
 | Android | `Agape48-0.9.0-arm64-v8a.apk` |
 
-Installing takes a minute per machine, and is written out step by step — including the two warnings your system will show you — in the [README](../README.md#installing-it). The one fiddly part is the ROM, which is a free download from hpcalc.org, and that is written out in full [there](../README.md#then-give-it-a-rom-and-this-is-the-only-fiddly-step).
+Installing takes a minute per machine, and is written out step by step — including the two warnings your system will show you — in the [README](https://github.com/gbmaizol/Agape48/blob/main/README.md#installing-it). The one fiddly part is the ROM, which is a free download from hpcalc.org, and that is written out in full [there](https://github.com/gbmaizol/Agape48/blob/main/README.md#then-give-it-a-rom-and-this-is-the-only-fiddly-step).
 
 ## What it will and will not run on
 
@@ -26,4 +26,4 @@ Two things you will be told once and can wave through: the Windows installer is 
 
 ## Licence
 
-GPLv3. The full text is in [LICENSE](../LICENSE). Agape48 stands on the `x48` Saturn core by Eddie C. Dost and on the years of work Droid48 put into it, both under the GPL, so it could never have been anything else.
+GPLv3. The full text is in [LICENSE](https://github.com/gbmaizol/Agape48/blob/main/LICENSE). Agape48 stands on the `x48` Saturn core by Eddie C. Dost and on the years of work Droid48 put into it, both under the GPL, so it could never have been anything else.
