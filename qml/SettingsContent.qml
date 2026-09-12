@@ -161,7 +161,7 @@ Item {
         width: Math.min(420, root.width - 40)
         // The path gets a box of its own, and the sentence stops running
         // through it. A path is ONE WORD as far as Text is concerned - there is
-        // nothing in "/home/gert/Dropbox/Claude/Agape48Emulator/TestShelf" that
+        // nothing in "/home/you/Dropbox/Calculators/Shared/TestShelf" that
         // WordWrap is allowed to break - so a deep one simply ran off the side
         // of the dialog. both-06 line 26: the folder name needs a container of
         // its own, having gone outside the dialog instead of wrapping.
