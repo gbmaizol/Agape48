@@ -1,6 +1,6 @@
 # Agape48 0.9.1
 
-Everything [report 17](../README.md) turned up, fixed. It was the first time anybody installed Agape48 from nothing on all three machines and followed the README instead of a person, and what it found was not a broken calculator — it was a stale icon, a missing window, and a page that assumed things.
+Everything [report 17](https://github.com/gbmaizol/Agape48/blob/main/README.md) turned up, fixed. It was the first time anybody installed Agape48 from nothing on all three machines and followed the README instead of a person, and what it found was not a broken calculator — it was a stale icon, a missing window, and a page that assumed things.
 
 Same calculator, same ROM handling, same file formats. If 0.9.0 works for you there is nothing here you have to have; if you are installing for the first time, take this one.
 
@@ -50,4 +50,4 @@ No ROM ships with it, and the Android build has never been measured for speed. T
 
 ## Licence
 
-GPLv3, in [LICENSE](../LICENSE). Agape48 stands on the `x48` Saturn core by Eddie C. Dost and on the years of work Droid48 put into it, both under the GPL.
+GPLv3, in [LICENSE](https://github.com/gbmaizol/Agape48/blob/main/LICENSE). Agape48 stands on the `x48` Saturn core by Eddie C. Dost and on the years of work Droid48 put into it, both under the GPL.
