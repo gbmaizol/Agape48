@@ -74,7 +74,7 @@ Window {
             // not the screen it was saved from. On Android that is not an edge
             // case, it is every upgrade: the window is forced full screen, the
             // aspect lock then derives a WIDTH from that height - 1018 * 0.594
-            // = 605 on Gert's phone - and 605 is remembered on a screen 458
+            // = 605 on the phone - and 605 is remembered on a screen 458
             // wide. The next run restored it and the face lost its whole
             // right-hand column, NXT to DROP, off the edge. Measured on the
             // upgrade install of 7e0624a; a fresh install has nothing saved and
@@ -355,7 +355,7 @@ Window {
     // which stopped firing the moment start() learned to find a ROM beside the
     // state. The sheet was unreachable.
     //
-    // One way in as of 2026aug30, Gert's call: the ⋮ button. Right-click on the
+    // One way in as of 2026aug30: the ⋮ button. Right-click on the
     // face used to open this too; it is gone, so the only click gesture the
     // face answers to is Ctrl+click, which rebinds a key.
     // Two of Droid48's six items are missing because the features are: "show
@@ -454,10 +454,9 @@ Window {
     Rectangle {
         id: menuButton
         // NEVER DRAWN, on any platform, since 2026sep10. The underlined "48GX"
-        // on the face is the way in everywhere - Gert's design from 2026sep07
-        // for the phone, and on 2026sep10 for the desktop as well: "make the
-        // 48GX underlined and get rid of the 3 dots, like the Android
-        // solution". One command in one place.
+        // on the face is the way in everywhere - the phone's design from
+        // 2026sep07, and the desktop's from 2026sep10: the 48GX is underlined,
+        // the three dots are gone. One command in one place.
         //
         // THE ITEM STAYS because its geometry is still the menu's position: an
         // invisible item still has a position, and appMenu.popup() is given
@@ -506,7 +505,7 @@ Window {
         nameFilters: [qsTr("All files (*)"),
                       qsTr("HP 48 objects (*.hp *.HP *.lib *.LIB *.bin *.BIN *.48 *.obj)")]
         // Agape48 presses ON itself afterwards so the ROM repaints the stack -
-        // Gert's choice in dogfood #16, knowing that ON is also CANCEL. Any
+        // settled in dogfood #16, ON being also CANCEL. Any
         // latched shift is cancelled first, or ON would be OFF.
         onAccepted: if (engine.importFile(selectedFile))
                         banner.hint(qsTr("Imported to level 1."))
@@ -569,7 +568,7 @@ Window {
     }
 
     // ONE DIALOG, TWO SHELLS - la kvara, kaj la sola kiu neniam estis fenestro
-    // antaŭe. Gert petis ĝin je provo 17 linio 4; ĝi estas deklarita sur ambaŭ
+    // antaŭe. Provo 17 linio 4 petis ĝin; ĝi estas deklarita sur ambaŭ
     // platformoj kaj nur unu el la du iam malfermiĝas, same kiel Agordoj, la
     // breto kaj la transdono.
     readonly property var about: Qt.platform.os === "android" ? aboutPage
@@ -593,10 +592,11 @@ Window {
         onDismissRequested: root.closeAllPages()
     }
 
-    // THE PHONE'S BACK MEANS "OUT", not "up one". Gert, dogfood android-08:
-    // "The back button should take out of every internal configs or selections,
-    // stopping at the calculator", and on the line where back from Settings had
-    // landed him on the calculator by accident, "But I like it, so make it go
+    // THE PHONE'S BACK MEANS "OUT", not "up one". Dogfood android-08: back
+    // leaves every internal config or selection and stops at the calculator.
+    // The line that settled it is the one where back from Settings had landed
+    // on the calculator by accident and that turned out to be the wanted
+    // behaviour - "But I like it, so make it go
     // back to the calculator if swiping back or clicking the back
     // bottom-button."
     //
@@ -651,9 +651,9 @@ Window {
     // and know nothing about either; what changes is what is drawn around them.
     //
     // Android has no second window - asking for one aborts the process, 10 times
-    // out of 10 on Gert's phone - so there it is a full-screen in-scene page. The
+    // out of 10 on the phone - so there it is a full-screen in-scene page. The
     // desktops keep the window they have, unchanged, because a window is right
-    // there and Gert has said so more than once.
+    // there, and three separate reports have said so.
     //
     // Both are DECLARED on both platforms and only one is ever opened. Creating a
     // Window costs nothing until it is shown - the surface, and therefore the
@@ -708,8 +708,8 @@ Window {
     // A page over the settings page rather than inside it: a sibling covering
     // the same rectangle, so it hides the header underneath instead of starting
     // below it. Opened after Settings and therefore on top of it, and closing it
-    // leaves Settings exactly where it was - which is what a phone's settings do
-    // and what Gert asked for.
+    // leaves Settings exactly where it was - which is what a phone's settings
+    // do, and what this page was asked to do.
     AdvancedPage {
         id: advancedPage
         engine: engine
@@ -739,9 +739,9 @@ Window {
         // rekalkulita kaj ne stampita unufoje.
         property string raw: ""
 
-        // LA URL ESTAS KLAKEBLA. Gert, 2026sep11, vidinte la novan sen-ROM
-        // mesaĝon: "Make the link to hpcal.org on the red strip clickable and
-        // taking to the default browser on all 3 systems."
+        // LA URL ESTAS KLAKEBLA, ekde 2026sep11 kaj la nova sen-ROM mesaĝo:
+        // la adreso en la ruĝa strio estas ligo, kaj klako sur ĝi transdonas
+        // ĝin al la defaŭlta retumilo sur ĉiuj tri sistemoj.
         //
         // Farita ĉi tie kaj ne en la mesaĝo, do ĈIU strio kiu iam portos URL-on
         // ricevas la saman konduton kaj neniu C++-ĉeno devas porti markadon.
@@ -760,10 +760,10 @@ Window {
         // claimed is not an error and goes after three seconds, as asked.
         function show(msg) { isError = true;  raw = msg; opacity = 1; hideTimer.interval = 12000; hideTimer.restart() }
         function hint(msg) { isError = false; raw = msg; opacity = 1; hideTimer.interval = 3000;  hideTimer.restart() }
-        // Over the centre of the calculator's SCREEN since 2026sep03, on Gert's
-        // instruction. Along the bottom it lay across the bottom two rows of
-        // keys; the top is still not available, for the reason above; and the
-        // screen is where he is already looking. It also lands on a blank LCD
+        // Over the centre of the calculator's SCREEN since 2026sep03. Along
+        // the bottom it lay across the bottom two rows of keys; the top is still
+        // not available, for the reason above; and the screen is where the eye
+        // already is. It also lands on a blank LCD
         // in the case that matters most - a calculator handed to the other
         // machine has nothing on its screen to cover.
         anchors { left: parent.left; right: parent.right }
@@ -787,9 +787,9 @@ Window {
         // That is the whole of the "Windows says nothing, Linux says something"
         // difference, and it was neither: same run, same window, the strip is
         // there at six seconds and gone at twenty-two. Windows measured late and
-        // Linux measured early. Gert's own machine is in this state right now -
-        // its remembered shelf was deleted - so what it gives him is a complete
-        // calculator, a blank screen and, twelve seconds in, silence.
+        // Linux measured early. A machine whose remembered shelf has been
+        // deleted sits in this state: a complete calculator, a blank screen,
+        // and twelve seconds in, silence.
         function forget() {
             banner.opacity = 0
             if (banner.isError && engine.running)
@@ -884,9 +884,9 @@ Window {
         // mouse move, this border hands the press back because it is not on an
         // edge, so `pressed` is false, the move gets forwarded, and a finger that
         // then stays still for two seconds is EXACTLY the gesture the tooltip
-        // waits for. Gert found it on the phone at provo 17: "If I hold a button
-        // down for long in one place, it shows a keyboard shortcut." The gate is
-        // in Keypad.qml, on whether a keyboard is attached at all.
+        // waits for. Provo 17 found it on the phone: a key held down in one
+        // place grew the keyboard-shortcut box. The gate is in Keypad.qml, on
+        // whether a keyboard is attached at all.
         function hoverForward() {
             if (pressed)
                 return
@@ -903,7 +903,7 @@ Window {
         // never got a word in and the window ended up the wrong shape - 523x756
         // where 451x756 went in. Driving it ourselves keeps the proportions
         // exact on every frame of the drag, which also means the letterbox
-        // bars Gert saw in dogfood #9 never appear at all.
+        // bars of dogfood #9 never appear at all.
         property int  edges: 0
         property real startW: 0
         property real startH: 0
@@ -990,8 +990,8 @@ Window {
             const nx = (edges & Qt.LeftEdge) ? Math.round(startX + (startW - w)) : root.x
             const ny = (edges & Qt.TopEdge)  ? Math.round(startY + (startH - h)) : root.y
             // The window is NOT resized here. The outline follows the pointer
-            // and the real geometry is applied when the drag ends - Gert's
-            // design, dogfood windows-02, after four other approaches failed.
+            // and the real geometry is applied when the drag ends, which is
+            // the shape dogfood windows-02 settled on after four others failed.
             //
             // It works because it removes the cause rather than managing it.
             // Every artefact chased in that round came from the window changing

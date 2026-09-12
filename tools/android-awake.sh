@@ -6,9 +6,8 @@
 #   tools/android-awake.sh off     let go, and sleep the screen (which locks it)
 #   tools/android-awake.sh status  say what the screen is doing right now
 #
-# Gert, 2026sep12, while the OnePlus Pad 3 was on the cable: "Please make a
-# script to keep the screen of the Tablet awake while you're using it, and then
-# lock the screen when you're done."
+# 2026sep12, with the OnePlus Pad 3 on the cable: the tablet's screen stays awake
+# for as long as a testing session needs it, and locks again afterwards.
 #
 # WHY `svc power stayon` AND NOT screen_off_timeout. The timeout is a user
 # setting with a value worth keeping; `stayon` is the developer-options switch
@@ -16,10 +15,10 @@
 # USB counts - and pulling the cable ends it by itself.
 #
 # IT IS STILL THE OWNER'S SWITCH, AND THAT WAS MEASURED RATHER THAN ASSUMED.
-# The first run of this script on Gert's Pad 3 printed
-# stay_on_while_plugged_in=15 BEFORE it did anything: he already had "Stay
-# awake" on. An `off` that simply wrote 0 would have turned off a setting of his
-# that this script never turned on. So `on` reads the value first, writes only
+# The first run of this script on the Pad 3 printed
+# stay_on_while_plugged_in=15 BEFORE it did anything: "Stay awake" was already on
+# in developer options. An `off` that simply wrote 0 would have turned off a
+# setting this script never turned on. So `on` reads the value first, writes only
 # if it has to, and leaves a note of what it found; `off` puts that value back.
 # With no note - a reboot, a different machine, someone running `off` first -
 # `off` sleeps the screen and does not touch the setting at all.

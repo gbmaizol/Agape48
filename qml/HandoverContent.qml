@@ -13,16 +13,16 @@ import Agape48
 // happen on a phone until the state folder can live in a synced folder."
 //
 // The state folder can now live in a shared folder, so a phone reaching this is
-// no longer hypothetical: it is what happens the first time Gert opens on the
-// phone a calculator his laptop still holds. A phone got a sentence in a banner
+// no longer hypothetical: it is what happens the first time the phone opens a
+// calculator the laptop still holds. A phone got a sentence in a banner
 // instead of the dialog, which meant no way to ask for the calculator, no
 // countdown, and no way to take it over.
 //
 // Shown when a calculator cannot be opened because another instance holds it -
 // ON refused, or one picked from the shelf.
 //
-// The first answer offered is to ASK, not to seize. Gert, 2026sep02: "send a
-// sleep command to the other one and take it over?" That is better than taking
+// The first answer offered is to ASK, not to seize. 2026sep02: a sleep command
+// goes to the other machine first, and the take-over follows. That is better
 // it over rather than merely politer: the instance that is asked still holds
 // the lock, so it saves before letting go, and the calculator that arrives here
 // is everything that was done over there. A take-over cannot do that - by the
@@ -184,7 +184,7 @@ Item {
                 }
                 Button {
                     // "Sleep" alone never said WHO sleeps, and it sits beside a
-                    // Yes that means "sleep it AND take it". Gert, both-04
+                    // Yes that means "sleep it AND take it". both-04
                     // line 8: "if I click on 'Sleep', I expect the Linux Agape48
                     // to sleep, but instead it requests the Windows Agape48 to
                     // sleep instead." The behaviour is the designed one - the
@@ -208,7 +208,7 @@ Item {
             }
 
             // --- waiting -----------------------------------------------------
-            // Gert, 2026sep02: a countdown, and a way out of it that is not
+            // 2026sep02: a countdown, and a way out of it that is not
             // just cancelling - force it, pick another, or go somewhere else
             // entirely. Waiting is the polite answer, not the only one.
             Flow {

@@ -8,7 +8,7 @@
 // place to forget it.
 //
 // Until 2026sep09 the executable had neither, and main.cpp said so about the
-// first half: "Windows only looked right by accident: the icon he liked
+// first half: "Windows only looked right by accident: the icon it drew
 // belonged to the Start-menu shortcut the installer creates, so a window
 // opened any other way had nothing either, and the executable itself still has
 // no icon." Measured on the built binary before this file existed -

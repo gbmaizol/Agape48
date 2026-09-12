@@ -22,12 +22,12 @@ import QtCore
 //
 // Ctrl and Meta still are modifiers, so Ctrl+A stays a key of its own.
 //
-// Gert's rule of 2026aug28 survives where it still applies: no fallback and no
+// The rule of 2026aug28 survives where it still applies: no fallback and no
 // most-specific-match, one identity in, one calculator key out.
 //
 // WHERE THE USER MAP LIVES: settings.ini in the state folder, beside the ROM.
-// Gert, 2026sep10, reversing design item 10b: "make this keyboard setting and
-// all the settings that are like this live in the same folder as the ROM in a
+// 2026sep10, reversing design item 10b: the keyboard setting and everything
+// like it lives in the same folder as the ROM, in a
 // simple settings.ini text file, so they change and move together with the state
 // folder." The folder is the calculator, and a calculator you carry to another
 // machine should be the one you set up.
@@ -199,8 +199,8 @@ QtObject {
         // Which row is this? One the user added, or one of ours?
         //
         // Removing a row the user ADDED drops the override, so whatever the
-        // default said comes back. Gert stole 8 from the 8 key for the 7 key
-        // and then removed it, and the old rule shadowed it instead - leaving
+        // default said comes back. Taking 8 from the 8 key for the 7 key and
+        // then removing it let the old rule shadow it instead - leaving
         // 8 pressing nothing at all, on either key. Taking a key and then
         // giving it back has to end where it started.
         //
@@ -274,11 +274,11 @@ QtObject {
         return root.labelForId(root.idFor(key, modifiers, text))
     }
 
-    // Identities we refuse to bind. Gert's ThinkPad needs Fn held to reach F12,
+    // Identities the map refuses to bind. A ThinkPad needs Fn held to reach F12,
     // and Fn itself arrives as XF86WakeUp -> Qt.Key_WakeUp (0x010000b8), which
     // capture happily recorded as a binding named "0x10000b8" - a key the
-    // calculator can never see again. The rule: if we cannot give it a name a
-    // person would recognise, we have no business binding it. A character always
+    // calculator can never see again. The rule: an identity that cannot be given
+    // a name a person would recognise has no business being bound. A character always
     // has a name - itself - so "c:" ids are always fine.
     function isBindableId(id) {
         if (id.substring(0, 2) === "c:")

@@ -4,7 +4,7 @@ import QtQuick.Controls
 // Ŝaltilo desegnita por sidi en linio de dialoga teksto, kaj portanta sian
 // propran etikedon.
 //
-// Gert, 2026sep10: "making the toggles and the space between them smaller, more
+// 2026sep10: "making the toggles and the space between them smaller, more
 // like the size and space of normal text". La Switch de la stilo Basic estas
 // desegnita por dikfingro sur telefono - ĉirkaŭ 40 bilderoj da indikilo por
 // vico - kaj kvar el ili en kolumno estis la plimulto de tio kio enkadriĝis en

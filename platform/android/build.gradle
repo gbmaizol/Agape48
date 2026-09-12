@@ -93,7 +93,7 @@ android {
             // on a class it renamed. Nothing on this laptop can run an arm64
             // APK to find that out - there is no emulator image and the phone
             // is not attached - so the first APK anyone sees is the one on
-            // Gert's device. Turn it on, with proguard-rules.pro, once a build
+            // a real device. Turn it on, with proguard-rules.pro, once a build
             // has been proven there.
             minifyEnabled false
             shrinkResources false

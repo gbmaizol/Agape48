@@ -8,7 +8,7 @@ import Agape48
 // la reĝimo "Customize keyboard…" de la ⋮-menuo estas ŝaltita. La gesto ŝanĝiĝis
 // de Stir+dekstra klako al Stir+klako je 2026aug30, samtempe kun fari la
 // ⋮-ikonon la sola vojo al la menuo, kaj poste al simpla dekstra klako je
-// 2026sep10, kiam Gert raportis ke la Stir-klavo interbatalas kun la kalkulilo.
+// 2026sep10, kiam raporto montris ke la Stir-klavo interbatalas kun la kalkulilo.
 //
 // La redaktoj aplikiĝas dum ili estas faritaj kaj la listo estas la vero, do
 // ekzistas nenia Konservi kiu povus malakordi kun ĝi. La origina skizo havis

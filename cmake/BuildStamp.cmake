@@ -1,9 +1,8 @@
 # Kiu konstruo estas ĉi tiu? Skribas agape48_build.h, kiun la fenestro "About"
 # montras, kaj kiun neniu homo devas tajpi.
 #
-# Gert, provo 17 linio 4: "now I think we should have an about menu option...
-# with the title, version, build number and timestamp of building (can we make
-# the building process create this timestamp automatically?)".
+# Provo 17 linio 4: la fenestro "About" portas la titolon, la version, la
+# konstrunumeron kaj tempindikon kiun la konstruprocezo mem faras.
 #
 # LA TEMPINDIKO ESTAS TIU DE LA ENARBIGO, NE DE LA LIGADO, kaj tio estas elekto
 # anstataŭ oportuno. Horloĝa tempo ĉi tie ŝanĝiĝus je ĈIU konstruo, do la

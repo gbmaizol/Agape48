@@ -231,7 +231,7 @@ if(ANDROID)
         # which refuses to be compiled against anything below 36; nothing about
         # this app wants Android 16's behaviour changes yet.
         QT_ANDROID_COMPILE_SDK_VERSION 36
-        # br.gbmaizol.agape48 since 2026sep07, on Gert's instruction. There is
+        # br.gbmaizol.agape48 since 2026sep07, naming the publisher. There is
         # no Java of ours left for it to disagree with: platform/android/src
         # held one class, a Storage Access Framework bridge whose Activity field
         # was never assigned, and it went on 2026sep09 with the rest of the SAF

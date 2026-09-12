@@ -156,7 +156,7 @@ DEFAULTS = {
     "font_sub":          13,   # CANCEL under ON
     "font_brand_maker":  17,
     "font_brand_model":  22,
-    # The calculator's own name, drawn by QML rather than printed here. Gert,
+    # The calculator's own name, drawn by QML rather than printed here.
     # 2026sep07: "make the top center calculator name bigger, about 1.5x the
     # size of the '48GX' text" - 22 x 1.5.
     "font_brand_plate":  33,
@@ -429,7 +429,7 @@ def main():
     # and was printing itself through the middle of "48GX".
     #
     # Where the ink lands is measured and written into layout.json, because on
-    # a phone this word IS the menu. Gert, 2026sep07: "in Android the '48GX' at
+    # a phone this word IS the menu. 2026sep07: "in Android the '48GX' at
     # the corner must be changed to look like a web link, and clicking there
     # opens the menu. This is the most intuitive interface I can come up with."
     # QML cannot know where a word printed here ended up, and the anchor is no
@@ -441,10 +441,10 @@ def main():
     badge_box = d.textbbox(badge_at, "48GX", font=badge_font, anchor="ra")
 
     # The nameplate band, measured here and written into layout.json for QML to
-    # draw the open calculator's name into at run time. Gert, both-05 line 37:
+    # draw the open calculator's name into at run time. both-05 line 37:
     # "I'd like the first 20 letters of the name of the current calculator to be
     # shown between the 'HEWLETT-PACKARD' and the '48GX' at the top, same font,
-    # center-aligned in the middle." Twenty became thirty once he had seen it -
+    # center-aligned in the middle." Twenty became thirty once it was on screen -
     # both-06 line 20: "Looks great! Increate the limit to 30!"
     #
     # Not baked, because the name changes while the program runs. Not hardcoded
@@ -471,8 +471,8 @@ def main():
     # around a small screen, which is not what a 48GX looks like.
     # The annunciators live INSIDE the glass, on the green, above the dot
     # matrix - which is where they are on the machine. They used to sit on the
-    # bezel above it, painted #101010 on a #121214 bezel, which is why Gert
-    # could never see one light up (dogfood #13 line 12). Same bezel height as
+    # bezel above it, painted #101010 on a #121214 bezel, which is why none of
+    # them could be seen to light up (dogfood #13 line 12). Same bezel height as
     # before, so nothing else on the face moves: the green simply grows upward
     # to take in the strip and its gap.
     glass_w, glass_h = LCD_W + 2 * GLASS_PAD, GLASS_H
@@ -617,8 +617,8 @@ def main():
             "pixelSize": C["font_brand_maker"],
             # Phones only. The band's rect stays the printed row's size and the
             # bigger text simply centres in it, so the desktop face is not
-            # touched - Gert, 2026sep07, after seeing it on both: "my request
-            # was only for Android", "the desktop version look perfect".
+            # touched - 2026sep07, once it was on both: the request had been for
+            # Android only, the desktop version already looking right.
             "pixelSizePhone": C["font_brand_plate"],
             "bold": True,
             "color": "#%02x%02x%02x" % BRAND,
@@ -627,8 +627,8 @@ def main():
             # The rest are ordinary grotesques that actually exist somewhere:
             # the list used to run out on Android, where none of the condensed
             # families is installed, and an empty family left Qt to choose - it
-            # picked something light and almost cursive, which Gert saw on the
-            # phone on 2026sep07: "use a more similar font to it. This slim,
+            # picked something light and almost cursive, caught on the phone on
+            # 2026sep07: "use a more similar font to it. This slim,
             # almost cursive won't cut." Roboto is Android's own, Segoe UI is
             # Windows', DejaVu Sans and Liberation Sans are the Linux pair.
             "font": ["DejaVu Sans Condensed", "Liberation Sans Narrow",

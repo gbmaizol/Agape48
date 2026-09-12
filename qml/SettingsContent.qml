@@ -11,9 +11,9 @@ import Agape48
 // QAndroidPlatformOpenGLWindow::eglSurface() while already locked by
 // QtAndroidAccessibility" - and the Vulkan build says vkSurface() in the same
 // sentence, so it is asking the platform for a surface that does it, not the
-// renderer. Gert saw the shape of it before the stack trace did: "What could be
-// crashing is we trying to use some desktop feature that doesn't exist in
-// Android", and the desktop feature is the window itself.
+// renderer. The shape of it was clear before the stack trace was: the crash is
+// a desktop feature that does not exist on Android, and the desktop feature is
+// the window itself.
 //
 // So the contents live here and get a shell chosen by platform: a Window on a
 // desktop, a full-screen in-scene page on a phone. ONE copy of the contents,
@@ -39,10 +39,10 @@ Item {
     }
 
     // A path in the state folder field is not the state folder until Enter, and
-    // the field goes on showing it either way. Dogfood both-03 line 1 is Gert
-    // reading the shelf path back out of that field and concluding, reasonably,
-    // that he had set it: "Now I know I should have pressed ENTER." Nothing
-    // moved, no message said so, and the field agreed with him. A field that
+    // the field goes on showing it either way. Dogfood both-03 line 1 is the
+    // shelf path being read back out of that field and taken, reasonably, for a
+    // setting that had been made. Nothing moved, no message said so, and the
+    // field agreed. A field that
     // lies about where the calculator's memory is is worse than an empty one.
     //
     // An empty field is NOT pending: clearing it and closing is a discard, and
@@ -50,10 +50,9 @@ Item {
     readonly property bool statePending: stateField.text.trim() !== ""
                                          && stateField.text.trim() !== engine.state.displayName
 
-    // Deliberately not shown while he is still typing - only once he has walked
-    // away from the window or tried to close it, which is what he asked for:
-    // "The setting window, upon loosing focus would cause the help text to
-    // become red and bold."
+    // Deliberately not shown while typing is still going on - only once the
+    // window has lost focus or a close has been tried. Losing focus is the
+    // trigger that turns the help text red and bold.
     property bool warnUnsaved: false
 
     // A path typed by a human is not a URL. Without this the state folder field
@@ -138,9 +137,9 @@ Item {
         }
     }
 
-    // "Save" and "Discard" rather than OK and Cancel, in his words: "Clicking
-    // 'Close' before pressing ENTER should also make it red and bold, and ask
-    // for confirmation, with options 'Save'   'Discard'."
+    // "Save" and "Discard" rather than OK and Cancel: Close before ENTER turns
+    // the hint red and bold and asks for confirmation, and the two answers are
+    // named after what they do.
     // The labels inside carry no colour of their own - see the note in
     // CalculatorPickerContent.qml. A Dialog's background comes from the system
     // palette and the ink has to come from the same place, or it is unreadable
@@ -164,9 +163,9 @@ Item {
         // through it. A path is ONE WORD as far as Text is concerned - there is
         // nothing in "/home/gert/Dropbox/Claude/Agape48Emulator/TestShelf" that
         // WordWrap is allowed to break - so a deep one simply ran off the side
-        // of the dialog. Gert, both-06 line 26: "the folder name needs to be in
-        // a special container, because this time it was going outside the
-        // dialog instead of wrapping." WrapAnywhere is what breaks a word; the
+        // of the dialog. both-06 line 26: the folder name needs a container of
+        // its own, having gone outside the dialog instead of wrapping.
+        // WrapAnywhere is what breaks a word; the
         // frame is what makes it read as a path rather than as prose.
         Column {
             width: parent.width
@@ -281,15 +280,15 @@ Item {
         // A GUTTER FOR THE SCROLLBAR. The bar is an overlay anchored to the
         // Flickable's right edge, and this content was parent.width, so every
         // full-width row - the ROM field, the folder box, every wrapped hint -
-        // ran underneath it with no clearance at all. Gert, 2026sep09: "We also
-        // need to check that there's at least a bit of clearance around every
-        // object in the dialogs." Fourteen is the Basic style's bar plus air;
+        // ran underneath it with no clearance at all. 2026sep09: every object
+        // in every dialog gets at least a little clearance. Fourteen is the
+        // Basic style's bar plus air;
         // when there is nothing to scroll the bar is hidden and this is just a
         // slightly narrower column, which is invisible.
         width: parent.width - 14
         // 6 rather than 10: "the space between them smaller, more like the
         // size and space of normal text" (2026sep10). Paired with CompactSwitch,
-        // this is what brings the whole page back inside his window.
+        // this is what brings the whole page back inside the window.
         spacing: 6
 
         // The reason this window opened, when it opened itself. Before dogfood
@@ -348,10 +347,9 @@ Item {
         }
 
         // TWO SHAPES FOR ONE SETTING, and the phone got the wrong one until
-        // 2026sep09. Gert: "the 'press enter to move' mechanics is still a bit
-        // confuse for a mobile app. Please look it over."
+        // 2026sep09: press-enter-to-move is confusing on a phone.
         //
-        // He is right, and it is worse than confusing. A path typed by hand is
+        // It is worse than confusing. A path typed by hand is
         // a desktop gesture: there is a keyboard, the path is short enough to
         // read in the box, and Enter is what a text field means. On a phone the
         // box shows the last thirty characters of a path nobody can type, the
@@ -369,8 +367,8 @@ Item {
             width: parent.width
             spacing: 6
             // A house, left of the field, for "put it back where it started".
-            // It was a full-width "Use app storage" button; Gert asked for the
-            // icon so the row reads as one thing.
+            // It was a full-width "Use app storage" button; the icon makes the
+            // row read as one thing.
             Button {
                 id: homeButton
                 width: 48
@@ -389,14 +387,14 @@ Item {
 
                     // Take the button's own text colour rather than a fixed
                     // near-black. This window comes up on the system palette,
-                    // which is dark on Gert's Windows, and "#1c1c1c" there is a
+                    // which is dark on Windows, where "#1c1c1c" is a
                     // near-black house on a near-black button - dogfood
                     // windows-01 line 12, "the house seems greyed out (low
                     // contrast)". The "…" button beside it stayed legible only
                     // because its glyph is real text that the style colours.
                     //
                     // Not a Windows bug: any dark palette does this, which is
-                    // why Gert guessed it affects Linux too.
+                    // why the same fault was expected on Linux.
                     //
                     // Canvas does not repaint when a value its onPaint read
                     // changes, so the repaint has to be asked for explicitly.
@@ -447,8 +445,8 @@ Item {
                 // handler fired twice and said active=true both times.
                 //
                 // The field is the better question anyway. "Click away" is
-                // something you do to a box, which is also how Gert put it, and
-                // it makes the two machines agree instead of one of them being
+                // something you do to a box, which is how the report put it,
+                // and it makes the two machines agree instead of one being
                 // right by accident. Both are kept: whichever notices first.
                 onActiveFocusChanged: if (!activeFocus && root.statePending)
                                           root.warnUnsaved = true
@@ -468,7 +466,7 @@ Item {
             width: parent.width
             wrapMode: Text.WordWrap
             // Red and bold once the path in the field is not the one in use and
-            // he has looked away from it. The sentence is already the
+            // the field has lost the focus. The sentence is already the
             // instruction, so it does not need rewording to become a warning.
             readonly property bool unsaved: root.warnUnsaved && root.statePending
             color: unsaved ? "#ff8a80" : "#7d7d7d"
@@ -536,7 +534,7 @@ Item {
         // whatever folder they are in and into Agape48's own, which needs no
         // permission and cannot be taken away.
         //
-        // A button rather than a path he has to know: the folder is
+        // A button rather than a path anyone has to know: the folder is
         // Android/media/br.gbmaizol.agape48/Agape48 calculators, which nobody
         // would type and which the picker cannot return either - the system
         // picker does not show an app's own folders at all.
@@ -603,8 +601,8 @@ Item {
 
         // THE ONE PERMISSION THIS APP ASKS FOR, offered rather than demanded,
         // and only on the platform that has it. Everything above works without
-        // it; this is what makes a folder of HIS - the one his sync client
-        // already watches - possible at all. See canUseAnyFolder() in
+        // it; this is what makes an ordinary folder of the owner's - the one a
+        // sync client already watches - possible at all. See canUseAnyFolder() in
         // StateFileManager.cpp for why Android has no smaller answer.
         Button {
             id: anyFolderButton
@@ -641,8 +639,8 @@ Item {
         //
         // Not on a phone, where there is no window to drag the edge of: Android
         // imposes the size, which is why 31be0c8 turned the aspect lock off
-        // there. Gert, 2026sep07: "there are functions that don't make sense in
-        // Android, like the resize option in the settings dialog."
+        // there. 2026sep07: a resize option in the settings dialog makes no
+        // sense on Android.
         CompactSwitch {
             id: liveResizeRow
             visible: Qt.platform.os !== "android"
@@ -655,17 +653,17 @@ Item {
         // required, default off in settings: Slow down to real calculator
         // speed... This is necessary to make calculator games playable."
         //
-        // ON EVERY PLATFORM, and he said which matters most: "It's needed for
-        // all builds, mainly the Android build." It costs less battery on, not
+        // ON EVERY PLATFORM, and the Android build is where it matters most.
+        // It costs less battery on, not
         // more - the throttle is a smaller instruction budget per tick, never a
         // wait. See kRealSpeedInstrPerSec in Agape48Engine.cpp.
         //
         // TWO ROWS AND NO PARAGRAPH, which is the second version. The first had
         // a switch, a two-line hint, a button row and a four-line explanation,
         // and in a 520x430 window that pushed Debug logging below the fold -
-        // Gert: "The speed toggle is replacing the previous log toggle... it
-        // should be placed in the small between them, not displace anything out
-        // of the dialog." The toggles above and below carry no hint text at all,
+        // The speed toggle goes in the gap between the two around it and
+        // displaces nothing out of the dialog. The toggles above and below carry
+        // no hint text at all,
         // so neither does this one; the calibration row appears only when it can
         // do something.
         CompactSwitch {
@@ -675,9 +673,9 @@ Item {
             onToggled: root.engine.realSpeed = checked
         }
 
-        // Keep running when out of focus, asked for on 2026sep10 after he found
-        // the behaviour with a 200-sample program and a metronome: "It runs ONLY
-        // when the calculator in in focus!!!" Measured at the time: 78.1 s of
+        // Keep running when out of focus, added on 2026sep10 after a 200-sample
+        // program and a metronome caught the emulator running only while the
+        // window had focus. Measured at the time: 78.1 s of
         // running against 443.4 s of uptime, alive 17.6% of the elapsed time.
         //
         // OFF BY DEFAULT BECAUSE HE ASKED FOR IT THAT WAY, twice: "Maybe it's
@@ -695,10 +693,9 @@ Item {
             onToggled: root.engine.runUnfocused = checked
         }
 
-        // THE CALIBRATION LIVES IN THE ADVANCED WINDOW NOW. Gert, 2026sep10:
-        // "I believe the speed adjustment setting (currently still invisible)
-        // can be relinquished to the advanced settings window." It was invisible
-        // because it sat below the fold of a window his face size makes about
+        // THE CALIBRATION LIVES IN THE ADVANCED WINDOW NOW, since 2026sep10.
+        // It was invisible where it was, sitting below the fold of a window that
+        // the face size makes about
         // 356x599 - see deferred item 1 - and it belongs there anyway: the rate
         // is a one-time per-machine calibration, not something to reach for.
 
@@ -734,8 +731,8 @@ Item {
         // Its own window rather than a page in here, because half of what it
         // tunes is drawn on the calculator and this window covers it.
         // On a phone there is no beside, so it is a page over this one -
-        // Gert, 2026sep07: "the advanced wouldn't be a new window. It would be
-        // a new page inside settings, right?"
+        // 2026sep07: Advanced is not a new window on a phone, it is a new page
+        // inside Settings.
         Button {
             text: qsTr("Advanced…")
             onClicked: root.advancedRequested()

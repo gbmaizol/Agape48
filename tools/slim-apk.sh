@@ -13,7 +13,7 @@
 #
 # Version one took the finished APK and ran `zip -d` on it, deleting eleven Qt
 # libraries that nothing else LINKS - verified with objdump across all 72
-# bundled libraries, and that verification was correct. Gert installed it:
+# bundled libraries, and that verification was correct. Then it was installed:
 # "The 48859115 had an error upon the first run and crashed. I had to install
 # the 65807583 one."
 #

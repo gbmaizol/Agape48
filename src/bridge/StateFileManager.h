@@ -50,8 +50,8 @@ class StateFileManager : public QObject
     Q_PROPERTY(bool    writable    READ isWritable  NOTIFY locationChanged)
     Q_PROPERTY(bool    isDefault   READ isDefault   NOTIFY locationChanged)
     // WHERE THE CALCULATOR'S OWN SETTINGS LIVE: beside the ROM, so they move
-    // when the folder moves. Gert, 2026sep10: "make this keyboard setting and
-    // all the settings that are like this live in the same folder as the ROM in
+    // when the folder moves. 2026sep10: the keyboard setting and everything like
+    // it lives in the same folder as the ROM, in
     // a simple settings.ini text file, so they change and move together with
     // the state folder."
     //
@@ -105,8 +105,8 @@ public:
     // time, the way a word processor opens a document. claim() writes an
     // "en-uzo" file naming this process and this machine; a second instance
     // finds it and is turned away. Two calculators at once is two folders,
-    // which the folder picker already does. Gert asked for this on 2026aug30
-    // after two copies pointed at one folder quietly ate each other's memory -
+    // which the folder picker already does. The lock arrived on 2026aug30, after
+    // two copies pointed at one folder quietly ate each other's memory -
     // every instance writes the whole state on quit, so the last one out won.
     //
     // Local files only, which since 2026sep09 is every location there is.
@@ -132,7 +132,7 @@ public:
 
     // Has the calculator we asked for actually ARRIVED, or only been let go of?
     //
-    // Gert, dogfood both-03 line 19: "Because the handover file is the smallest,
+    // Dogfood both-03 line 19: "Because the handover file is the smallest,
     // it came first, so Linux thought they were all updated. The handover should
     // come with a hash, and the calculator that's taking over should wait for a
     // full match, meaning that all the files arrived, before considering the
@@ -142,7 +142,7 @@ public:
     // the lock's DELETION lands well before the files it was protecting. The
     // waiter saw it go, read the folder, and got a new hp48 against a stale ram
     // - which is a calculator whose objects do not parse, and is why an
-    // "External" appeared on his stack.
+    // "External" appeared on the stack.
     //
     // So the answer is not the lock going. The answer is a "contents" file
     // naming the request it answers and carrying a sha256 of every file the
@@ -198,11 +198,11 @@ public:
 
     Q_INVOKABLE bool renameInstance(const QString &from, const QString &to);
 
-    // Throw one away, folder and all. Gert asked for it in dogfood android-08
-    // line 6: "we need a 4th button to delete a calculator! It should be
+    // Throw one away, folder and all. Dogfood android-08 line 6: "we need a 4th
+    // button to delete a calculator! It should be
     // disabled if the selected calculator is the one that's loaded."
     //
-    // THE OPEN ONE IS NOT DELETABLE, and that is his rule rather than a
+    // THE OPEN ONE IS NOT DELETABLE, and that is the rule rather than a
     // limitation - deleting the folder the C core is writing into would leave
     // the emulator running against files that no longer exist, and the next
     // save would recreate half of them. The shelf disables the button for it;
@@ -216,9 +216,8 @@ public:
     // The shelf's default on Android is the app's own private data directory,
     // which works perfectly and is invisible: since Android 11 no file manager
     // may browse Android/data, so nothing can sync it and the user cannot even
-    // look at it. Gert, dogfood android-08 line 7: "I don't have access to the
-    // internal calculator folder, and I can't change it to a visible folder
-    // before you implement this possibility."
+    // look at it. Dogfood android-08 line 7: the internal calculator folder
+    // could not be reached, and could not be changed to a visible one either.
     //
     // getExternalMediaDirs() is the possibility. It hands back the app's own
     // folder under Android/media, which Android deliberately left readable by
@@ -283,7 +282,7 @@ private:
     bool populateDesktop(x48_config_t *cfg, QByteArray *storage);
     void loadPersistedLocation();
     void beat();
-    // The other half of the sync rule Gert set on 2026aug30: a calculator can
+    // The other half of the sync rule of 2026aug30: a calculator can
     // have its files changed underneath it while it is open - a sync client
     // landing another machine's copy, or a file dropped in by hand - and
     // racing with that is how a memory image gets torn in half. The watcher

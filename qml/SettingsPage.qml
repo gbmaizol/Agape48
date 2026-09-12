@@ -32,7 +32,7 @@ PageShell {
         anchors.fill: parent
         engine: root.engine
         onCloseRequested: root.close()
-        // Paĝo interne de ĉi tiu paĝo, kio estas kion Gert petis kaj kion la
+        // Paĝo interne de ĉi tiu paĝo, kio estas kion la kion la
         // agordoj de telefono faras ĉie aliloke: "the advanced wouldn't be a new
         // window. It would be a new page inside settings, right?"
         onAdvancedRequested: root.advancedRequested()

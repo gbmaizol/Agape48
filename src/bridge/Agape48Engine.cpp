@@ -45,12 +45,11 @@ constexpr int  kMinHoldMs      = 60;
 constexpr int  kCyclesPerTick  = 70000;
 constexpr int  kIdleIntervalMs = 100;
 
-// REAL HP 48 SPEED, and the number is triangulated rather than picked. Gert,
-// 2026sep09, on a game he had just tried: "it's runing at 5x the speed it
-// should be."
+// REAL HP 48 SPEED, and the number is triangulated rather than picked. 2026sep09,
+// on a game: the emulator was running at five times the speed it should be.
 //
 // Free-running, this frontend delivers kCyclesPerTick every kTickIntervalMs =
-// 4,375,000 instructions a second, so his five times puts a real machine at
+// 4,375,000 instructions a second, so that factor of five puts a real machine at
 // about 875,000. TWO INDEPENDENT THINGS AGREE with that: 875,000 times the
 // Saturn's ~4.2 cycles per instruction is 3.68 MHz, which is the 48GX's clock,
 // and x48_shim.c:327 already guessed "roughly 17000 of these" for a 60 Hz tick,
@@ -74,7 +73,7 @@ constexpr int  kIdleIntervalMs = 100;
 // number above. (The other 14 samples of the 200 each spanned a moment when the
 // window lost focus, which stops the emulator outright - see Main.qml's
 // onActiveChanged - and they read 1.7 s to 27 s. Discarding them is not
-// cherry-picking: they measure Gert typing, not the calculator.)
+// cherry-picking: they measure a hand at the keyboard, not the calculator.)
 //
 // A SECOND MEASUREMENT, sharing nothing with the first, lands on a textbook
 // constant. speed-probe.txt counted 46,106,722 instructions across 142 of those
@@ -90,8 +89,8 @@ constexpr int  kIdleIntervalMs = 100;
 // therefore the SETTING that produces authentic speed here, not the machine's
 // instruction rate; per-machine is also why speed/rate is persisted.
 //
-// The estimates this replaces, and why each failed: 875,000 came from Gert's eye
-// ("it's runing at 5x the speed it should be") against the free-running
+// The estimates this replaces, and why each failed: 875,000 came from the naked
+// eye - five times too fast - against the free-running
 // 4,375,000; 488,446 came from 49 runs whose median went through a t2_tick that
 // was being ratcheted from 61 to 3811 by get_t1_t2(); and 500,000 was x48's own
 // dead busy-wait of 2 us per instruction, a constant in code this build never
@@ -109,8 +108,8 @@ constexpr int    kRealSpeedInstrPerSec = 205000;
 // can deliver and would silently do nothing - and the floor is low enough to be
 // obviously wrong on screen rather than to look like a hang.
 constexpr int    kRateFloor  = 50000;
-// The far left of the speed slider. Gert asked for "sluggish 0.1" and meant it
-// as a toy; there is no lower bound worth defending below that, because a tenth
+// The far left of the speed slider. A sluggish 0.1 is a toy setting, and there
+// is no lower bound worth defending below it, because a tenth
 // of a real 48 is already slower than anything anybody would sit through.
 constexpr double kFactorFloor = 0.1;
 constexpr int    kRateCeiling = kCyclesPerTick * 1000 / kTickIntervalMs;
@@ -147,8 +146,8 @@ constexpr int  kSleepOffGraceMs = 5000;
 // outright, and that broke waking: SHUTDN is not a halt, it is a wait, and the
 // ROM leaves it on a TIMER tick as readily as on a key. With the tick stopped
 // nothing ever delivered that timer, so a machine that parked mid-wake stayed
-// parked until the next key press happened to shake it loose - Gert's "I have
-// to tap Esc 3 times", and the same reason clicking the title bar appeared to
+// parked until the next key press happened to shake it loose, which is why Esc
+// took three taps, and the same reason clicking the title bar appeared to
 // help. Ten times a second costs a few dozen instructions and keeps the 48's
 // clock and alarms honest, which a full stop also quietly broke.
 
@@ -171,8 +170,8 @@ constexpr int  kSleepOffGraceMs = 5000;
 // -----------------------------------------------------------------------------
 // --- debug log ---------------------------------------------------------------
 // One file, appended to, installed as Qt's message handler only while the
-// option is on. Gert asked for this after dogfood #8, where the only record of
-// why the app would not start was a red banner hidden behind a window.
+// option is on. It exists because of dogfood #8, where the only record of why
+// the app would not start was a red banner hidden behind a window.
 QFile *g_logFile = nullptr;
 QtMessageHandler g_previousHandler = nullptr;
 
@@ -259,9 +258,8 @@ const QHash<QString, QPair<int, int>> &keyTable()
 // POSIX path at all, so toLocalFile() is empty and the C core - which fopen()s
 // what it is given - has nothing to work with. Until tonight both directions
 // simply refused, and on a phone the picker is the only way to name a file, so
-// that refusal covered every file there was. Gert, on the phone: "when I try to
-// put a file on the stack it doesn't work, saying something that 'it can only
-// read a file in this computer'."
+// that refusal covered every file there was: on the phone, putting a file on the
+// stack failed with "it can only read a file in this computer".
 //
 // Qt's own QFile does understand content://, so the bytes make the trip through
 // a scratch file in the app's cache and the core still only ever sees a real
@@ -444,11 +442,10 @@ Agape48Engine::Agape48Engine(QObject *parent)
     // lock here, so we can SAVE first, and what they pick up is everything
     // that was done in this window. A take-over cannot do that - by the time
     // the loser notices, the folder is not its to write.
-    // Gert, 2026sep03: "make sure that for handing over, the calculator's
-    // auto-sleep function has the same effect as pressing the green shift
-    // followed by ON."
+    // 2026sep03: handing over runs the calculator's auto-sleep, which has to
+    // have the same effect as pressing the green shift followed by ON.
     //
-    // He is right, and it is not only tidiness. Until now this saved and let go
+    // That is not only tidiness. Until now this saved and let go
     // WITHOUT switching the Saturn off, so the machine written to disk was one
     // frozen mid-instruction rather than one parked in SHUTDN - a state no HP 48
     // ever reaches by itself, and a state nothing else in this program produces.
@@ -486,7 +483,7 @@ Agape48Engine::Agape48Engine(QObject *parent)
         queueTaps(seq);
     });
 
-    // The files changed underneath us. Gert's rule, and it is the right one:
+    // The files changed underneath us, and the rule for that is the right one:
     // going to sleep is the only move that cannot lose anybody's work. The
     // state on disk and the state in memory are two different calculators now,
     // and there is no way to reconcile them that is not a guess - so stop,
@@ -563,7 +560,7 @@ Agape48Engine::Agape48Engine(QObject *parent)
     // process is gone; aboutToQuit does not run, the QML Window never reports
     // itself inactive, and everything since the last explicit save is lost.
     //
-    // MEASURED on Gert's phone, 2026sep07: cold-boot a new calculator, answer
+    // MEASURED on the phone, 2026sep07: cold-boot a new calculator, answer
     // the recovery prompt, leave with the back gesture, come back - and it asks
     // "Try To Recover Memory?" all over again, because ram and hp48 on disk
     // were still the ones written when the calculator was last switched by
@@ -653,8 +650,8 @@ bool Agape48Engine::start()
         // Naming the folder is the whole difference between "something is
         // wrong" and "put a file called rom in here".
         //
-        // KAJ DE KIE PRENI ĜIN, ekde provo 17. Gert, veninte al ĉi tiu strio kun
-        // freŝa instalo kaj nenio alia: "What if the red message says something
+        // KAJ DE KIE PRENI ĜIN, ekde provo 17, kiam freŝa instalo alvenis al ĉi
+        // tiu strio kaj al nenio alia: "What if the red message says something
         // in the lines of 'Download an official one at
         // https://www.hpcalc.org/hp48/pc/emulators/ ctrl-f to search for "HP 48GX
         // Revision"?'" Ĝi estas la sola ekrano kiun homo sen ROM certe vidos, kaj
@@ -869,7 +866,7 @@ void Agape48Engine::tick()
         //                   exactly like the user pressing OFF - so handOver()
         //                   fired and SAVED and released a calculator we had
         //                   only just opened. That is both-04 line 8, "ram
-        //                   keeps syncing forever": his log shows the state
+        //                   keeps syncing forever": the log shows the state
         //                   folder change at 21:31:22.276 and "screen off"
         //                   106 ms later, with nobody having touched a key.
         //
@@ -887,7 +884,7 @@ void Agape48Engine::tick()
             // lock, and left the keyboard dead to everything except ON, which
             // then tried to reload a state file that had never been written.
             // A brand-new calculator could not be started at all: measured on
-            // Gert's phone, 2026sep07, a fresh install sat on a blank green
+            // the phone, 2026sep07, a fresh install sat on a blank green
             // screen through every key and two restarts, at zero CPU.
             //
             // Linux was winning the same race rather than avoiding it - by the
@@ -908,8 +905,8 @@ void Agape48Engine::tick()
                            "shift). Press ON to switch it back on."
                          : "screen on");
             // Switching the calculator off is how you hand it to the other
-            // machine: save it, then let go of the lock. Gert dismissed the
-            // worry about hitting Ctrl+Esc by accident, and he is right - an
+            // machine: save it, then let go of the lock. The worry about
+            // hitting Ctrl+Esc by accident does not survive inspection - an
             // accidental release only costs anything if somebody also takes it
             // over by accident at the same moment, and Esc puts it straight
             // back.
@@ -999,9 +996,8 @@ void Agape48Engine::tick()
 // seconds waiting for. And switching calculators mid-session does not hit that
 // rule at all, so it simply left a dead screen with nobody pressing ON.
 //
-// Gert, both-04 line 3: "The screen starts off, with 'The chosen memory is in
-// use by another device.' ... It should turn on instead, right after taking
-// over."
+// both-04 line 3: the screen started off, carrying "The chosen memory is in use
+// by another device." It turns on instead, right after taking over.
 //
 // So: the blank first frame is expected here rather than evidence of anything.
 // Say so, and press ON. Same three flags attach() sets, for the same reason.
@@ -1307,11 +1303,11 @@ void Agape48Engine::logStartupFacts() const
 // Press keys on the user's behalf, one per tick-with-nothing-held.
 //
 // The ROM owns the screen and will not repaint the stack until it runs again,
-// so an imported object sat there invisibly until the next keypress. Gert chose
-// to have Agape48 press ON itself (dogfood #16): on the 48 that is also CANCEL,
-// so a half-typed command line is lost, and he accepted that.
+// so an imported object sat there invisibly until the next keypress. Agape48
+// presses ON itself (dogfood #16): on the 48 that is also CANCEL, so a
+// half-typed command line is lost, and that cost was accepted.
 //
-// His condition is the interesting half. ON with a shift active is not ON - it
+// The condition is the interesting half. ON with a shift active is not ON - it
 // is OFF, printed right there on the key - so a latched shift has to be
 // cancelled first. Pressing a shift key while it is active is what cancels it,
 // and the annunciators are how we know one is: they come straight off the
@@ -1387,9 +1383,9 @@ bool Agape48Engine::takeOverCalculator(const QString &name)
 {
     // Never read a folder we can SEE is half delivered, whichever button was
     // pressed to get here. Two of them offer this, and both-05 line 15 is what
-    // pressing one of them costs: Gert took a calculator whose contents record
-    // named a ram that had not arrived, and got the memory from before the
-    // handover instead of the one he had waited a minute and a half for.
+    // pressing one of them costs: a calculator whose contents record named a ram
+    // that had not arrived opened with the memory from before the handover
+    // instead of the one a minute and a half of waiting had been for.
     //
     // Only bites while a request of OURS is outstanding for this calculator -
     // that is the one window in which a delivery is known to be in flight, and
@@ -1430,9 +1426,9 @@ void Agape48Engine::stopWaiting()
 // this one that is still alive.
 //
 // A lock left behind by a machine that was switched off stays on disk for ever
-// and still reads as held. That is deliberate here - Gert, 2026sep04: "If
-// another host died and left the lock on, keep showing the locked screen as is
-// with the phrase on it." An offline machine and a dead one are the same file,
+// and still reads as held. That is deliberate here, and the rule of 2026sep04 is
+// literal: "If another host died and left the lock on, keep showing the locked
+// screen as is with the phrase on it." An offline machine and a dead one are the same file,
 // so the screen tells you what is written rather than guessing which it was.
 void Agape48Engine::pollLockHolder()
 {
@@ -1458,7 +1454,7 @@ void Agape48Engine::pollForRelease()
     // the memory beside it is 131,072, so through a sync client the lock's
     // deletion lands first and the folder is still half the previous
     // calculator. That is dogfood both-03 line 19, and the "External" object on
-    // Gert's stack in line 8 is what reading it looked like.
+    // stack in line 8 is what reading it looked like.
     const bool held = m_state->isHeldBySomebody(m_waitFor);
     const StateFileManager::HandoverState arrival = m_state->handoverState(m_waitFor);
     if (!held && arrival == StateFileManager::Complete) {
@@ -1594,7 +1590,7 @@ QString Agape48Engine::newCalculator()
 // keeps that path for the life of the session. Move the folder underneath it
 // and the next save - a lost focus, a quit, opening another calculator - writes
 // ram and hp48 back to the path the core was born with, MAKING THE FOLDER AGAIN
-// under its old name. Gert, both-05 line 37: "there were not two, but 3:
+// under its old name. both-05 line 37: "there were not two, but 3:
 // 'Windows Box', 'Linux Box' and 'Calculator 1' ... It seems the rename erased
 // the files from the folder upon renaming it, but not every time."
 //
@@ -1692,7 +1688,7 @@ bool Agape48Engine::exportFile(const QUrl &url)
         // The document already EXISTS by now - Android creates it when the user
         // names it, before we are asked to write anything - so failing here
         // leaves a real, empty file behind with the user's chosen name on it.
-        // Measured on Gert's phone before the fix: "test123.hpp, 0 B".
+        // Measured on the phone before the fix: "test123.hpp, 0 B".
         const bool copied = copyBytes(scratch, url.toString());
         QFile::remove(scratch);
         if (!copied) {
@@ -1858,7 +1854,7 @@ void Agape48Engine::reset(bool cold)
 // second, neither of which needs saturn.i_per_s - which on 2026sep10 held
 // steady at 434000 while the wall clock said the same loop took 58.8 s and
 // then 10.3 s - nor the 48's own TICKS, which disagreed by a factor of twenty.
-// Gert's hypothesis for the variance is Windows treating an unfocused process
+// The variance is best explained by Windows treating an unfocused process
 // differently, and ticks per wall second is exactly the number that settles it.
 void Agape48Engine::writeSpeedProbe()
 {
@@ -1900,7 +1896,7 @@ bool Agape48Engine::saveState()
     // folder. Dogfood both-03 line 8: "the Dropbox update is taking forever, as
     // if the other calculator in Linux keeps touching the memory files ...
     // Should Agape48 refrain from changing the RAM files while nothing changes
-    // on the calculator's stack?" It should. Measured on his machine: the log's
+    // on the calculator's stack?" It should. Measured: the log's
     // "emulation stopped" at 15:23:05.022, ram's mtime 15:23:05.025.
     //
     // Nothing is committed on the skip, deliberately: we did not write, so the

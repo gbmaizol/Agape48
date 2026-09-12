@@ -6,7 +6,7 @@ import Agape48
 // Agordoj, en propra fenestro.
 //
 // Ĉi tio estis malsupra folio kuŝanta super la kalkulila vizaĝo ĝis 2026aug29,
-// kaj Gert atentigis pri tio trifoje sinsekve antaŭ ol demandi rekte kial. La
+// kaj tri sinsekvaj raportoj atentigis pri tio antaŭ ol demandi rekte kial. La
 // honesta respondo estas ke ĝi estis skribita telefon-unue - folio glitanta
 // supren de la malsupra rando estas la Androida idiomaĵo - kaj poste neniam
 // rerigardita kiam la labortabla konstruo montriĝis esti tiu kiu ekzistas. Sur
@@ -19,13 +19,13 @@ import Agape48
 // Ĉio ĉi tie faras ion. Tri regiloj estis forigitaj prefere ol lasitaj aspekti
 // veraj:
 //
-//   Copy stack / Paste / Save now - jam en la ⋮-menuo, kaj la regulo de Gert
-//     estas ke unu komando apartenas al unu loko.
+//   Copy stack / Paste / Save now - jam en la ⋮-menuo, kaj la regulo estas ke
+//     unu komando apartenas al unu loko.
 //   Haptics / Beep - du ŝaltiloj super Feedback-unuopaĵo kiu ankoraŭ estas
 //     TODO, do ili baskuligis absolute nenion.
 //   Pick folder… - ĝi vokis StateFileManager::requestLocation(), kiu sur
 //     labortablo nur eligas pickerRequested() kaj atendas FolderDialog kiun
-//     neniu montris. Gert petis veran en dogfood #7, do la "…"-butono apud la
+//     neniu montris. Dogfood #7 petis veran, do la "…"-butono apud la
 //     stata dosierujo nun estas QtQuick.Dialogs-a FolderDialog - denaska sur ĉi
 //     tiu labortablo, ĉar Qt liveras la platforman etoson gtk3. Tio estas unu
 //     plia Qt-modulo kontraŭ la maldika-modula regulo, prenita laŭ lia ordono.

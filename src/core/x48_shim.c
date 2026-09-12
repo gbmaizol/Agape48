@@ -649,7 +649,7 @@ uint64_t x48_state_fingerprint(void)
  * read_bin_file() is deliberately NOT used, because it treats a file without
  * the header as a string, wraps the raw bytes in one, pushes it and reports
  * success - drop a JPEG on the calculator and it becomes a large string with no
- * complaint. Gert recorded that trap on 2026aug26. This rejects instead.
+ * complaint. That trap was recorded on 2026aug26. This rejects instead.
  * ------------------------------------------------------------------------ */
 
 /* binio.c declares these three at file scope and puts them in no header, so
@@ -773,7 +773,7 @@ static DWORD ob_size(const BYTE *o, DWORD avail, int depth)
  * The letter names the ROM revision of the machine that produced the file, and
  * ours is whichever ROM the user loaded. Hardcoding 'A' made every export
  * differ from its source at byte 8 and nowhere else - dogfood #15 line 11,
- * where Gert's own S6.LIB came in as HPHP48-M and went out as HPHP48-A.
+ * where a real S6.LIB came in as HPHP48-M and went out as HPHP48-A.
  *
  * The ROM says so itself: "Version HP48-" appears in it as ordinary text, two
  * nibbles per character, and the character after it is the revision. In the

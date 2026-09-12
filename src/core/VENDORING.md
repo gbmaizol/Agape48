@@ -12,7 +12,7 @@ Agape48 does not fork x48's history. It vendors a chosen upstream under `src/cor
 | `x48` (Eddie C. Dost, 0.6.4) | The reference. Every later fork descends from it. | `emulate()` is one unbounded loop welded to an X11 event pump. Splitting it is the biggest single piece of surgery in this project. |
 | `Droid48`'s fork | Already solved the "no X11, JNI frontend, cycle-budgeted stepping" problem, and its LCD and keyboard glue is the closest to what Agape48 needs. | Android-shaped assumptions to unwind; check the licence and attribution before lifting code. |
 
-**Decided by Gert on 2026aug28: start from Droid48's fork.** Its shape matches the Droid48-everywhere UI decision, it has already solved cycle-budgeted stepping without X11, and `x48ng` was archived on 2026-07-29, so neither candidate has a live upstream to send patches to.
+**Decided on 2026aug28: start from Droid48's fork.** Its shape matches the Droid48-everywhere UI decision, it has already solved cycle-budgeted stepping without X11, and `x48ng` was archived on 2026-07-29, so neither candidate has a live upstream to send patches to.
 
 Vendor `app/src/main/jni/` only. The Java layer under `app/src/main/java/org/ab/x48/` is replaced by the Qt/QML frontend, which keeps the licence position simpler - see item 7 of `docs/design-questions.md`.
 
@@ -32,6 +32,6 @@ The ACO wording was read on 2026aug28 and does not support the confident version
 
 So bundling is a risk call, not a permission - a well-precedented one, given Droid48's years on the Play Store, but a risk call.
 
-**Decided by Gert on 2026aug28: bundle both, the 48GX and the 48SX**, taken knowingly on the grounds that the exposure for an open-source non-commercial release is negligible. That keeps the first-run ROM import flow off the critical path, and the SX ROM is needed anyway for the 48S setting kept by 2c. Cost is 533 KB compressed and 768 KB installed; see item 7 of `docs/design-questions.md`.
+**Decided on 2026aug28: bundle both, the 48GX and the 48SX**, taken knowingly on the grounds that the exposure for an open-source non-commercial release is negligible. That keeps the first-run ROM import flow off the critical path, and the SX ROM is needed anyway for the 48S setting kept by 2c. Cost is 533 KB compressed and 768 KB installed; see item 7 of `docs/design-questions.md`.
 
 Keep the ROM path out of the state directory either way, so a cloud-synced folder does not end up carrying half a megabyte of ROM back and forth on every save.

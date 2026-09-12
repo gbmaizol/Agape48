@@ -74,14 +74,14 @@ constexpr int kSleepStaleMinutes = 10;
 //
 // QSysInfo::machineHostName() is the answer on a desktop and is "localhost" on
 // every Android phone ever made - the kernel's hostname, which no Android
-// device sets. Gert saw it: dogfood android-09 line 22, "the phone calls itself
-// localhost in the lock file, so a handover from it would say left open on
+// device sets. Dogfood android-09 line 22 caught it: the phone calls itself
+// localhost in the lock file, so a handover from it would say "left open on
 // localhost". Harmless while the phone had a shelf of its own; not harmless now
 // that a phone, a laptop and a Windows box can hold calculators on one shared
 // folder, where this name is the only thing telling them apart.
 //
 // device_name is what the owner typed into Settings, so it is the name they
-// already know the phone by ("Nothing (4a) Pro do Gert" on Gert's). Build.MODEL
+// already know the phone by - "Nothing (4a) Pro do Gert" on this one. Build.MODEL
 // is the fallback for a device that has none.
 #ifdef Q_OS_ANDROID
 QString androidDeviceName()
@@ -117,9 +117,9 @@ QString androidDeviceName()
 
 // THE FOLDER PICKER HANDS BACK A content:// TREE, AND THE CORE NEEDS A PATH.
 //
-// This is the whole of dogfood android-09 line 24. Gert put the shared shelf on
-// the phone at /sdcard/Documents/Agape48Emulator/TestShelf, pressed the "..."
-// button, picked it, allowed it - and got "Migration between local and SAF
+// This is the whole of dogfood android-09 line 24. With the shared shelf on the
+// phone at /sdcard/Documents/Agape48Emulator/TestShelf, the "..." button picked
+// it, the system allowed it - and out came "Migration between local and SAF
 // storage is not implemented yet", which is what this program used to say to
 // anything that was not a plain path. "I believe no progress is possible while
 // [that]. Please do fix it."
@@ -196,8 +196,8 @@ QUrl localised(const QUrl &picked)
 // WHICH FOLDERS ARE THIS APP'S OWN, which on Android is the whole question.
 //
 // Scoped storage does not hand out read and write as one thing, and the way it
-// fails is far worse than a refusal. Measured on Gert's phone at 22:51 on
-// 2026sep09, pointing at his shared shelf with no permission granted:
+// fails is far worse than a refusal. Measured on the phone at 22:51 on
+// 2026sep09, pointing at a shared shelf with no permission granted:
 //
 //   the folder listed              - Documents/Agape48Emulator/TestShelf showed
 //                                    its three calculators
@@ -223,16 +223,16 @@ QUrl localised(const QUrl &picked)
 // THE SHELF A PHONE STARTS WITH, and since 2026sep09 it is a folder that can
 // be seen. Android/media/<package>/Agape48 calculators: a real path, no
 // permission of any kind, the app's own - and unlike the app's data folder, not
-// hidden from every file manager on the phone. Gert, dogfood android-08 line 7:
-// "I don't have access to the internal calculator folder, and I can't change it
-// to a visible folder before you implement this possibility." Now nothing has
-// to be changed for it to be visible; it starts that way.
+// hidden from every file manager on the phone. Dogfood android-08 line 7: the
+// internal calculator folder could not be reached, and could not be changed to a
+// visible one either. Now nothing has to be changed for it to be visible; it
+// starts that way.
 //
 // IT IS NOT DURABLE, AND THAT IS MEASURED, NOT ASSUMED. On this phone (Android
 // 16) uninstalling the app deleted /sdcard/Android/media/br.gbmaizol.agape48
-// whole, marker file and all - which is the other half of what happened to him:
-// "I even tried to uninstall it and install again, but this caused the newly
-// installed version to have no memory folder". Visible is not the same as safe.
+// whole, marker file and all - which is the other half of the report: an
+// uninstall and reinstall left the newly installed version with no memory folder
+// at all. Visible is not the same as safe.
 // A calculator that must outlive the app belongs in a folder of the user's own,
 // which is what the picker and canUseAnyFolder() are for.
 //
@@ -435,7 +435,7 @@ void StateFileManager::persistLocation()
 // gets. Carrying the calculator between machines is what the user-chosen synced
 // folder is FOR; it should not also happen by accident.
 //
-// Gert's Windows laptop is Azure-AD joined, which is what raised it. Only fresh
+// An Azure-AD joined Windows laptop is what raised it. Only fresh
 // installs move: the location is written to QSettings on first run, so anything
 // already running keeps the folder it has.
 // A SUBFOLDER ON ANDROID, the data folder itself everywhere else.
@@ -471,16 +471,15 @@ QString StateFileManager::defaultLocationPath()
 // stays inside its own storage and asks for nothing - the folder it starts in,
 // and the Android/media folder the button below hands out, are both the app's
 // own. The moment the user wants the calculators in a folder that a sync client
-// already watches - Gert's is Documents/Agape48Emulator - that is somebody
+// already watches - Documents/Agape48Emulator, say - that is somebody
 // else's storage, and Android has exactly one answer for an app that needs to
 // read and write arbitrary folders: MANAGE_EXTERNAL_STORAGE, granted by hand on
 // a system screen, revocable there at any time.
 //
 // It is declared in the manifest and requested nowhere else, which is the rule
-// Gert set on 2026sep06: "Remember to request the required permissions for the
-// APK, but make them be requested to the system as they become required. For
-// example, only if the user desires to change to a folder outside the sandbox
-// to integrate Dropbox, and so on." Nothing asks for it at startup; nothing
+// of 2026sep06: a permission is asked of the system only as it becomes required -
+// only when the user wants a folder outside the sandbox, to put the calculators
+// where a sync client can see them. Nothing asks for it at startup; nothing
 // asks for it to open the folder the app starts in; the settings page offers it
 // only when a chosen folder turns out to need it.
 bool StateFileManager::canUseAnyFolder() const
@@ -691,9 +690,9 @@ bool occupied(const QDir &shelf, const QString &calc)
 // A sync client delivers a folder one file at a time, cheapest first, and the
 // lock is the cheapest thing in it. So the machine waiting for a handover sees
 // the lock go while the memory it was protecting is still crossing, reads the
-// folder, and gets half of one calculator and half of another. Gert found it
-// in dogfood both-03 line 19 and asked for exactly this: the handover comes
-// with a hash, and the taker waits for a full match before loading.
+// folder, and gets half of one calculator and half of another. Dogfood both-03
+// line 19 found it, and the answer is exactly this: the handover comes with a
+// hash, and the taker waits for a full match before loading.
 //
 // HASHES, not sizes or mtimes, and that is measured rather than assumed. ram
 // is always exactly 131,072 bytes, so size tells nobody anything; and Dropbox
@@ -1008,9 +1007,9 @@ QString StateFileManager::createInstance()
         setError(tr("Could not make a new calculator."));
         return QString();
     }
-    // A new calculator starts as a copy of the one you are looking at. Gert,
-    // both-05 line 37: "It also would be great if the new calculator was always
-    // a clone of the calculator that's open when it's created."
+    // A new calculator starts as a copy of the one you are looking at, which is
+    // both-05 line 37: a new calculator is always a clone of whichever one is
+    // open when it is created.
     //
     // An empty folder makes the ROM build RAM from nothing, and that is the one
     // path that still ends at "Try To Recover Memory?" with no key getting past
@@ -1207,8 +1206,8 @@ bool StateFileManager::claim(bool takeOver)
 
 // --- asking for a calculator somebody else has -----------------------------
 //
-// Gert, 2026sep02: "give a warning - send a sleep command to the other one and
-// take it over?" It is a better answer than taking it over, and not only a
+// 2026sep02: a warning first - a sleep command to the other machine, and only
+// then the take-over. It is a better answer than seizing it, and not only a
 // politer one: taking it over makes the loser drop the calculator WITHOUT
 // saving, because by then the folder is not its to write. Asking lets it save
 // first, so what the asker picks up is everything the other machine did.
@@ -1396,7 +1395,7 @@ void StateFileManager::beat()
 
 // --- the files changing underneath us ---------------------------------------
 //
-// Gert's rule, 2026aug30: a calculator whose files change while it is open
+// The rule of 2026aug30: a calculator whose files change while it is open
 // should go to sleep rather than race. The state on disk and the state in
 // memory have become two different calculators, and every way of resolving
 // that by hand is a guess - so stop, save nothing, and let ON decide, which
@@ -1757,8 +1756,8 @@ bool StateFileManager::migrateTo(const QUrl &destination)
         // own - Documents, Download, a card - is not merely unwritable to an
         // app without "all files" access: it does not exist, because scoped
         // storage hides what it does not grant. Saying "there is no folder
-        // called ..." about a folder he is looking at in his file manager is
-        // the least helpful true sentence available, so ask the other question
+        // called ..." about a folder that is open in a file manager alongside
+        // is the least helpful true sentence available, so ask the other question
         // first and let the caller offer the switch.
         if (!to.exists()) {
             setError(tr("There is no folder called %1. Use the \"…\" button to "
@@ -1769,10 +1768,9 @@ bool StateFileManager::migrateTo(const QUrl &destination)
                     "there.").arg(QDir::toNativeSeparators(to.absolutePath())));
         return false;
     }
-    // Gert, 2026sep02: "if the folder already contains a calculator, it just
-    // loads the calculator that's there. I think this would be much more
-    // harmonious." He is right, and it is the difference between joining a
-    // shared folder and moving in on top of whoever is already in it. Copying
+    // 2026sep02: a folder that already contains a calculator simply loads the
+    // calculator that is there. That is the difference between joining a shared
+    // folder and moving in on top of whoever is already in it. Copying
     // in was only ever the right answer for a folder with nothing in it.
     //
     // Your own calculator is not touched and not moved. It stays in the folder

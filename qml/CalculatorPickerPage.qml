@@ -3,7 +3,7 @@ import Agape48
 
 // La kalkulilbreto sur telefono: paĝo, ne fenestro. Ĉio pri la kialo estas en
 // PageShell.qml - dua Window igas la platforman kromaĵon akiri surfacon, kaj
-// tiu voko abortas la procezon. Mezurite sur la telefono de Gert: Agordoj
+// tiu voko abortas la procezon. Mezurite sur la telefono: Agordoj
 // malfermiĝis 0 el 10 fojoj kiel fenestro kaj 10 el 10 kiel paĝo, dum ĉi tiu -
 // intence lasita fenestro, kiel la kontrolo - restis ĉe 0 el 5.
 //

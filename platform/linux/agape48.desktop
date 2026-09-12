@@ -16,7 +16,7 @@
 # Utility; is what install.sh used to write by hand, and desktop-file-validate
 # says why that is wrong: "contains more than one main category; application
 # might appear more than once in the application menu". Education is the one
-# kept, because that is where install.sh has always told him to look for it, and
+# kept, because that is where install.sh has always said it would be, and
 # Math is an additional category that Education already qualifies. Anyone
 # hunting the word "calculator" finds it through Keywords instead.
 #
