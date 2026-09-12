@@ -279,14 +279,27 @@ def compose(art: Image.Image, s: int, fill: float, background,
 
     alpha = a.getchannel("A")
     if circle:
-        mask = Image.new("L", a.size, 0)
-        ImageDraw.Draw(mask).ellipse((0, 0, a.width - 1, a.height - 1), fill=255)
-        alpha = Image.composite(alpha, Image.new("L", a.size, 0), mask)
+        # LA CIRKLO TUŜAS LA KVAR RANDOJN, kaj tial ĉi tie ne plu estas erozio.
+        # Mezurite antaŭ la ŝanĝo: la plene opaka cirklo estis 87-89% de la tolo
+        # ĉe ĉiu grando - ringo de nenio larĝa 14 bilderojn ĉe 256, 2 ĉe 32 - kaj
+        # la kaŭzo ne estis FILL_DESKTOP, kiu jam estas 1,0, sed la erozio sub
+        # ĉi tiu bloko, kiu retiris la opakan randon je la malakriga radiuso.
+        #
+        # SUPERSPECIMENA MASKO anstataŭe: ImageDraw.ellipse ne glatigas, do
+        # elipso kvaroble granda, malgrandigita per LANCZOS, donas glatan randon
+        # KIU NE ŜRUMPAS. Glateco sen perdo de radiuso, kio estas ĝuste kion la
+        # erozio-kaj-malakrigo aĉetis je la prezo de la radiuso.
+        ss = 4
+        big = Image.new("L", (a.width * ss, a.height * ss), 0)
+        ImageDraw.Draw(big).ellipse((0, 0, a.width * ss - 1, a.height * ss - 1),
+                                    fill=255)
+        alpha = Image.composite(alpha, Image.new("L", a.size, 0),
+                                big.resize(a.size, Image.LANCZOS))
 
     # Molaj randoj. Erozii je la malakriga radiuso, poste malakrigi, por ke la
     # tuta fadeno vivu interne de la bildo kaj la 100%-opaka parto ankoraŭ
     # atingu preskaŭ ĝis la vera rando.
-    if feather:
+    if feather and not circle:
         r = max(1, round(s * FEATHER))
         alpha = alpha.filter(ImageFilter.MinFilter(2 * r + 1))
         alpha = alpha.filter(ImageFilter.GaussianBlur(r))
@@ -295,7 +308,9 @@ def compose(art: Image.Image, s: int, fill: float, background,
     # Malluma fotografaĵo tamen bezonas randon por legiĝi kiel objekto, sur
     # mezhela fono aŭ sur malluma taskostrio en kiun ĝi alie dissolviĝus. Prenita
     # el la moligita alfao, do la ombro sekvas la saman konturon.
-    if feather:
+    # Cirklo kiu tuŝas la randojn ne havas lokon por ombro ekster si: ĉiu
+    # bildero de ĝi kuŝus ekster la tolo aŭ sub la cirklo mem.
+    if feather and not circle:
         shadow = Image.new("RGBA", (s, s), (0, 0, 0, 0))
         shadow.paste((0, 0, 0, 130), (x + max(1, s // 128), y + max(1, s // 96)), a)
         canvas = Image.alpha_composite(
