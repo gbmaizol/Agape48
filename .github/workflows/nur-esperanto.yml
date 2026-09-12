@@ -1,0 +1,186 @@
+# La regulo, plenumata de maŝino: en ĉi tiu deponejo oni skribas Esperante.
+#
+# Aferoj kaj komentoj estas kontrolataj kaj respondataj tuj; kunfandpetoj estas
+# kontrolataj DUOBLE - la titolo kaj la priskribo, kaj krome ĉiu komentlinio
+# kiun la diff aldonas. Faru ĉi tiun laboron deviga kontrolo en la protekto de
+# la branĉo `main`, kaj la regulo ĉesas esti peto kaj fariĝas pordo.
+#
+# SEKURECA NOTO, kiu ne estas laŭvola: la laboro por kunfandpetoj kuras kiel
+# `pull_request_target`, do ĝi havas la ĵetonon de ĉi tiu deponejo. Ĝi tial
+# NENIAM elprenas la kodon de la petanto - ĝi prenas la diff per la API kaj
+# legas nur tekston. Ne aldonu `ref:` al la elpreno sube.
+name: Nur Esperanto
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+  issue_comment:
+    types: [created, edited]
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  aferoj:
+    # Nur veraj aferoj: `issue_comment` fajras ankaŭ por kunfandpetoj, kaj roboto
+    # respondanta al roboto estas senfina ciklo.
+    if: >-
+      github.event_name == 'issues' ||
+      (github.event_name == 'issue_comment' &&
+       !github.event.issue.pull_request &&
+       github.event.comment.user.type != 'Bot')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # TRA `env`, NENIAM REKTE EN LA SKRIPTON. Titolo aŭ korpo metita per
+      # ${{ }} interne de `run` estas kodo, ne teksto: iu ajn kiu malfermas
+      # aferon tiam skribas ŝelkomandojn kiuj kuras kun la ĵetono de ĉi tiu
+      # deponejo. En `env` ĝi estas variablo kaj restas teksto.
+      - name: Kolekti la tekston
+        env:
+          EVENTO: ${{ github.event_name }}
+          TITOLO: ${{ github.event.issue.title }}
+          KORPO: ${{ github.event.issue.body }}
+          KOMENTO: ${{ github.event.comment.body }}
+        run: |
+          if [ "$EVENTO" = "issues" ]; then
+            printf '%s\n\n%s\n' "$TITOLO" "$KORPO" > teksto.md
+          else
+            printf '%s\n' "$KOMENTO" > teksto.md
+          fi
+
+      - name: Ĉu Esperanto?
+        id: takso
+        run: |
+          if python3 .github/scripts/cxu_esperanto.py teksto.md | tee takso.txt; then
+            echo "esperanta=jes" >> "$GITHUB_OUTPUT"
+          else
+            echo "esperanta=ne" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Etikedo kaj ne forviŝo: fermita afero restas serĉebla, kaj la etikedo
+      # donas al la posedanto unu filtrilon por vidi la tutan stakon.
+      - name: Respondi kaj fermi
+        if: steps.takso.outputs.esperanta == 'ne'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMERO: ${{ github.event.issue.number }}
+        run: |
+          gh label create ne-esperanta \
+             --color d93f0b \
+             --description "Ne skribita en Esperanto; fermita nelegita" || true
+          gh issue edit  "$NUMERO" --add-label ne-esperanta
+          gh issue comment "$NUMERO" --body-file - <<'FINO'
+          **Saluton, kaj dankon ke vi skribis.**
+
+          Ĉi tiu deponejo laboras nur en Esperanto: la komentoj en la kodo, la
+          kunfandpetoj, kaj ankaŭ la aferoj kaj la raportoj pri eraroj. Tial ĉi
+          tio estas fermita — ne pro ĝia enhavo, kiun ankoraŭ neniu legis, sed
+          pro ĝia lingvo.
+
+          **Kion fari:** reskribu la tekston en Esperanto kaj remalfermu la
+          aferon. Erarmesaĝoj, protokoloj kaj kodo restu tiaj, kiaj ili estas —
+          la kontrolilo ne legas tion, kio staras interne de ``` -blokoj aŭ
+          post `>`. Do vi tradukas nur tion, kion vi mem skribis.
+
+          **Se vi ankoraŭ ne parolas Esperanton:** ĝi estas la plej regula
+          lingvo iam konstruita intence — nenia neregula verbo, nenia genro por
+          parkerigi, skribo kiu diras ĝuste tion, kion ĝi sonas. Kelkaj monatoj
+          da vesperoj sufiĉas por skribi tion, kion ĉi tiu projekto bezonas.
+          Komencu ĉe <https://lernu.net>. La kalkulilo atendos vin.
+
+          La regulo kaj la kialo staras en `Readme_Programmers.md`, kaj la
+          kontrolilo mem estas `.github/scripts/cxu_esperanto.py` — legu ĝin,
+          ĝi ne estas sorĉo.
+          FINO
+          gh issue close "$NUMERO" --reason "not planned"
+
+  kunfandpetoj:
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    steps:
+      # Sen `ref:`. Ĉi tio elprenas la BAZON - nian propran kodon - kaj neniam
+      # tion, kion la petanto skribis. Vidu la sekurecan noton supre.
+      - uses: actions/checkout@v4
+
+      # Tra `env`, pro la sama kialo kiel supre - kaj ĉi tie ĝi gravas des pli,
+      # ĉar `pull_request_target` kuras kun niaj rajtoj sur peto de fremdulo.
+      - name: Kolekti titolon kaj priskribon
+        env:
+          TITOLO: ${{ github.event.pull_request.title }}
+          KORPO: ${{ github.event.pull_request.body }}
+        run: printf '%s\n\n%s\n' "$TITOLO" "$KORPO" > titolo.md
+
+      - name: Preni la diff per la API, ne per elpreno
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" \
+             -H "Accept: application/vnd.github.v3.diff" > peco.diff
+          wc -l peco.diff
+
+      - name: Ĉu la titolo kaj la priskribo estas Esperantaj?
+        id: kapo
+        run: |
+          if python3 .github/scripts/cxu_esperanto.py titolo.md | tee kapo.txt; then
+            echo "bone=jes" >> "$GITHUB_OUTPUT"
+          else
+            echo "bone=ne" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ĉu la aldonitaj komentoj estas Esperantaj?
+        id: komentoj
+        run: |
+          if python3 .github/scripts/cxu_esperanto.py --diff peco.diff | tee komentoj.txt; then
+            echo "bone=jes" >> "$GITHUB_OUTPUT"
+          else
+            echo "bone=ne" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Kunfandpeto NE estas fermita: malsukcesa kontrolo estas la pordo, kaj
+      # fermi ĝin nur malhelpus la homon korekti ĝin.
+      - name: Diri kio mankas
+        if: steps.kapo.outputs.bone == 'ne' || steps.komentoj.outputs.bone == 'ne'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMERO: ${{ github.event.pull_request.number }}
+          KAPO: ${{ steps.kapo.outputs.bone }}
+          KOMENTOJ: ${{ steps.komentoj.outputs.bone }}
+        run: |
+          {
+            echo "**Ĉi tiu kunfandpeto ankoraŭ ne povas esti kunfandita.**"
+            echo
+            if [ "$KAPO" = "ne" ]; then
+              echo "- La **titolo aŭ la priskribo** ne estas en Esperanto."
+            fi
+            if [ "$KOMENTOJ" = "ne" ]; then
+              echo "- La **komentoj kiujn la diff aldonas** ne estas en Esperanto."
+            fi
+            echo
+            echo "Identigiloj, tekstĉenoj kaj \`qsTr()\` restas anglaj; nur la"
+            echo "komentoj, la titolo kaj la priskribo estas Esperantaj. Cititaj"
+            echo "erarmesaĝoj kaj cititaj vortoj de aliaj homoj restas tiaj,"
+            echo "kiaj ili estis diritaj."
+            echo
+            echo "La regulo staras en \`Readme_Programmers.md\`, sekcio"
+            echo "\"The merge rule\". La kontrolilo estas"
+            echo "\`.github/scripts/cxu_esperanto.py\` kaj vi povas ruli ĝin"
+            echo "mem antaŭ ol puŝi."
+            echo
+            echo "<details><summary>Kion la kontrolilo nombris</summary>"
+            echo
+            echo '```'
+            cat kapo.txt
+            echo '--- komentoj el la diff ---'
+            cat komentoj.txt
+            echo '```'
+            echo
+            echo "</details>"
+          } > respondo.md
+          gh pr comment "$NUMERO" --body-file respondo.md
+          exit 1

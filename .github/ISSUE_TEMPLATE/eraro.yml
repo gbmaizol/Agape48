@@ -1,0 +1,58 @@
+name: Raporto pri eraro
+description: Io ne funkcias kiel ĝi devus. Skribu Esperante.
+labels: ["eraro"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Ĉi tiu deponejo laboras nur en Esperanto.** Teksto en alia lingvo
+        estas fermita nelegita, per unu respondo — ankaŭ Esperanta — petanta
+        ĝin en Esperanto. Kial: `Readme_Programmers.md`.
+
+        Erarmesaĝoj, protokoloj kaj kodo restu tiaj, kiaj ili estas. La
+        kontrolilo ne legas tion, kio staras interne de ``` -blokoj, do vi
+        skribas Esperante nur tion, kion vi mem diras.
+
+  - type: checkboxes
+    id: lingvo
+    attributes:
+      label: La lingvo
+      options:
+        - label: Mi skribis ĉi tiun raporton en Esperanto.
+          required: true
+
+  - type: textarea
+    id: kio
+    attributes:
+      label: Kio okazis
+      description: Kion vi vidis, kaj kion vi atendis vidi anstataŭe.
+    validations:
+      required: true
+
+  - type: textarea
+    id: kiel
+    attributes:
+      label: Kiel ripeti ĝin
+      description: La paŝoj, unu post la alia, de malfermo de la programo.
+      placeholder: |
+        1. Malfermu la kalkulilon
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: sistemo
+    attributes:
+      label: Sistemo kaj versio
+      placeholder: Vindozo 11, Agape48 0.1.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: protokolo
+    attributes:
+      label: Protokolo aŭ erarmesaĝo
+      description: >-
+        Laŭvola. Metu ĝin tia, kia ĝi estas - ne traduku ĝin.
+      render: text

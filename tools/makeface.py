@@ -156,6 +156,10 @@ DEFAULTS = {
     "font_sub":          13,   # CANCEL under ON
     "font_brand_maker":  17,
     "font_brand_model":  22,
+    # The calculator's own name, drawn by QML rather than printed here. Gert,
+    # 2026sep07: "make the top center calculator name bigger, about 1.5x the
+    # size of the '48GX' text" - 22 x 1.5.
+    "font_brand_plate":  33,
 
     "colour_body":       [34, 34, 38],
     "colour_body_edge":  [62, 62, 70],
@@ -423,8 +427,44 @@ def main():
            font=f(FONT_B, C["font_brand_maker"]), fill=BRAND)
     # Left of the corner, not in it: the QML menu button lives in that corner
     # and was printing itself through the middle of "48GX".
-    d.text((FACE_W - EDGE - 34, TOP_MARGIN + 6), "48GX",
-           font=f(FONT_B, C["font_brand_model"]), fill=BRAND, anchor="ra")
+    #
+    # Where the ink lands is measured and written into layout.json, because on
+    # a phone this word IS the menu. Gert, 2026sep07: "in Android the '48GX' at
+    # the corner must be changed to look like a web link, and clicking there
+    # opens the menu. This is the most intuitive interface I can come up with."
+    # QML cannot know where a word printed here ended up, and the anchor is no
+    # help - "ra" is the text's right edge and ascender, neither of which is
+    # where the ink starts.
+    badge_at = (FACE_W - EDGE - 34, TOP_MARGIN + 6)
+    badge_font = f(FONT_B, C["font_brand_model"])
+    d.text(badge_at, "48GX", font=badge_font, fill=BRAND, anchor="ra")
+    badge_box = d.textbbox(badge_at, "48GX", font=badge_font, anchor="ra")
+
+    # The nameplate band, measured here and written into layout.json for QML to
+    # draw the open calculator's name into at run time. Gert, both-05 line 37:
+    # "I'd like the first 20 letters of the name of the current calculator to be
+    # shown between the 'HEWLETT-PACKARD' and the '48GX' at the top, same font,
+    # center-aligned in the middle." Twenty became thirty once he had seen it -
+    # both-06 line 20: "Looks great! Increate the limit to 30!"
+    #
+    # Not baked, because the name changes while the program runs. Not hardcoded
+    # in Calculator.qml either: every other number about this face comes from
+    # here, and a second skin would put its own nameplate somewhere else.
+    #
+    # Symmetric about the face's centre line, so "centred in the middle" is
+    # literally true rather than centred on whatever gap happens to be left, and
+    # so it cannot reach either printed word. 445 px at this size. Thirty
+    # letters of a name anyone would type measure about 275 of that; thirty
+    # capital Ws measure 506, so QML shrinks a name that wide to fit rather than
+    # eating letters it was told to show.
+    plate_top = TOP_MARGIN + 8
+    plate_font = f(FONT_B, C["font_brand_maker"])
+    gap = 16
+    left = EDGE + 6 + d.textlength("HEWLETT·PACKARD", font=plate_font) + gap
+    right = (FACE_W - EDGE - 34
+             - d.textlength("48GX", font=f(FONT_B, C["font_brand_model"])) - gap)
+    half = min(FACE_W / 2 - left, right - FACE_W / 2)
+    ascent, descent = plate_font.getmetrics()
 
     # LCD bezel, glass and the annunciator strip above it. The bezel hugs the
     # glass rather than spanning the body: dogfood #3 showed a wide black frame
@@ -565,6 +605,45 @@ def main():
                   "nothing. \"cap\" is the drawn key, which is what the pressed "
                   "highlight covers."),
         "face": {"image": "face.png", "size": [FACE_W, FACE_H]},
+        # Drawn by QML, not by this script - see the band's own comment above.
+        # "font" is a list because the face is lettered in DejaVu Sans
+        # Condensed, which is not on a stock Windows; the alternatives are the
+        # nearest condensed grotesques that are, and Qt walks the list. Naming
+        # the family rather than shipping the file keeps 600 KB out of a binary
+        # whose size is a stated requirement.
+        "nameplate": {
+            "rect": [round(FACE_W / 2 - half), plate_top,
+                     round(2 * half), ascent + descent],
+            "pixelSize": C["font_brand_maker"],
+            # Phones only. The band's rect stays the printed row's size and the
+            # bigger text simply centres in it, so the desktop face is not
+            # touched - Gert, 2026sep07, after seeing it on both: "my request
+            # was only for Android", "the desktop version look perfect".
+            "pixelSizePhone": C["font_brand_plate"],
+            "bold": True,
+            "color": "#%02x%02x%02x" % BRAND,
+            "maxChars": 30,
+            # Condensed first, because that is what the face is lettered in.
+            # The rest are ordinary grotesques that actually exist somewhere:
+            # the list used to run out on Android, where none of the condensed
+            # families is installed, and an empty family left Qt to choose - it
+            # picked something light and almost cursive, which Gert saw on the
+            # phone on 2026sep07: "use a more similar font to it. This slim,
+            # almost cursive won't cut." Roboto is Android's own, Segoe UI is
+            # Windows', DejaVu Sans and Liberation Sans are the Linux pair.
+            "font": ["DejaVu Sans Condensed", "Liberation Sans Narrow",
+                     "Arial Narrow", "Roboto Condensed",
+                     "Roboto", "Noto Sans", "Segoe UI",
+                     "DejaVu Sans", "Liberation Sans", "Arial"],
+        },
+        # The printed "48GX", as an ink box. Android underlines it in the same
+        # ink and takes taps over it; every other platform ignores it and keeps
+        # the corner button.
+        "badge": {
+            "rect": [badge_box[0], badge_box[1],
+                     badge_box[2] - badge_box[0], badge_box[3] - badge_box[1]],
+            "color": "#%02x%02x%02x" % BRAND,
+        },
         "lcd": {"rect": [lcd_x, lcd_y, LCD_W, LCD_H], "zoom": LCD_ZOOM,
                 "pixelColor": LCD_PIXEL, "background": LCD_BG},
         "annunciators": anns,

@@ -1,0 +1,42 @@
+# The Linux counterpart of a Windows shortcut and an Android launcher entry: an
+# ELF has no icon inside it, so on Linux the menu entry IS the icon. Without
+# this file a Linux install cannot appear in a menu at all, whatever it puts in
+# ~/.local/bin.
+#
+# Exec is the bare name on purpose, so this file is correct wherever the tree is
+# installed as long as bin/ is on PATH - which is what `cmake --install` gives.
+# platform/linux/install.sh rewrites this one line to an absolute path, because
+# a self-installed tree under ~/.local/share/agape48 is not on anybody's PATH
+# and a menu entry that silently does nothing is worse than no menu entry.
+#
+# Icon is a NAME, not a path: the shell looks it up in the icon theme and picks
+# the size it wants from hicolor/, all seven written by tools/make-icon.py.
+#
+# Categories names ONE main category and nothing else. Education;Science;Math;
+# Utility; is what install.sh used to write by hand, and desktop-file-validate
+# says why that is wrong: "contains more than one main category; application
+# might appear more than once in the application menu". Education is the one
+# kept, because that is where install.sh has always told him to look for it, and
+# Math is an additional category that Education already qualifies. Anyone
+# hunting the word "calculator" finds it through Keywords instead.
+#
+# StartupWMClass is what lets the running window find its way back to this entry
+# - the pinned launcher, and Alt-Tab. Measured with xprop on 2026sep09:
+# WM_CLASS(STRING) = "agape48", "Agape48probe". The first field is argv[0] and is
+# stable; the second is QGuiApplication::applicationName(), which --profile
+# changes, so the instance name is the only half worth matching on. A shell that
+# would rather ask the window itself has two newer answers, both set by
+# setDesktopFileName in main.cpp and both measured on the same window:
+# _GTK_APPLICATION_ID and _KDE_NET_WM_DESKTOP_FILE, each "agape48".
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Agape48
+GenericName=HP 48 calculator
+Comment=HP 48GX emulator on the x48 core
+Exec=agape48
+Icon=agape48
+Terminal=false
+Categories=Education;Math;
+Keywords=HP;48;GX;calculator;RPN;emulator;
+StartupWMClass=agape48

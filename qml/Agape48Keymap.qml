@@ -25,17 +25,53 @@ import QtCore
 // Gert's rule of 2026aug28 survives where it still applies: no fallback and no
 // most-specific-match, one identity in, one calculator key out.
 //
-// WHY THE USER MAP IS MACHINE-LOCAL. Less true than it was, now that characters
-// carry their own identity, but a "k:" binding is still a Qt.Key and those do
-// move with the layout. QSettings is per-machine by construction and the state
-// folder is the thing that syncs, so the map stays here. Design item 10b.
+// WHERE THE USER MAP LIVES: settings.ini in the state folder, beside the ROM.
+// Gert, 2026sep10, reversing design item 10b: "make this keyboard setting and
+// all the settings that are like this live in the same folder as the ROM in a
+// simple settings.ini text file, so they change and move together with the state
+// folder." The folder is the calculator, and a calculator you carry to another
+// machine should be the one you set up.
+//
+// The old argument for keeping it machine-local was that a "k:" binding is a
+// Qt.Key and those move with the keyboard layout. Still true, and now the
+// smaller risk of the two: a binding that lands on the wrong physical key on a
+// different layout is one right-click away from being fixed, while a map that
+// silently stays behind is a calculator that is not yours.
 QtObject {
     id: root
 
     // --- storage -------------------------------------------------------------
-    // QtObject has no default property, so the Settings object is held by a
-    // property rather than declared as a child.
+    // QtObject has no default property, so the Settings objects below are held
+    // by properties rather than declared as children.
+    //
+    // Set by Main.qml from engine.state.settingsFile, because a QML singleton
+    // cannot see the engine object. Empty until then, and an empty location is
+    // what QML's Settings reads as "use the default", so nothing is ever written
+    // to a file nobody chose.
+    property url storeUrl
+
     property Settings store: Settings {
+        category: "keymap"
+        location: root.storeUrl
+        property string json: ""
+
+        // A NEW FOLDER MEANS A NEW MAP. Settings re-reads its file synchronously
+        // when the location changes, and emits the property change BEFORE
+        // locationChanged, so this is the signal that arrives with the new
+        // contents already in place - measured with qml.exe, not assumed.
+        //
+        // Declared in here rather than as a Connections block outside, because
+        // QtObject has no default property and a bare child element of one does
+        // not load at all: "Cannot assign to non-existent default property",
+        // which is the same rule the comment above this object is about.
+        onJsonChanged: root.load()
+    }
+
+    // The registry, where the map lived until 2026sep10. Read when the folder
+    // has nothing to say, so an upgrade does not silently reset everybody's
+    // bindings, and so a brand new folder starts from the map already in use.
+    // Never written: the first edit after this goes to the folder.
+    property Settings legacy: Settings {
         category: "keymap"
         property string json: ""
     }
@@ -46,8 +82,9 @@ QtObject {
     signal changed()
 
     function load() {
+        const raw = root.store.json || root.legacy.json
         try {
-            overrides = root.store.json ? JSON.parse(root.store.json) : ({})
+            overrides = raw ? JSON.parse(raw) : ({})
         } catch (e) {
             overrides = ({})
         }

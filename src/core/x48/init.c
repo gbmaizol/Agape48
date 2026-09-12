@@ -1354,6 +1354,21 @@ read_files()
       LOGE( "%s: can\'t open %s\n", progname, fnam);
     return 0;
   }
+  /* agape48: was leaked. This fopen only asks whether "ram" is there -
+   * read_mem_file() opens it again for itself - and on the success path fp
+   * was never closed, so the process held a handle on "ram" from startup to
+   * exit. It is the only one of the state files that leaks, which is why
+   * MEASURED on 2026sep05 "ram" probed HELD while "hp48", "contents" and
+   * "en-uzo" in the same folder all probed FREE.
+   *
+   * Two things follow, and both were blamed on other people first. Windows
+   * will not rename a directory a handle is open in, so renaming the open
+   * calculator failed silently - dogfood both-05 line 37. And a sync client
+   * cannot replace a file that is held, so the other machine's memory could
+   * never land in a sleeping calculator's folder - both-05 line 15, where the
+   * diagnosis on the night was "inference (not proof) is that Dropbox holds
+   * it". It was us. */
+  fclose(fp);
   if (!read_mem_file(fnam, saturn.ram, ram_size))
     return 0;
 

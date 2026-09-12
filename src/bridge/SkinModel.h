@@ -1,16 +1,18 @@
 // ---------------------------------------------------------------------------
-// SkinModel - loads a calculator skin: one raster face plus a layout that maps
-// screen rectangles to HP 48 keys.
+// SkinModel - ŝargas kalkulilan haŭton: unu rastruman vizaĝon plus aranĝon kiu
+// mapigas ekranajn rektangulojn al klavoj de HP 48.
 //
-// One layout format: *.json, schema "agape48.skin/1".
+// Unu aranĝformato: *.json, skemo "agape48.skin/1".
 //
-// Emu48's KML was dropped on 2026aug28 (design-questions item 5). With Droid48's
-// shell on all three platforms there is no Emu48-shaped desktop to load Emu48
-// skins into, and their faces are 200-400 px BMPs drawn for a 1990s screen.
+// La KML de Emu48 estis forlasita je 2026aug28 (design-questions, ero 5). Kun
+// la ŝelo de Droid48 sur ĉiuj tri platformoj ne ekzistas Emu48-forma labortablo
+// en kiun ŝargi Emu48-haŭtojn, kaj iliaj vizaĝoj estas BMP-oj de 200-400
+// bilderoj desegnitaj por ekrano de la 1990-aj jaroj.
 //
-// Keys are exposed as a QVariantList of maps rather than a QAbstractListModel:
-// the list is loaded once and never mutates, so a model's incremental-update
-// machinery would be pure overhead. QML consumes it with a plain Repeater.
+// La klavoj estas prezentataj kiel QVariantList de mapoj prefere ol kiel
+// QAbstractListModel: la listo estas ŝargita unufoje kaj neniam mutacias, do la
+// maŝinaro de modelo por pliigaj ĝisdatigoj estus pura ŝarĝo. QML konsumas ĝin
+// per simpla Repeater.
 // ---------------------------------------------------------------------------
 #pragma once
 
@@ -21,6 +23,7 @@
 #include <QSize>
 #include <QUrl>
 #include <QVariantList>
+#include <QVariantMap>
 
 class SkinModel : public QObject
 {
@@ -40,21 +43,26 @@ class SkinModel : public QObject
     Q_PROPERTY(QColor  lcdBackground   READ lcdBackground   NOTIFY changed)
     Q_PROPERTY(QVariantList keys          READ keys          NOTIFY changed)
     Q_PROPERTY(QVariantList annunciators  READ annunciators  NOTIFY changed)
+    // Kie la nomo de la malfermita kalkulilo estas skribita, inter la du vortoj
+    // kiujn ĉi tiu haŭto presis sur sin mem. Malplena por haŭto kiu ne volas
+    // tian, kaj Calculator.qml tiam desegnas nenion.
+    Q_PROPERTY(QVariantMap  nameplate     READ nameplate     NOTIFY changed)
+    Q_PROPERTY(QVariantMap  badge         READ badge         NOTIFY changed)
     Q_PROPERTY(QString lastError       READ lastError       NOTIFY lastErrorChanged)
 
 public:
-    // One key's hit area. Kept as a struct here and flattened to a QVariantMap
-    // for QML, with these exact key names:
-    //   id      string   skin-local identifier, for diagnostics
-    //   key     string   Agape48 key name ("ENTER"), or empty if code-only
-    //   row     int      x48 matrix out row, -1 when the skin used a name
-    //   mask    int      x48 matrix in mask
-    //   rect    rect     hit area in face-image pixels
-    //   cap rect         optional; the drawn key inside the hit rect, which is
-    //                    what the pressed highlight covers. tools/makeface.py
-    //                    emits it, and rect is then the cap plus a small frame.
-    //   pressed rect     optional source rect of the pressed-key artwork
-    //   label   string   accessibility / physical-keyboard hint
+    // La trafzono de unu klavo. Tenata kiel strukturo ĉi tie kaj platigita al
+    // QVariantMap por QML, kun ĉi tiuj ekzaktaj ŝlosilnomoj:
+    //   id      string   haŭt-loka identigilo, por diagnozo
+    //   key     string   Agape48-klavnomo ("ENTER"), aŭ malplena se nur-koda
+    //   row     int      elira vico de la matrico de x48, -1 kiam la haŭto uzis nomon
+    //   mask    int      enira masko de la matrico de x48
+    //   rect    rect     trafzono en bilderoj de la vizaĝbildo
+    //   cap rect         laŭvola; la desegnita klavo interne de la trafzono, kio
+    //                    estas kion la premata emfazo kovras. tools/makeface.py
+    //                    eligas ĝin, kaj rect tiam estas la ĉapo plus malgranda kadro.
+    //   pressed rect     laŭvola fonta rektangulo de la premat-klava desegnaĵo
+    //   label   string   alirebleco / helpo por la fizika klavaro
     struct Key {
         QString id;
         QString key;
@@ -78,13 +86,16 @@ public:
     int lcdZoom() const { return m_lcdZoom; }
     QColor lcdPixelColor() const { return m_lcdPixelColor; }
     QColor lcdBackground() const { return m_lcdBackground; }
+    QVariantMap nameplate() const { return m_nameplate; }
+    QVariantMap badge() const { return m_badge; }
     QVariantList keys() const { return m_keys; }
     QVariantList annunciators() const { return m_annunciators; }
     QString lastError() const { return m_lastError; }
 
 public slots:
-    // Accepts qrc:, file: and (on Android) content: urls. Dialect is chosen by
-    // suffix, falling back to sniffing the first non-blank byte: '{' -> JSON.
+    // Akceptas qrc:-, file:- kaj (sur Androido) content:-adresojn. La dialekto
+    // estas elektita laŭ la sufikso, retrofalante al flarado de la unua
+    // nemalplena bajto: '{' -> JSON.
     bool load(const QUrl &url);
     bool loadDefault();
 
@@ -108,5 +119,7 @@ private:
     QColor  m_lcdBackground { 0x9f, 0xbf, 0x7a };
     QVariantList m_keys;
     QVariantList m_annunciators;
+    QVariantMap  m_nameplate;
+    QVariantMap  m_badge;
     QString m_lastError;
 };

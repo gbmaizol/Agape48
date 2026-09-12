@@ -1,0 +1,218 @@
+# Agape48, for programmers
+
+*Arguably the most friendly and beautiful HP 48 emulator.*
+
+An HP 48 emulator: the `x48` Saturn core, a Qt 6 / QML frontend, one binary per platform, as small as it will go.
+
+"HP" spoken in Brazilian Portuguese is *agá-pê*, which is the Greek ἀγάπη. The calculator that people are unreasonably fond of, named after the word for it.
+
+`README.md` is the one for people who want to use the calculator. This is the one for people who want to change it.
+
+Last updated: 2026sep10-13h20
+
+## The comments are in Esperanto
+
+**Every comment in the code Agape48 owns is written in Esperanto**, and new ones are expected to be. The project is called `esperanto-en-uzo` in git for a reason: this is a working codebase that happens to be one of the places the language is actually used, rather than talked about.
+
+What that does and does not cover:
+
+- **Comments and commit messages.** Identifiers, strings, log messages and `qsTr()` text stay English: nothing a compiler, a linker or a *user* ever reads changes language.
+- **Quoted material stays verbatim.** Somebody's own words, a UI string being discussed, a compiler diagnostic, a file name — those are evidence, and evidence is not translated. An Esperanto comment quoting `Cannot assign to non-existent default property` in English is correct, and so is one quoting a request in the language it was made in.
+- **Not the vendored core.** `src/core/x48/` is Eddie C. Dost's code as Droid48 left it, vendored and not forked (see `src/core/VENDORING.md`), and the whole point of vendoring is that it can still be diffed against and re-taken from upstream. Its comments are its author's words and stay in English. The seam is `x48_shim.c`/`.h`, which is ours and is in Esperanto.
+- **Diacritics, not the x-system.** `ĉ ĝ ĥ ĵ ŝ ŭ`, written properly, in UTF-8 without a BOM. That is safe here because every toolchain in the build is told so or defaults to it: GCC and Clang read UTF-8 by default, MSVC gets `/utf-8` from `agape48::size`, `qmlcachegen` and Qt's QML engine are UTF-8 by definition, CMake and Python 3 both default to it.
+- **The exceptions are about encoding, not taste.** `platform/android/*.gradle` and the Java under `platform/android/src/` are compiled by toolchains whose default source encoding is the platform's, not UTF-8, and `installer/agape48.iss` is read by Inno Setup, which wants a BOM before it will believe in Unicode. Comments in those four files stay ASCII — Esperanto is perfectly writable without the accented six if you pick your words, and where it is not, those files say so.
+
+When you put Esperanto into a file that is still English, do **whole files at a time** — never half of one, so a reader can always tell which language the file in front of them is in.
+
+And if you do not read Esperanto yet: that is the invitation, not the obstacle. It is the most regular language anybody has ever built on purpose — no irregular verbs, no genders to memorise, spelling that says exactly what it sounds like — and people get to the point of reading prose like these comments in weeks rather than years. There will be no English edition. Have a go at the language instead; the calculator will wait for you.
+
+## The merge rule
+
+**A pull request is merged only if all three of these are true.** This is not a style preference that a good patch can be excused from.
+
+1. **Every comment in the diff is in Esperanto.** Not most of them. One English comment is a request for changes.
+2. **Every chunk of code that does something non-obvious carries a comment.** The rule is not "write no comments and pass" — a diff that explains nothing fails it from the other side. If a reviewer has to ask why, the answer belonged in the file, in Esperanto.
+3. **The title and the description are in Esperanto, and only in Esperanto.** No English underneath: a translation underneath means nobody ever reads the Esperanto.
+
+**Issues too.** A bug report, a question or a feature request that is not in Esperanto is closed unread, with one reply — in Esperanto — asking for it in Esperanto. That is checked automatically, so it happens in seconds rather than a week later, and reopening is a matter of editing the post and saying so.
+
+Yes, that means the effort is on the person asking. That is the point: an issue in Esperanto has already been written by somebody who chose to be here.
+
+Why be this strict about it, in a project about a calculator? Because a codebase's comments are the only part of it written for people, and a language chosen on purpose says something about who those people are. Esperanto was built so that nobody arrives holding the home-turf advantage: the Brazilian, the Pole and the Californian all learned it, all learned it the same way, and none of them is doing it in somebody else's mother tongue. English in this file would have quietly picked a winner. This does not.
+
+And the bar is far lower than it looks. Esperanto is the one language where a determined evening a week gets you reading real prose inside a couple of months — `lernu.net` and any of the free courses will do it — and the comments in here are technical prose, which is the easiest kind. Several thousand lines of it are sitting in this repository as your reader.
+
+### How it is checked
+
+`.github/scripts/cxu_esperanto.py` is the whole of it, it has no dependencies, and **you can run it yourself before you push**:
+
+```
+python3 .github/scripts/cxu_esperanto.py mia-teksto.md
+python3 .github/scripts/cxu_esperanto.py --diff mia.diff
+```
+
+It counts words rather than pretending to understand them — Esperanto is unusually easy to recognise mechanically, because its function words are few and its endings are regular. It **deliberately ignores fenced code blocks and `>` quotations**, so a report that pastes an English compiler message is judged on the prose around it and not on the evidence inside it. Measured on the samples in this repository's history, English prose scores about 0.05 and Esperanto about 0.8 on the same scale, against a threshold of 0.12 — the margin is not close, which is why a word-counter is enough. Under six words it declines to judge, because silence is not a crime.
+
+`.github/workflows/nur-esperanto.yml` runs it on issues, on issue comments and on pull requests. It closes an issue as *not planned* and labels it `ne-esperanta` rather than deleting anything, so nothing is lost and the whole pile stays one filter away. A pull request is never closed — the check simply fails, which is what a human can fix. **Make that workflow a required check on `main` and the rule stops being a request.**
+
+
+
+## Layout
+
+```
+Agape48/
+├── CMakeLists.txt              size-first build; enforces the lean-module rule
+├── cmake/Agape48Size.cmake     agape48::size - every size flag, probed not assumed
+├── src/
+│   ├── main.cpp
+│   ├── core/                   the C side
+│   │   ├── x48_shim.h          THE seam: ~16 functions, all the C++ ever sees
+│   │   ├── x48_shim.c          adapter to the vendored fork
+│   │   ├── VENDORING.md        which x48 was vendored and why
+│   │   └── x48/                the vendored Droid48 core, in the repo
+│   └── bridge/                 the C++ side
+│       ├── Agape48Engine.*     QML facade: tick, keys, state, clipboard
+│       ├── LcdItem.*           QQuickItem drawing the pixel buffer
+│       ├── StateFileManager.*  bring-your-own-sync: paths, SAF, the en-uzo lock
+│       └── SkinModel.*         skin + layout, JSON
+├── qml/
+│   ├── Main.qml                window, error banner, ⋮ menu, frameless move/resize
+│   ├── Calculator.qml          face image + LCD + annunciators, one scaled unit
+│   ├── Keypad.qml              MultiPointTouchArea hit-testing (ON+A+F works)
+│   ├── Agape48Keymap.qml       physical keyboard -> HP 48 keys, and the user's edits
+│   ├── SettingsWindow.qml      a real window, not a sheet on the face
+│   └── KeyBindingWindow.qml    one calculator key's keyboard bindings
+├── tools/
+│   ├── makeface.py             draws the face; every proportion is a number
+│   └── face.json               those numbers
+├── assets/skins/default/
+│   ├── face.png                generated by tools/makeface.py - do not hand-edit
+│   ├── ann_*.png               the six annunciators, also generated
+│   └── layout.json             schema "agape48.skin/1", 49 keys - also generated
+└── platform/android/
+    ├── src/br/gbmaizol/agape48/SafBridge.java
+    ├── build.gradle            one ABI, R8 on
+    └── proguard-rules.pro
+```
+
+## The seam
+
+Everything above `x48_shim.c` is Qt; everything below is C from the 1990s. The two never meet. `x48`, `x48ng` and Droid48 each expose a different `saturn` struct and a different main loop, so vendoring a different upstream means rewriting one 200-line C file and nothing else. `src/core/VENDORING.md` has the picking guide - the short version, decided 2026aug28, is: start from Droid48's fork, because it has already been through exactly this surgery - cycle-budgeted stepping with no X11 - and because the frontend it was built for is the one Agape48 is copying.
+
+## Building
+
+```
+cmake -B build -DCMAKE_PREFIX_PATH=/path/to/Qt/6.8.0/gcc_64
+cmake --build build -j
+```
+
+`MinSizeRel` is the default; you have to ask for anything else. Configure prints every size knob it resolved. A clean clone builds with nothing else fetched - the Saturn core is vendored, not a submodule.
+
+**You need an HP 48 ROM to run it, and there is none in this repo** - a ROM image is copyrighted and `.gitignore` refuses them on purpose. Put a file called `rom` in the state folder, or point Settings at one. The state folder is printed at startup and is `QStandardPaths::AppLocalDataLocation` until you change it:
+
+```
+Linux    ~/.local/share/Agape48/Agape48/
+Windows  %LOCALAPPDATA%\Agape48\Agape48\
+```
+
+The Windows one is `AppLocalDataLocation` on purpose, not `AppDataLocation`. The two are the same directory on Linux and Android and two different ones on Windows, where `AppDataLocation` is `AppData\Roaming` — a folder a domain-joined machine's policy may sync between the user's computers by itself. This one holds a ROM, a memory image and an `en-uzo` file naming a single host, so roaming it would carry a calculator between machines behind the back of the lock that exists to stop exactly that. Carrying it between machines is what the user-chosen synced folder is for; it should not also happen by accident.
+
+Two things that bite on Windows and not on Linux:
+
+- The vendored core needs `-ffunction-sections -fdata-sections` with `--gc-sections`, or MSVC's `/Gy` with `/OPT:REF`. Without them `rpl.c` does not link: it references debugger entry points that are deliberately not compiled.
+- `init.c` builds paths by bare concatenation, so `files_path` must carry its own trailing separator and every other filename must be a bare leaf. Do not hand it anything with a directory in it.
+
+The face art is checked in, so Pillow and the DejaVu fonts are only needed if you want to re-run `tools/makeface.py`.
+
+Android:
+
+```
+cmake -B build-android \
+  -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
+  -DQT_HOST_PATH=/path/to/Qt/6.8.0/gcc_64 \
+  -DCMAKE_PREFIX_PATH=/path/to/Qt/6.8.0/android_arm64_v8a \
+  -DANDROID_ABI=arm64-v8a
+cmake --build build-android --target apk
+```
+
+## Size budget
+
+**The target is under 20 MB installed.** That is the number to design against, and it reframes everything below: a stock shared-Qt Quick app lands near or just over it, a leanly configured Qt lands far under. So the first row of this table is the whole game and the rest is rounding. Do not trade away clarity, a dependency that earns its keep, or a day of work for a few hundred KB - at this budget those are free.
+
+Ordered by how much each one actually saves.
+
+| Lever | Where | Rough effect |
+| --- | --- | --- |
+| Build a static Qt with features off | Qt's own `configure` | by far the biggest; see below |
+| `MinSizeRel` + `-Os` | default | baseline |
+| LTO | `AGAPE48_LTO=ON` | 10-20% on a Qt Quick binary |
+| `--gc-sections` + `-ffunction-sections` | `agape48::size` | 5-15% |
+| Plugin exclusion | `qt_import_plugins(EXCLUDE_BY_TYPE …)` | large in static builds, nil in shared |
+| ICF (`--icf=all`, lld/gold) | `AGAPE48_ICF=ON` | 3-6%, template-heavy code folds well |
+| No QML cachegen | `AGAPE48_QML_CACHEGEN=OFF` | small; costs startup time |
+| `-fvisibility=hidden` | `agape48::size` | smaller dynsym, better LTO |
+| One ABI on Android | `abiFilters 'arm64-v8a'` | divides the .so payload by the ABI count |
+
+The two bundled ROMs add a fixed 533 KB compressed, 768 KB installed. Against a 20 MB budget that is not worth a sentence of deliberation, and it is recorded here only so nobody re-derives it later.
+
+The single largest lever is not in this repo. A stock Qt binary is built for everything; a Qt configured for this app is a fraction of it:
+
+```
+./configure -static -release -optimize-size -ltcg \
+  -no-feature-networkproxy -no-feature-dnslookup -no-feature-sql \
+  -no-feature-printsupport -no-feature-testlib -no-feature-concurrent \
+  -no-feature-itemmodel -no-feature-textodfwriter \
+  -skip qtnetworkauth,qtwebengine,qtmultimedia,qtcharts,qt3d,qtquick3d \
+  -submodules qtbase,qtdeclarative,qtimageformats \
+  -qt-libpng -no-libjpeg -no-feature-printer
+```
+
+Static linking Qt under the LGPL obliges you to let a recipient relink the application against a modified Qt - in practice, publish the object files or the full build recipe. `x48` is GPL, so Agape48 is GPL too and the source has to ship with the binaries either way. Droid48 and droid48sx both settled on GPLv3. Worth settling before the first release, not after.
+
+Both ROMs ship in the binary, the 48GX and the 48SX, as Droid48 does. That is a risk call rather than a permission: the ACO wording everyone cites has no primary text, is silent on distribution, and ACO itself was dissolved in 2001 - Emu48 declines to bundle for exactly that reason. Taken deliberately on 2026aug28, on the grounds that the exposure for an open-source non-commercial release is negligible. Item 7 of `docs/design-questions.md` has the sources and the quotes.
+
+## WebP is not free
+
+`QImage` cannot read WebP out of the box. The `qwebp` plugin lives in **qtimageformats**, which is a separate Qt module from Core/Gui/Qml/Quick. Three ways out:
+
+1. Link the plugin (`AGAPE48_WEBP_PLUGIN=ON`, the default). Costs the plugin plus libwebp, on the order of 200-400 KB static.
+2. Link libwebp's decoder only (`libwebpdecoder`) and call `WebPDecodeRGBA` yourself in a 30-line `QQuickImageProvider`. Smaller than the plugin, and it drops the encoder you will never use.
+3. Ship the face as PNG instead. Qt has PNG built in, so the module cost is zero - but a photorealistic face is roughly 3-5× the bytes of the same image as lossy WebP.
+
+**Take option 1.** It is one CMake line, and the 200-400 KB it costs over option 2 is irrelevant against a 20 MB budget. Option 2 was only ever worth it under a much tighter target.
+
+## Sound and haptics
+
+`QSoundEffect` is in Qt Multimedia, so "use QSoundEffect, not Multimedia" cannot both hold. Qt Multimedia is a megabyte-class dependency plus platform backends, for a square-wave beep. The lean path is a ~60-line `Feedback` singleton per platform: Android `AudioTrack` (or `ToneGenerator`) and `Vibrator`/`VibrationEffect` through `QJniObject`, Linux a raw ALSA square wave or nothing at all, Windows `Beep()` on a worker thread. Haptics on Android need `<uses-permission android:name="android.permission.VIBRATE"/>`, which is a normal permission and needs no prompt. Not written yet - `qml/Main.qml` has the call sites stubbed and named.
+
+## Object interchange, both ways
+
+Agape48 reads and writes HP 48 binary objects - the format with the ASCII header `HPHP48-`. Both directions is a requirement, not a nice-to-have: it is how a calculator moves between Agape48, Emu48, Droid48, x48 and a real HP 48, and it is the only format all of them already agree on.
+
+Droid48 reads that format and cannot write it. Emu48 reads *and* writes it - `File > Load Object...` and `File > Save Object...` - but Emu48 runs only on Windows. So the gap is not that nobody writes the format; it is that no single program does both everywhere, and on Android nobody does both at all. That is what Agape48 fills.
+
+Verified against Emu48 1.6.4 on 2026sep01, both directions, with a third-party library as the control: `CF.LIB` imported into Agape48, exported straight back out, and loaded into Emu48, where it still works. 1205 of its 1206 bytes are identical to the original. The one that differs is byte 8, the ROM revision letter, which names the machine that wrote the file and is supposed to differ.
+
+## One shell everywhere: Droid48
+
+Windows, Linux and Android all get Droid48's shape, not a per-platform shell. Droid48's entire menu is six items - minimal controls, save memory/state, put program on stack, settings, reset memory and quit, quit - and that is the UI spec on every platform, with desktop equivalents of the Android gestures. No Backup/Restore, because Droid48 has none. No serial for now. No Emu48 skins, so KML is not linked into any binary.
+
+The one thing Agape48 adds is object import *and* export to and from stack level 1, which is the requirement in the next-but-one section. The system clipboard leans on the calculator rather than on the emulator: `DUP →STR` before copy, `STR→` after paste. Reals and strings move directly, everything else is formatted and parsed by the ROM, which is exact by construction and costs no code. So lists, matrices and programs all work, and copying a program then pasting it back needs one keypress to become a program again. Lossless round trips without any keypress are what the object files are for.
+
+`docs/design-questions.md` section 2c has the reasoning, the size estimate, and the three bugs in Droid48's importer not to copy.
+
+## Sync conflicts
+
+Byte-identical state files across three OSes make syncing trivial and conflict resolution impossible. Two devices that both open the calculator between syncs produce two divergent RAM images, and a RAM image cannot be merged - it is a heap with pointers into itself.
+
+What Agape48 does about it: save on every background/suspend, fingerprint what it wrote, and on resume compare the fingerprint against what is on disk. A mismatch means another device wrote it, and `conflictDetected` fires. What it deliberately does *not* do is silently pick a winner. Your sync client already keeps the loser as a conflicted copy; the app's job is to say so, not to guess.
+
+The honest version of this feature is "one calculator, several machines, one at a time" - the same contract a KeePass database has. Say that in the UI and it is a feature; leave it unsaid and it is a bug report about lost variables.
+
+## Deliberate non-dependencies
+
+Qt Quick Controls **is** linked, as of 2026aug28. It was excluded for roughly a megabyte of styles, which is not a real cost against a 20 MB budget, and the exclusion was buying hand-rolled text fields and no `FolderDialog` in exchange for nothing. `QtQuick.Dialogs` comes back with it, so folder picking is a native dialog on desktop and SAF on Android.
+
+The aesthetic half of the old objection still stands and is now a usage rule rather than a build rule: **Controls stays off the calculator face.** The face, the LCD, the annunciators and the keypad remain raw Qt Quick, because a Controls button drawn over a photograph of an HP 48 looks like a Controls button drawn over a photograph of an HP 48. Controls is for the surfaces that are not pretending to be a calculator - `SettingsSheet.qml`, dialogs, the about screen. Pin the style to Basic so no Material or Universal assets come along for the ride.
+
+`CMakeLists.txt` still fails the configure step if any genuinely forbidden module is linked directly - Network, Multimedia, Sql, Widgets, WebEngine, Charts, Svg, Concurrent - so those stay true by accident rather than by discipline.

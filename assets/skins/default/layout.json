@@ -11,6 +11,40 @@
       1438
     ]
   },
+  "nameplate": {
+    "rect": [
+      204,
+      20,
+      445,
+      21
+    ],
+    "pixelSize": 17,
+    "pixelSizePhone": 33,
+    "bold": true,
+    "color": "#c6aa60",
+    "maxChars": 30,
+    "font": [
+      "DejaVu Sans Condensed",
+      "Liberation Sans Narrow",
+      "Arial Narrow",
+      "Roboto Condensed",
+      "Roboto",
+      "Noto Sans",
+      "Segoe UI",
+      "DejaVu Sans",
+      "Liberation Sans",
+      "Arial"
+    ]
+  },
+  "badge": {
+    "rect": [
+      747,
+      22,
+      59,
+      18
+    ],
+    "color": "#c6aa60"
+  },
   "lcd": {
     "rect": [
       34,

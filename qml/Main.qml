@@ -51,13 +51,16 @@ Window {
     // which is what the previous version of this file did.
     property bool geometryApplied: false
 
-    function applyDefaultGeometry() {
+    // force: show the window even though the skin never arrived. See showAnyway
+    // below - the ordinary calls pass nothing and wait, as they always have.
+    function applyDefaultGeometry(force) {
         if (geometryApplied)
             return
         // The skin decides the ratio and may still be loading, so wait for it
         // rather than sizing from the 480x900 fallback and never correcting.
         // SkinModel emits changed() when the face is in.
-        if (engine.skin.faceSize.width <= 0 || engine.skin.faceSize.height <= 0)
+        if (!force && (engine.skin.faceSize.width <= 0
+                       || engine.skin.faceSize.height <= 0))
             return
         geometryApplied = true
 
@@ -66,7 +69,32 @@ Window {
             // Keep the width and re-derive the height, or a face whose
             // proportions have changed since - they did when the annunciators
             // got their real size - sits letterboxed until the next resize.
-            setGeometry(geom.w, Math.round(geom.w / root.faceAspect))
+            //
+            // AND IT HAS TO FIT THE SCREEN IT IS BEING RESTORED ONTO, which is
+            // not the screen it was saved from. On Android that is not an edge
+            // case, it is every upgrade: the window is forced full screen, the
+            // aspect lock then derives a WIDTH from that height - 1018 * 0.594
+            // = 605 on Gert's phone - and 605 is remembered on a screen 458
+            // wide. The next run restored it and the face lost its whole
+            // right-hand column, NXT to DROP, off the edge. Measured on the
+            // upgrade install of 7e0624a; a fresh install has nothing saved and
+            // was correct.
+            //
+            // The same thing on a desktop is a laptop undocked from a wide
+            // monitor, which is why this is not written as an Android case.
+            // Width first, then height, and the aspect is kept through both so
+            // a window that has to lose height loses the width to match.
+            const maxW = Screen.desktopAvailableWidth  > 0 ? Screen.desktopAvailableWidth  : 1e6
+            const maxH = Screen.desktopAvailableHeight > 0 ? Screen.desktopAvailableHeight : 1e6
+            let w = Math.min(geom.w, maxW)
+            let h = Math.round(w / root.faceAspect)
+            if (h > maxH) {
+                h = maxH
+                w = Math.round(h * root.faceAspect)
+            }
+            console.info("agape48: saved", geom.w + "x" + geom.h,
+                         "screen", maxW + "x" + maxH, "-> window", w + "x" + h)
+            setGeometry(w, h)
             return
         }
         // 70% of the available height, never past the face's native size.
@@ -99,6 +127,26 @@ Window {
         visible = true
     }
 
+    // KIO LA EKRANO ESTAS, presita unufoje ĉe la lanĉo sur ĉiu platformo. Tri
+    // nombroj kiujn oni alie devas kalkuli mane el `adb shell wm size` kaj
+    // `dumpsys display`, kaj kiuj decidas ĉu Calculator.qml nomas ĉi tion
+    // granda ekrano - vidu bigScreen tie. La milimetroj estas la propra
+    // fizika denso de la aparato; kie ĝi estas nekredebla, ili legiĝas 0.
+    function logScreen() {
+        const dpr = Screen.devicePixelRatio > 0 ? Screen.devicePixelRatio : 1
+        const mm = Screen.pixelDensity > 2 && Screen.pixelDensity < 30
+                       ? Screen.pixelDensity : 0
+        // Screen.width estas logika - dp - do la fizikaj bilderoj estas la
+        // produto kaj ne la kvociento. Vidu la noton ĉe screenMinDp.
+        console.info("agape48: screen",
+                     Math.round(Screen.width * dpr) + "x" + Math.round(Screen.height * dpr), "px,",
+                     Screen.width + "x" + Screen.height, "dp,",
+                     mm > 0 ? Math.round(Screen.width / mm) + "x" + Math.round(Screen.height / mm) + " mm"
+                            : "physical size not reported",
+                     "| dpr", dpr.toFixed(3),
+                     "| big screen", calculator.bigScreen)
+    }
+
     // The window always keeps the face's proportions.
     //
     // Dogfood #1 dropped the Ctrl escape hatch that used to be here: unlocking
@@ -107,8 +155,22 @@ Window {
     property bool fixingAspect: false
 
 
+    // NOT ON ANDROID, and this is what was clipping the face there. The lock
+    // answers a size change by deriving the other dimension - which is right
+    // when a window manager is negotiating and wrong when the platform has
+    // simply imposed a full-screen surface. Android forces the height to the
+    // screen, the lock derives 1018 * 0.594 = 605 for the width, and 605 on a
+    // 458-wide display puts the whole right-hand key column past the edge:
+    // measured by Windows on the phone, twice, including after the restore path
+    // was clamped - the clamp set 458x771 and the lock put 605 back.
+    //
+    // There is nothing for it to protect there either. The face is drawn inside
+    // a single transform in Calculator.qml, so it fits whatever it is given
+    // without the window having to be its shape.
+    readonly property bool lockAspect: Qt.platform.os !== "android"
+
     function keepAspect(drivenByWidth) {
-        if (fixingAspect || !visible || faceAspect <= 0)
+        if (!lockAspect || fixingAspect || !visible || faceAspect <= 0)
             return
         fixingAspect = true
         if (drivenByWidth) height = Math.round(width / faceAspect)
@@ -124,6 +186,50 @@ Window {
     Connections {
         target: engine.skin
         function onChanged() { root.applyDefaultGeometry() }
+        // A skin that fails LATER - someone loads their own and it is broken -
+        // says so on the calculator rather than only in the settings window.
+        function onLastErrorChanged() {
+            if (engine.skin.lastError !== "")
+                banner.show(engine.skin.lastError)
+        }
+    }
+
+    // A window that has never been shown cannot report why it has not been
+    // shown. Waiting for the skin was written as an early return, and the only
+    // retry is SkinModel's changed(), which it emits ONLY on success - so a
+    // skin that fails to load left this window invisible for the rest of the
+    // session: no calculator, no settings window, no message, and nothing in
+    // the log. That is a black screen that cannot be diagnosed from the outside,
+    // and it is what the first Android build came up as.
+    //
+    // So the wait now has an end. The skin loads in Agape48Engine's constructor,
+    // which is before any of this exists, so on a healthy start geometryApplied
+    // is already true when this fires and it does nothing at all. When it does
+    // fire, faceW/faceH fall back to 480x900 on their own, and the window
+    // arrives with the reason written across it.
+    Timer {
+        id: showAnyway
+        interval: 1500
+        running: true
+        onTriggered: {
+            if (root.geometryApplied)
+                return
+            console.warn("agape48: the skin never arrived, showing the window "
+                         + "at the fallback size.", engine.skin.lastError)
+            root.applyDefaultGeometry(true)
+            banner.show(engine.skin.lastError !== ""
+                        ? engine.skin.lastError
+                        : qsTr("The calculator's face did not load, so this "
+                               + "window is at its fallback size."))
+        }
+    }
+
+    // The keymap is a singleton and cannot see the engine, so the engine's
+    // state folder is handed to it here - the one place that has both.
+    Binding {
+        target: Agape48Keymap
+        property: "storeUrl"
+        value: engine.state.settingsFile
     }
 
     Agape48Engine {
@@ -131,7 +237,8 @@ Window {
         onRomRequired: settings.open()
         // ON could not take the calculator back. Who has it, and what can be
         // done about it, rather than a dead window and no reason.
-        onAttachRefused: (h) => handover.showFor(h)
+        onAttachRefused: (h) => root.offerHandover(h && h.calculator ? h.calculator
+                                                                        : engine.state.instance, h)
         onBeep: (hz, ms) => feedback.beep(hz, ms)
         onKeyFeedback: (keyId) => feedback.tap()
         onLastErrorChanged: if (lastError) banner.show(lastError)
@@ -144,14 +251,35 @@ Window {
     // design item 10d is about.
     property bool customizing: false
 
+    // Nothing of its own; it exists to be asked where the system bars are. Qt
+    // reports the safe area as an attached property of an item, and an item
+    // whose own margins came from its own safe area would be describing a
+    // circle - so this one fills the window unconditionally and the calculator
+    // reads the answer off it.
+    Item {
+        id: safeArea
+        anchors.fill: parent
+    }
+
+    // Inset by the system bars on Android, and by nothing at all anywhere else,
+    // because the margins are zero there. Measured on the phone at ef76dd2: the
+    // status bar clock and the notification icons sat on top of the calculator's
+    // own HEWLETT-PACKARD line, because an app targeting SDK 35 draws edge to
+    // edge whether it planned to or not.
     Calculator {
         id: calculator
         anchors.fill: parent
+        anchors.topMargin: safeArea.SafeArea.margins.top
+        anchors.bottomMargin: safeArea.SafeArea.margins.bottom
+        anchors.leftMargin: safeArea.SafeArea.margins.left
+        anchors.rightMargin: safeArea.SafeArea.margins.right
         engine: engine
         customizing: root.customizing
         onRemapRequested: (k) => rebind.openFor(k)
         onCustomizeCancelled: root.customizing = false
         onBodyPressed: engine.startSystemMove(root)
+        onMenuRequested: appMenu.popup(menuButton.x,
+                                       menuButton.y + menuButton.height)
         onUnassignedKey: (label) => banner.hint(
             qsTr("%1 is not assigned to any key. Ctrl+right-click a key to give it one.")
                 .arg(label))
@@ -165,7 +293,10 @@ Window {
 
     // The mode has to say it is on and how to leave, or it is a trap.
     Rectangle {
-        anchors { left: parent.left; right: parent.right; top: parent.top }
+        anchors {
+            left: parent.left; right: parent.right; top: parent.top
+            topMargin: safeArea.SafeArea.margins.top
+        }
         height: modeText.implicitHeight + 18
         visible: root.customizing
         color: "#1f3a5f"
@@ -210,7 +341,7 @@ Window {
             // null missed it. The question is "does the keypad have it", and
             // if not, whether anything with a better claim is on screen.
             if (settings.opened || appMenu.opened || rebind.opened
-                    || picker.opened || handover.opened)
+                    || picker.opened || handover.opened || about.opened)
                 return
             if (!calculator.hasKeyboardFocus())
                 calculator.grabKeyboardFocus()
@@ -240,12 +371,48 @@ Window {
         MenuItem { text: qsTr("Settings…");       onTriggered: settings.open() }
         MenuItem {
             text: qsTr("Customize keyboard…")
+            // Not on a phone. Everything behind it is about a HARDWARE keyboard
+            // - which key on it presses which key on the calculator - and the
+            // window it opens says "Press the key you want. Esc cancels." A
+            // phone has neither the keys nor the Esc, and the window is still a
+            // Window, so tapping this there took the process down rather than
+            // showing anything. Hidden is the honest state: nothing is removed,
+            // and this line is all there is to change if a tablet with a
+            // keyboard ever wants it back.
+            height: visible ? implicitHeight : 0
+            visible: Qt.platform.os !== "android"
             onTriggered: root.customizing = true
         }
         MenuItem { text: qsTr("Save memory now"); onTriggered: engine.saveState() }
         MenuSeparator {}
-        MenuItem { text: qsTr("Copy stack");      onTriggered: engine.copyStackToClipboard() }
-        MenuItem { text: qsTr("Paste");           onTriggered: engine.pasteClipboardToStack() }
+        // BOTH SAY WHAT HAPPENED, since 2026sep09. They were two menu items
+        // that returned a bool nobody read: on the phone, "Copy stack" then
+        // "Paste" put nothing back and neither one said a word, and there was
+        // no way to tell from the outside whether the copy had failed, the
+        // paste had failed, or the clipboard had never been touched. A command
+        // that can fail silently cannot be dogfooded at all.
+        MenuItem {
+            text: qsTr("Copy stack")
+            onTriggered: {
+                const copied = engine.copyStackToClipboard()
+                // Says what it copied, which is the confirmation a clipboard
+                // never gives you and the only way to catch a number that came
+                // out wrong. A long string is cut - this is a banner, not a
+                // window. A failure has already set the red strip.
+                if (copied !== "")
+                    banner.hint(qsTr("Copied: %1").arg(copied.length > 40
+                                                       ? copied.substring(0, 40) + "…"
+                                                       : copied))
+            }
+        }
+        MenuItem {
+            text: qsTr("Paste")
+            // A clipboard holding something the calculator cannot read already
+            // sets lastError, and the red strip says so; this is for the case
+            // where there is nothing there at all.
+            onTriggered: if (!engine.pasteClipboardToStack() && engine.lastError === "")
+                             banner.hint(qsTr("There is nothing on the clipboard to paste."))
+        }
         MenuSeparator {}
         MenuItem {
             text: qsTr("Import file to stack…")
@@ -264,6 +431,14 @@ Window {
             }
         }
         MenuSeparator {}
+        // Propra sekcio super la du eroj kiuj fermas la programon, kaj ne sub
+        // ili: la lasta grupo restas "la du danĝeraj" kaj nenio sendanĝera
+        // sidas inter ili. La kialo por la pozicio staras en AboutContent.qml.
+        MenuItem {
+            text: qsTr("About Agape48…")
+            onTriggered: root.about.open()
+        }
+        MenuSeparator {}
         MenuItem {
             text: qsTr("Reset memory and quit")
             onTriggered: { engine.reset(true); Qt.quit() }
@@ -278,7 +453,29 @@ Window {
     // 2026aug28 keeps Controls off the calculator face, and this sits on it.
     Rectangle {
         id: menuButton
-        anchors { top: parent.top; right: parent.right; margins: 8 }
+        // NEVER DRAWN, on any platform, since 2026sep10. The underlined "48GX"
+        // on the face is the way in everywhere - Gert's design from 2026sep07
+        // for the phone, and on 2026sep10 for the desktop as well: "make the
+        // 48GX underlined and get rid of the 3 dots, like the Android
+        // solution". One command in one place.
+        //
+        // THE ITEM STAYS because its geometry is still the menu's position: an
+        // invisible item still has a position, and appMenu.popup() is given
+        // menuButton.x and .y. That kept the popup in the top right corner,
+        // beside the badge, without a second set of numbers to keep in step.
+        visible: false
+        // Inset like the face is, and for the same reason. Measured on the
+        // phone at e4ea219: the status bar is 162 px tall and this button was
+        // drawn from y=22 to y=100, entirely inside it, so every tap on it went
+        // to the system bar instead - which on Android, with the right-click
+        // gesture gone since 2026aug30, left no way at all into Settings, "Open
+        // another calculator", "Save memory now" or Quit once a ROM was found
+        // and onRomRequired stopped firing.
+        anchors {
+            top: parent.top; right: parent.right; margins: 8
+            topMargin:   8 + safeArea.SafeArea.margins.top
+            rightMargin: 8 + safeArea.SafeArea.margins.right
+        }
         width: 28; height: 28; radius: 14
         color: menuMouse.containsMouse ? "#ffffff" : "#000000"
         opacity: menuMouse.containsMouse ? 0.22 : 0.28
@@ -319,30 +516,209 @@ Window {
         id: exportPicker
         title: qsTr("Save the object on level 1 as")
         fileMode: FileDialog.SaveFile
-        nameFilters: [qsTr("All files (*)"), qsTr("HP 48 objects (*.hp)")]
+        // Android derives the document's MIME type from these filters and then
+        // appends that type's own extension to whatever name is typed, so
+        // "ALG48-from-phone" was saved as "ALG48-from-phone.hpp" - a C++ header
+        // suffix on an HP 48 object. Measured on the phone, 2026sep07. One
+        // filter that matches everything leaves the name alone; the desktops
+        // keep the pair, where the second one is a useful filter rather than a
+        // renaming rule.
+        nameFilters: Qt.platform.os === "android"
+                         ? [qsTr("All files (*)")]
+                         : [qsTr("All files (*)"), qsTr("HP 48 objects (*.hp)")]
         onAccepted: if (engine.exportFile(selectedFile))
                         banner.hint(qsTr("Level 1 saved to %1").arg(engine.urlToPath(selectedFile)))
     }
 
+    // ONE DIALOG, TWO SHELLS - the third and last of the three, split on
+    // 2026sep09 for the reason the old comment here gave for not splitting it:
+    // "it needs a calculator held by another instance, which cannot happen on a
+    // phone until the state folder can live in a synced folder." That night the
+    // state folder could, and the first thing the phone did with it was open a
+    // calculator the laptop was holding. A phone used to get a sentence in the
+    // banner instead - no way to ask for it, no countdown, no way to take it.
+    readonly property var handover: Qt.platform.os === "android" ? handoverPage
+                                                                 : handoverWindow
+
     HandoverWindow {
-        id: handover
+        id: handoverWindow
         engine: engine
         transientParent: root
+        // Deaf on a phone: the contents show themselves when a wait ends in
+        // silence, and this one showing itself there is the abort the split was
+        // made to avoid. See HandoverContent.qml.
+        live: Qt.platform.os !== "android"
         onPickAnother: picker.openPicker()
         onChangeFolder: settings.open()
     }
 
-    CalculatorPickerWindow {
-        id: picker
+    HandoverPage {
+        id: handoverPage
         engine: engine
-        transientParent: root
-        onBusyCalculator: (name, holder) => handover.showFor(holder, name)
+        live: Qt.platform.os === "android"
+        x: root.pageX
+        y: root.pageY
+        width: root.pageW
+        height: root.pageH
+        onPickAnother: picker.openPicker()
+        onChangeFolder: settings.open()
     }
 
+    function offerHandover(name, holder) {
+        root.handover.showFor(holder, name)
+    }
+
+    // ONE DIALOG, TWO SHELLS - la kvara, kaj la sola kiu neniam estis fenestro
+    // antaŭe. Gert petis ĝin je provo 17 linio 4; ĝi estas deklarita sur ambaŭ
+    // platformoj kaj nur unu el la du iam malfermiĝas, same kiel Agordoj, la
+    // breto kaj la transdono.
+    readonly property var about: Qt.platform.os === "android" ? aboutPage
+                                                              : aboutWindow
+
+    AboutWindow {
+        id: aboutWindow
+        engine: engine
+        transientParent: root
+        onOpenedChanged: focusGuard.restart()
+    }
+
+    AboutPage {
+        id: aboutPage
+        engine: engine
+        x: root.pageX
+        y: root.pageY
+        width: root.pageW
+        height: root.pageH
+        onOpenedChanged: focusGuard.restart()
+        onDismissRequested: root.closeAllPages()
+    }
+
+    // THE PHONE'S BACK MEANS "OUT", not "up one". Gert, dogfood android-08:
+    // "The back button should take out of every internal configs or selections,
+    // stopping at the calculator", and on the line where back from Settings had
+    // landed him on the calculator by accident, "But I like it, so make it go
+    // back to the calculator if swiping back or clicking the back
+    // bottom-button."
+    //
+    // Here rather than in PageShell because this is the only place that knows
+    // how many pages are open. The drawn arrow in each header still means up
+    // one page - without it there would be no way from Text sizes back to
+    // Settings - so the two gestures are wired to two different signals.
+    //
+    // Settings is asked rather than told: it may have a folder typed into it
+    // and not yet applied, and a back swipe is exactly the accident that would
+    // throw it away. The other two have nothing to lose, so they simply go.
+    function closeAllPages() {
+        advancedPage.close()
+        pickerPage.close()
+        // Through leave(), not close(): this one has a countdown running behind
+        // it, and a wait nobody is watching would go on asking the other device
+        // for a calculator this one has stopped wanting.
+        if (handoverPage.opened)
+            handoverPage.leave()
+        if (settingsPage.opened)
+            settingsPage.dismiss()
+        aboutPage.close()
+    }
+
+    // ONE SHELF, TWO SHELLS. The same split as Settings, for the same reason,
+    // and the shelf is the one that most needed it: it is the only way to reach
+    // a calculator that came from another machine, so on a phone the crash took
+    // out the whole point of a synced state folder.
+    readonly property var picker: Qt.platform.os === "android" ? pickerPage
+                                                               : pickerWindow
+
+    CalculatorPickerWindow {
+        id: pickerWindow
+        engine: engine
+        transientParent: root
+        onBusyCalculator: (name, holder) => root.offerHandover(name, holder)
+    }
+
+    CalculatorPickerPage {
+        id: pickerPage
+        engine: engine
+        x: root.pageX
+        y: root.pageY
+        width: root.pageW
+        height: root.pageH
+        onOpenedChanged: focusGuard.restart()
+        onBusyCalculator: (name, holder) => root.offerHandover(name, holder)
+        onDismissRequested: root.closeAllPages()
+    }
+
+    // ONE SET OF SETTINGS, TWO SHELLS. The contents live in SettingsContent.qml
+    // and know nothing about either; what changes is what is drawn around them.
+    //
+    // Android has no second window - asking for one aborts the process, 10 times
+    // out of 10 on Gert's phone - so there it is a full-screen in-scene page. The
+    // desktops keep the window they have, unchanged, because a window is right
+    // there and Gert has said so more than once.
+    //
+    // Both are DECLARED on both platforms and only one is ever opened. Creating a
+    // Window costs nothing until it is shown - the surface, and therefore the
+    // abort, comes with show() - and this way `settings` is one name that
+    // answers open() and opened() everywhere, instead of a Loader whose item has
+    // to be null-checked at four call sites.
+    readonly property var settings: Qt.platform.os === "android" ? settingsPage
+                                                                 : settingsWindow
+
     SettingsWindow {
-        id: settings
+        id: settingsWindow
         engine: engine
         onOpenedChanged: focusGuard.restart()
+    }
+
+    // THE SCREEN INSIDE THE SYSTEM BARS, named once. A page IS the screen, so
+    // it takes the whole of it rather than a size chosen for a laptop and then
+    // clamped - which is what the window has to do. Every page reads these four
+    // rather than copying another page's geometry: the shelf did that first and
+    // came up with its header drawn across the clock, because a Popup's x and y
+    // are not simply the numbers you assigned to it.
+    readonly property real pageX: safeArea.SafeArea.margins.left
+    readonly property real pageY: safeArea.SafeArea.margins.top
+    readonly property real pageW: root.width  - safeArea.SafeArea.margins.left
+                                              - safeArea.SafeArea.margins.right
+    readonly property real pageH: root.height - safeArea.SafeArea.margins.top
+                                              - safeArea.SafeArea.margins.bottom
+
+    SettingsPage {
+        id: settingsPage
+        engine: engine
+        x: root.pageX
+        y: root.pageY
+        width: root.pageW
+        height: root.pageH
+        onOpenedChanged: focusGuard.restart()
+        onAdvancedRequested: advancedPage.open()
+        onDismissRequested: root.closeAllPages()
+
+        // DEAF WHILE TEXT SIZES IS OVER IT. The two pages are siblings on the
+        // same rectangle, so their back arrows are drawn at the same point, and
+        // one tap on the top one was reaching both: measured 2026sep08, page
+        // state went from "settings=true advanced=true" to both false on a
+        // single tap, which is why Text sizes appeared to close straight to the
+        // calculator instead of back to Settings. A modal popup is supposed to
+        // block what is under it; between two popups it does not. Being
+        // disabled does block it, and it costs nothing to look at because this
+        // page is completely covered while advancedPage is open.
+        enabled: !advancedPage.opened
+    }
+
+    // A page over the settings page rather than inside it: a sibling covering
+    // the same rectangle, so it hides the header underneath instead of starting
+    // below it. Opened after Settings and therefore on top of it, and closing it
+    // leaves Settings exactly where it was - which is what a phone's settings do
+    // and what Gert asked for.
+    AdvancedPage {
+        id: advancedPage
+        engine: engine
+        x: root.pageX
+        y: root.pageY
+        width: root.pageW
+        height: root.pageH
+        onOpenedChanged: focusGuard.restart()
+        onDismissRequested: root.closeAllPages()
     }
 
     // Error banner. Raw QtQuick: Quick Controls was allowed on 2026aug28, but
@@ -356,10 +732,34 @@ Window {
     Rectangle {
         id: banner
         property bool isError: true
+
+        // KION LA STRIO RICEVIS, antaŭ ol ĝi fariĝis markita teksto. La du
+        // funkcioj sube skribis rekte en text.text ĝis 2026sep11; nun ili
+        // skribas ĉi tien kaj la etikedo estas ligo, ĉar ligo devas esti
+        // rekalkulita kaj ne stampita unufoje.
+        property string raw: ""
+
+        // LA URL ESTAS KLAKEBLA. Gert, 2026sep11, vidinte la novan sen-ROM
+        // mesaĝon: "Make the link to hpcal.org on the red strip clickable and
+        // taking to the default browser on all 3 systems."
+        //
+        // Farita ĉi tie kaj ne en la mesaĝo, do ĈIU strio kiu iam portos URL-on
+        // ricevas la saman konduton kaj neniu C++-ĉeno devas porti markadon.
+        // La eskapo venas UNUE: StyledText interpretas < kaj &, kaj mesaĝo kiu
+        // portas klavnomon inter angulaj krampoj estus parte manĝita alie.
+        function linkify(s) {
+            const esc = s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            // La linisaltoj kiujn la mesaĝo mem portas. StyledText traktas \n
+            // kiel spacon, do sen ĉi tio la alineo kiu diras "jen de kie preni
+            // ROM-on" kunfluus kun la frazo kiu diras ke ne estas ROM.
+            return esc.replace(/\n/g, "<br>")
+                      .replace(/(https?:\/\/[^\s<>"']+)/g, '<a href="$1">$1</a>')
+        }
+
         // Errors stay up long enough to read twice; a hint about a key nobody
         // claimed is not an error and goes after three seconds, as asked.
-        function show(msg) { isError = true;  text.text = msg; opacity = 1; hideTimer.interval = 12000; hideTimer.restart() }
-        function hint(msg) { isError = false; text.text = msg; opacity = 1; hideTimer.interval = 3000;  hideTimer.restart() }
+        function show(msg) { isError = true;  raw = msg; opacity = 1; hideTimer.interval = 12000; hideTimer.restart() }
+        function hint(msg) { isError = false; raw = msg; opacity = 1; hideTimer.interval = 3000;  hideTimer.restart() }
         // Over the centre of the calculator's SCREEN since 2026sep03, on Gert's
         // instruction. Along the bottom it lay across the bottom two rows of
         // keys; the top is still not available, for the reason above; and the
@@ -377,27 +777,67 @@ Window {
         // Clearing the engine's error too, not just hiding the strip: the
         // settings window shows lastError, so a failed import was still on
         // display there long after the banner had gone. Dogfood #15 line 20.
+        //
+        // But NOT WHEN THERE IS NO CALCULATOR. A message about something that
+        // went wrong while the machine is running has done its job after twelve
+        // seconds; a message saying why there is no machine at all is the only
+        // thing on screen that explains the state the program is in, and wiping
+        // it leaves a dead calculator and no reason anywhere.
+        //
+        // That is the whole of the "Windows says nothing, Linux says something"
+        // difference, and it was neither: same run, same window, the strip is
+        // there at six seconds and gone at twenty-two. Windows measured late and
+        // Linux measured early. Gert's own machine is in this state right now -
+        // its remembered shelf was deleted - so what it gives him is a complete
+        // calculator, a blank screen and, twelve seconds in, silence.
+        function forget() {
+            banner.opacity = 0
+            if (banner.isError && engine.running)
+                engine.clearError()
+        }
         Timer {
             id: hideTimer
             interval: 12000
-            onTriggered: { banner.opacity = 0; if (banner.isError) engine.clearError() }
+            onTriggered: banner.forget()
         }
         Text {
             id: text
             anchors { fill: parent; margins: 12 }
             color: "white"; wrapMode: Text.WordWrap; font.pixelSize: TextSizes.banner
+            // StyledText kaj ne RichText: ĝi konas <a href> kaj linkAt(), kostas
+            // neniun HTML-analizilon, kaj ne povas aranĝi la strion laŭ tabelo
+            // kiun neniu petis.
+            textFormat: Text.StyledText
+            text: banner.linkify(banner.raw)
+            // Ambra, ĉar ĝi devas legiĝi kaj sur la ruĝo de eraro kaj sur la
+            // ardezo de avizo, kaj la defaŭlta blua legiĝas sur nek unu.
+            linkColor: "#ffd9a0"
         }
         // Same on a deliberate dismissal, or the error the user just waved away
         // reappears the next time Settings is opened.
+        //
+        // LA LIGO UNUE. Ĉi tiu areo kuŝas super la teksto, do ĝi ricevas ĉiun
+        // klakon kaj onLinkActivated de la Text neniam pafus; do ĝi demandas la
+        // tekston kio estas sub la fingro kaj malfermas ĝin mem. Ekster ligo la
+        // klako ankoraŭ signifas "for".
         MouseArea {
+            id: bannerArea
             anchors.fill: parent
-            onClicked: { banner.opacity = 0; if (banner.isError) engine.clearError() }
+            onClicked: (mouse) => {
+                const p = text.mapFromItem(bannerArea, mouse.x, mouse.y)
+                const link = text.linkAt(p.x, p.y)
+                if (link !== "")
+                    Qt.openUrlExternally(link)
+                else
+                    banner.forget()
+            }
         }
     }
 
     // The resize border. It sits above everything and hands back any press that
     // is not within `margin` of an edge, so a click on a key still reaches the
-    // keypad underneath.
+    // keypad underneath - and for the same reason it has to hand back the
+    // pointer as well, see hoverForward() below.
     MouseArea {
         id: resizeBorder
         anchors.fill: parent
@@ -424,6 +864,38 @@ Window {
             if (e & (Qt.TopEdge | Qt.BottomEdge))  return Qt.SizeVerCursor
             return Qt.ArrowCursor
         }
+
+        // THE HOVER ROUTER. hoverEnabled above is what makes those cursor
+        // shapes work, and it is also the reason nothing on the calculator's
+        // face could ever be hovered: Qt Quick delivers hover front to back and
+        // stops at the first item whose subtree accepts it, and this one covers
+        // the whole window. Two rounds of key-tooltip fixes went underneath the
+        // roof before anybody looked at the roof - Keypad.qml has the
+        // measurement. So the border that already hands presses back to the
+        // keypad hands it the pointer too.
+        //
+        // Only while nothing is pressed. A resize drag has its own use for
+        // these coordinates.
+        //
+        // THE SECOND HALF OF THAT SENTENCE USED TO BE A CLAIM AND IT WAS WRONG.
+        // It read "on a touchscreen mouseX moves only while a finger is down, so
+        // a key held on a phone never grows a tooltip" - which is true about the
+        // pointer and false about the conclusion. A touch press synthesises a
+        // mouse move, this border hands the press back because it is not on an
+        // edge, so `pressed` is false, the move gets forwarded, and a finger that
+        // then stays still for two seconds is EXACTLY the gesture the tooltip
+        // waits for. Gert found it on the phone at provo 17: "If I hold a button
+        // down for long in one place, it shows a keyboard shortcut." The gate is
+        // in Keypad.qml, on whether a keyboard is attached at all.
+        function hoverForward() {
+            if (pressed)
+                return
+            const s = mapToItem(null, mouseX, mouseY)
+            calculator.hoverAtScene(s.x, s.y)
+        }
+        onMouseXChanged: hoverForward()
+        onMouseYChanged: hoverForward()
+        onContainsMouseChanged: if (!containsMouse) calculator.hoverLeft()
 
         // Resized here rather than by QWindow::startSystemResize. The window
         // manager's own resize is interactive and ignores the height we set
@@ -624,7 +1096,7 @@ Window {
     }
 
     // Haptics and beeps. Both are platform calls, not Qt Multimedia - see
-    // README "Sound and haptics" for why QSoundEffect is not an option here.
+    // Readme_Programmers.md "Sound and haptics" for why QSoundEffect is not an option here.
     // TODO: add src/bridge/Feedback.{h,cpp} as a QML_SINGLETON wrapping
     //   Android : Vibrator / VibrationEffect + AudioTrack, via QJniObject
     //   Linux   : libcanberra-less ALSA square wave, or nothing
@@ -636,6 +1108,7 @@ Window {
     }
 
     Component.onCompleted: {
+        logScreen()
         applyDefaultGeometry()
         engine.start()
     }

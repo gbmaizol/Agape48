@@ -6,15 +6,17 @@
 // just syncing files - no REST client, no QtNetwork, no account. The user picks
 // a directory; whatever they have watching that directory does the transport.
 //
-//   Desktop : a plain path, e.g. ~/Dropbox/Agape48 . Handed to the core as
-//             cfg.state_dir.
-//   Android : a content:// TREE uri from ACTION_OPEN_DOCUMENT_TREE, with a
-//             persisted permission grant. A tree uri has no POSIX path, so the
-//             files are opened here via SAF and handed to the core as open
-//             file descriptors (cfg.fd_*).
+// A PLAIN PATH ON EVERY PLATFORM, e.g. ~/Dropbox/Agape48 or, on a phone,
+// /storage/emulated/0/Documents/Agape48Emulator. Handed to the core as
+// cfg.state_dir. Android's folder picker hands back a content:// tree uri
+// instead, which has no POSIX path and which the C core cannot fopen(): that
+// uri is turned back into the path it stands for the moment it arrives, and
+// nothing below this line ever sees anything but a local file. See localised()
+// in the .cpp, and canUseAnyFolder() for the permission that decides whether
+// the path can actually be opened.
 //
 // The hard part is not the transport, it is the conflict: two devices editing
-// one .ram between syncs. See conflictDetected() and README "Sync conflicts".
+// one .ram between syncs. See conflictDetected() and Readme_Programmers.md "Sync conflicts".
 // ---------------------------------------------------------------------------
 #pragma once
 
@@ -47,11 +49,21 @@ class StateFileManager : public QObject
     Q_PROPERTY(QString displayName READ displayName NOTIFY locationChanged)
     Q_PROPERTY(bool    writable    READ isWritable  NOTIFY locationChanged)
     Q_PROPERTY(bool    isDefault   READ isDefault   NOTIFY locationChanged)
+    // WHERE THE CALCULATOR'S OWN SETTINGS LIVE: beside the ROM, so they move
+    // when the folder moves. Gert, 2026sep10: "make this keyboard setting and
+    // all the settings that are like this live in the same folder as the ROM in
+    // a simple settings.ini text file, so they change and move together with
+    // the state folder."
+    //
+    // Empty when there is no local folder to put it in, which both QSettings
+    // and QML's Settings read as "use the default" - a degradation to
+    // machine-local storage rather than a lost write.
+    Q_PROPERTY(QUrl    settingsFile READ settingsFile NOTIFY locationChanged)
     Q_PROPERTY(QString lastError   READ lastError   NOTIFY lastErrorChanged)
 
     // Which calculator inside the state folder is open. The state folder is a
     // shelf, not a calculator: it holds one shared ROM and a subfolder per
-    // calculator, each with its own ram, hp48, ports and in-use lock. Two
+    // calculator, each with its own ram, hp48, ports and en-uzo lock. Two
     // calculators at once is two subfolders, and the one-instance-per-folder
     // rule from 2026aug30 now applies per calculator rather than per shelf.
     Q_PROPERTY(QString instance READ instance NOTIFY instanceChanged)
@@ -60,6 +72,7 @@ public:
     explicit StateFileManager(QObject *parent = nullptr);
 
     QUrl location() const { return m_location; }
+    QUrl settingsFile() const;
     QString displayName() const;
     bool isWritable() const;
     bool isDefault() const;
@@ -90,15 +103,13 @@ public:
     // --- one calculator, one instance --------------------------------------
     // The state folder IS the calculator, so it is opened by one instance at a
     // time, the way a word processor opens a document. claim() writes an
-    // "in-use" file naming this process and this machine; a second instance
+    // "en-uzo" file naming this process and this machine; a second instance
     // finds it and is turned away. Two calculators at once is two folders,
     // which the folder picker already does. Gert asked for this on 2026aug30
     // after two copies pointed at one folder quietly ate each other's memory -
     // every instance writes the whole state on quit, so the last one out won.
     //
-    // Local files only. An Android content:// tree would need the whole SAF
-    // dance to write one small file, and Android will not run two copies of an
-    // app anyway.
+    // Local files only, which since 2026sep09 is every location there is.
     bool claim(bool takeOver = false);
     void release();
 
@@ -141,6 +152,23 @@ public:
     // definition.
     Q_INVOKABLE bool handoverComplete(const QString &instance) const;
 
+    // The same question, answered with WHY rather than with no. One false hid
+    // three quite different situations, and the wait dialog reported the worst
+    // of them for all three - dogfood both-05 line 15, where the countdown ran
+    // out, the other machine let go eight seconds later, and the screen went on
+    // offering "Take it over" for a folder whose ram was still the one from
+    // before the handover.
+    //
+    //   Complete  nothing is owed, or the record is here, whole, and ours
+    //   Arriving  the record describes files that are NOT all here yet. Half a
+    //             delivery. Nothing may read this folder, by any route.
+    //   NotOurs   whole and readable, but written before we asked, or for
+    //             somebody else. Taking it costs their last few seconds.
+    //   Nothing   they let go and wrote no record at all
+    enum HandoverState { Complete, Arriving, NotOurs, Nothing };
+    Q_ENUM(HandoverState)
+    HandoverState handoverState(const QString &instance) const;
+
     // True if that folder already holds somebody's calculator. Pointing at one
     // that does means joining it, not copying over it.
     Q_INVOKABLE bool shelfHasCalculators(const QUrl &shelf) const;
@@ -169,6 +197,54 @@ public:
     Q_INVOKABLE QString createInstance();
 
     Q_INVOKABLE bool renameInstance(const QString &from, const QString &to);
+
+    // Throw one away, folder and all. Gert asked for it in dogfood android-08
+    // line 6: "we need a 4th button to delete a calculator! It should be
+    // disabled if the selected calculator is the one that's loaded."
+    //
+    // THE OPEN ONE IS NOT DELETABLE, and that is his rule rather than a
+    // limitation - deleting the folder the C core is writing into would leave
+    // the emulator running against files that no longer exist, and the next
+    // save would recreate half of them. The shelf disables the button for it;
+    // this refuses it as well, because a shelf is not the only caller a method
+    // can ever have. A calculator open on ANOTHER device is refused too: its
+    // lock is the only evidence that someone is mid-session in it.
+    Q_INVOKABLE bool deleteInstance(const QString &name);
+
+    // A FOLDER ON ANDROID THAT OTHER APPS CAN SEE. Empty everywhere else.
+    //
+    // The shelf's default on Android is the app's own private data directory,
+    // which works perfectly and is invisible: since Android 11 no file manager
+    // may browse Android/data, so nothing can sync it and the user cannot even
+    // look at it. Gert, dogfood android-08 line 7: "I don't have access to the
+    // internal calculator folder, and I can't change it to a visible folder
+    // before you implement this possibility."
+    //
+    // getExternalMediaDirs() is the possibility. It hands back the app's own
+    // folder under Android/media, which Android deliberately left readable by
+    // other apps when it closed Android/data - it is a real POSIX path, it
+    // needs no permission of any kind, and the app owns it, so nothing here has
+    // to change: the shelf, the locks, the per-calculator folders and
+    // migrateTo() all work on it exactly as they do on a desktop. That is the
+    // whole reason to prefer it over the Storage Access Framework, where a
+    // content:// tree has no path and the C core cannot fopen() it.
+    //
+    // Creates the folder if it is not there yet, so the caller can hand the
+    // result straight to migrateTo(). Empty if external storage is not mounted.
+    Q_INVOKABLE QUrl sharedLocation();
+
+    // MAY AGAPE48 OPEN A FOLDER OF THE USER'S OWN? True on every desktop, and
+    // on Android only once the user has granted "all files access" on a system
+    // screen. Everything the app does by itself lives in its own storage and
+    // needs no permission; this is the one thing that does, and it is asked for
+    // only when a folder that needs it has been chosen. Not a Q_PROPERTY: it
+    // changes in the system settings while this process is in the background,
+    // so there is nothing here to emit a signal, and the settings page re-asks
+    // when it comes back to the foreground.
+    Q_INVOKABLE bool canUseAnyFolder() const;
+
+    // Opens the system screen with the switch on it, for this app.
+    Q_INVOKABLE void requestAnyFolderAccess();
 
     // location/<instance>, which is what the core is given as its state_dir.
     QString instanceDir() const;
@@ -205,7 +281,6 @@ signals:
 
 private:
     bool populateDesktop(x48_config_t *cfg, QByteArray *storage);
-    bool populateAndroidSaf(x48_config_t *cfg);
     void loadPersistedLocation();
     void beat();
     // The other half of the sync rule Gert set on 2026aug30: a calculator can
@@ -219,6 +294,10 @@ private:
     // Which calculator on that shelf to open. Takes the folder explicitly
     // because joining one has to choose before m_location moves.
     void prepareInstances(const QUrl &where = QUrl());
+    // The shelf used when the user has not chosen one. A subfolder of the app's
+    // data folder on Android, where Qt's own config directory lives inside it;
+    // the data folder itself everywhere else. See the definition.
+    static QString defaultLocationPath();
     QString freeInstanceName() const;
     // The same question asked of a folder that is not ours yet, which is what
     // migrating onto somebody else's shelf needs.

@@ -3,7 +3,7 @@
 # "HP" in Brazilian Portuguese is "aga-pe" == Greek agape.
 #
 # Size is a first-class requirement. Every knob below is documented in
-# README.md, section "Size budget". Defaults are the small ones.
+# Readme_Programmers.md, section "Size budget". Defaults are the small ones.
 # -----------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.21)
 
@@ -16,7 +16,7 @@ if(CMAKE_CONFIGURATION_TYPES)
 endif()
 
 project(Agape48
-    VERSION 0.1.0
+    VERSION 0.9.1
     DESCRIPTION "HP 48 emulator on the x48 core"
     LANGUAGES C CXX)
 
@@ -32,7 +32,7 @@ option(AGAPE48_LTO                     "Link-time optimisation (biggest single s
 option(AGAPE48_ICF                     "Identical code folding (needs lld or gold)" ON)
 option(AGAPE48_QML_CACHEGEN            "Bake compiled QML bytecode in (faster start, larger binary)" OFF)
 option(AGAPE48_CORE_OPTIMIZE_FOR_SPEED "Build the Saturn interpreter at -O2 instead of -Os" OFF)
-option(AGAPE48_WEBP_PLUGIN             "Link Qt's qwebp image plugin (see README: WebP is NOT in QtGui)" ON)
+option(AGAPE48_WEBP_PLUGIN             "Link Qt's qwebp image plugin (see Readme_Programmers.md: WebP is NOT in QtGui)" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(Agape48Size)   # defines the agape48::size INTERFACE target
@@ -67,6 +67,41 @@ qt_add_executable(agape48
 # set this for you.
 if(WIN32)
     set_target_properties(agape48 PROPERTIES WIN32_EXECUTABLE TRUE)
+
+    # The icon on the executable itself, and the version block behind its
+    # Properties page. Both come out of platform/windows/agape48.rc.in.
+    #
+    # Compiled in only when the .ico is there, because it is a build product:
+    # tools/make-icon.py writes it and .gitignore keeps it out of the tree, so
+    # a fresh clone has no icon until that script has run. Saying so is the
+    # right answer there; failing the build for it is not.
+    set(AGAPE48_WINDOWS_ICO "${CMAKE_CURRENT_SOURCE_DIR}/installer/agape48.ico")
+    if(EXISTS "${AGAPE48_WINDOWS_ICO}")
+        configure_file(platform/windows/agape48.rc.in agape48.rc @ONLY)
+        # WINDRES NE SCIAS KE LA .ico ESTAS ENIGAĴO, kaj tial la ikono enmetita
+        # en agape48.exe restis tiu de 2026sep08 tra du ŝanĝoj de la arto -
+        # provo 17, linioj 5 kaj 13: "the taskbar icon is the old one!".
+        #
+        # Mezurite sur la Vindoza komputilo 2026sep11: `ninja -t deps` por
+        # agape48.rc.obj presas "#deps 0". windres kuras la antaŭprocesoron, la
+        # antaŭprocesoro raportas #include-ojn, kaj `1 ICON "vojo"` ne estas
+        # #include - do la .ico neniam eniras la dependoliston. La sola enigaĵo
+        # kiun Ninja konas estas la TEKSTO de agape48.rc, kiu ne ŝanĝiĝas kiam
+        # la arto ŝanĝiĝas. La sep RT_ICON-oj en la exe kaj la sep en la .ico
+        # havis nenion komunan; ĉio alia sur tiu komputilo - la Start-menuo, la
+        # labortabla ligilo, Agordoj > Aplikaĵoj - legas {app}\agape48.ico kaj
+        # estis ĝusta, kio estas kial ĝi aspektis kiel kaŝmemora problemo.
+        #
+        # OBJECT_DEPENDS estas honorata de Ninja kaj de Makefiles kaj ignorata
+        # de Visual Studio kaj Xcode, kiujn ĉi tiu projekto ne uzas.
+        set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/agape48.rc"
+            PROPERTIES OBJECT_DEPENDS "${AGAPE48_WINDOWS_ICO}")
+        target_sources(agape48 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/agape48.rc")
+    else()
+        message(STATUS
+            "agape48: installer/agape48.ico is missing, so the executable gets "
+            "no icon and no version block. Run: python tools/make-icon.py")
+    endif()
 endif()
 
 target_include_directories(agape48 PRIVATE src src/bridge src/core)
@@ -90,12 +125,25 @@ target_compile_definitions(agape48 PRIVATE
 set(AGAPE48_QML_FILES
     qml/Main.qml
     qml/Calculator.qml
+    qml/CompactSwitch.qml
     qml/Keypad.qml
     qml/SettingsWindow.qml
+    qml/SettingsContent.qml
+    qml/SettingsPage.qml
+    qml/PageShell.qml
+    qml/AdvancedContent.qml
+    qml/AdvancedPage.qml
     qml/KeyBindingWindow.qml
     qml/CalculatorPickerWindow.qml
+    qml/CalculatorPickerContent.qml
+    qml/CalculatorPickerPage.qml
     qml/HandoverWindow.qml
+    qml/HandoverPage.qml
+    qml/HandoverContent.qml
     qml/AdvancedWindow.qml
+    qml/AboutWindow.qml
+    qml/AboutPage.qml
+    qml/AboutContent.qml
     qml/Agape48Keymap.qml
     qml/TextSizes.qml
 )
@@ -132,14 +180,14 @@ endif()
 if(AGAPE48_WEBP_PLUGIN)
     # QImage cannot read WebP out of the box: the qwebp plugin lives in the
     # separate qtimageformats module. Guarded so a Qt build without it still
-    # configures - see README for the libwebp-direct alternative.
+    # configures - see Readme_Programmers.md for the libwebp-direct alternative.
     if(TARGET Qt6::QWebpPlugin)
         qt_import_plugins(agape48 INCLUDE Qt6::QWebpPlugin)
     else()
         message(WARNING
             "AGAPE48_WEBP_PLUGIN=ON but Qt6::QWebpPlugin was not found. "
             "Install qtimageformats, or set AGAPE48_WEBP_PLUGIN=OFF and decode "
-            "the skin with libwebp directly (see README).")
+            "the skin with libwebp directly (see Readme_Programmers.md).")
     endif()
 endif()
 
@@ -176,6 +224,27 @@ if(ANDROID)
         QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/platform/android"
         QT_ANDROID_MIN_SDK_VERSION    26
         QT_ANDROID_TARGET_SDK_VERSION 35
+        # Compiled against 36, still TARGETING 35, and the two are different
+        # questions: compileSdk only says which APIs the code may name, while
+        # targetSdk is what opts the app in to a platform's new runtime
+        # behaviour. Qt 6.12's gradle template depends on androidx.core 1.17.0,
+        # which refuses to be compiled against anything below 36; nothing about
+        # this app wants Android 16's behaviour changes yet.
+        QT_ANDROID_COMPILE_SDK_VERSION 36
+        # br.gbmaizol.agape48 since 2026sep07, on Gert's instruction. There is
+        # no Java of ours left for it to disagree with: platform/android/src
+        # held one class, a Storage Access Framework bridge whose Activity field
+        # was never assigned, and it went on 2026sep09 with the rest of the SAF
+        # path - see localised() in StateFileManager.cpp.
+        QT_ANDROID_PACKAGE_NAME       "br.gbmaizol.agape48"
+        # Without this the launcher shows a blank icon - measured on the first
+        # APK. It names the ADAPTIVE icon since 2026sep08: res/mipmap-anydpi-v26
+        # /ic_launcher.xml, a background colour plus a foreground layer at five
+        # densities, all written by tools/make-icon.py. The legacy square is
+        # still there for anything older than API 26. AndroidManifest.xml sets
+        # the same attribute and is the file that actually ships; this keeps the
+        # two from disagreeing.
+        QT_ANDROID_APP_ICON           "@mipmap/ic_launcher"
         QT_ANDROID_VERSION_NAME       "${PROJECT_VERSION}"
         QT_ANDROID_VERSION_CODE       1
         QT_ANDROID_APP_NAME           "Agape48"
@@ -191,6 +260,32 @@ endif()
 if(NOT ANDROID)
     include(GNUInstallDirs)
     install(TARGETS agape48 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+    # La permesilo vojaĝas kun la programo. GPLv3 postulas ke la teksto akompanu
+    # la binaron, ne nur la fonton, kaj ĝis nun nek la tar-arĥivo nek `cmake
+    # --install` portis ĝin. Ekster la Linuksa gardilo sube: ĉiu labortabla
+    # instalo bezonas ĝin, ne nur tiu kiu havas menuon.
+    install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/agape48)
+
+    # A menu entry and its icon: the Linux half of "the installers and the
+    # executables have the same fancy icon as Android". An ELF has no icon
+    # resource the way a PE does - there is nowhere inside the binary to put
+    # one - so on Linux the icon is a file the desktop looks up by NAME, and
+    # the .desktop entry is what does the naming. Without this pair a Linux
+    # install cannot appear in a menu at all.
+    #
+    # All eight files are tracked, written by tools/make-icon.py, so a clone
+    # can `cmake --install` without Python and Pillow.
+    if(UNIX AND NOT APPLE)
+        install(FILES platform/linux/agape48.desktop
+                DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+        foreach(_a48_px 16 24 32 48 64 128 256)
+            install(FILES
+                platform/linux/hicolor/${_a48_px}x${_a48_px}/apps/agape48.png
+                DESTINATION
+                ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${_a48_px}x${_a48_px}/apps)
+        endforeach()
+    endif()
     qt_generate_deploy_qml_app_script(
         TARGET agape48
         OUTPUT_SCRIPT AGAPE48_DEPLOY_SCRIPT
@@ -230,6 +325,31 @@ message(STATUS "  static Qt .......... ${AGAPE48_STATIC_QT}")
 message(STATUS "  LTO / ICF .......... ${AGAPE48_LTO} / ${AGAPE48_ICF}")
 message(STATUS "  QML cachegen ....... ${AGAPE48_QML_CACHEGEN}")
 message(STATUS "  core at -O2 ........ ${AGAPE48_CORE_OPTIMIZE_FOR_SPEED}")
+# La instalilo ne konas la versinumeron kaj ne devas koni ĝin: ĝi vivas ĉi tie,
+# en project(), kaj estas transdonata al ISCC per la komandlinio. Presita ĉi tie
+# por ke la konstruanto povu kopii ĝin sen kalkuli.
+message(STATUS "  installer .......... ISCC.exe /DAppVersion=${PROJECT_VERSION} installer\\agape48.iss")
 message(STATUS "")
 
 target_compile_definitions(agape48 PRIVATE AGAPE48_VERSION="${PROJECT_VERSION}")
+
+# La kaptilo de la konstruo, kiun la fenestro "About" montras. Propra celo kaj
+# ne string(TIMESTAMP) ĉi tie, ĉar ĉi tio devas kuri je KONSTRUOTEMPO: vidu
+# cmake/BuildStamp.cmake, kiu ankaŭ klarigas kial ĝi skribas nur kiam la teksto
+# ŝanĝiĝis.
+set(AGAPE48_BUILD_H "${CMAKE_CURRENT_BINARY_DIR}/agape48_build.h")
+add_custom_target(agape48_stamp
+    BYPRODUCTS "${AGAPE48_BUILD_H}"
+    COMMAND "${CMAKE_COMMAND}" "-DOUT=${AGAPE48_BUILD_H}"
+            "-DSRC=${CMAKE_CURRENT_SOURCE_DIR}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildStamp.cmake"
+    COMMENT "agape48: build stamp"
+    VERBATIM)
+add_dependencies(agape48 agape48_stamp)
+target_include_directories(agape48 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+
+# Kaj unu fojo je agordotempo, por ke la unua konstruo havu la dosieron antaŭ
+# ol la kompililo petas ĝin.
+execute_process(COMMAND "${CMAKE_COMMAND}" "-DOUT=${AGAPE48_BUILD_H}"
+                        "-DSRC=${CMAKE_CURRENT_SOURCE_DIR}"
+                        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/BuildStamp.cmake")

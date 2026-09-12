@@ -12,12 +12,13 @@ Item {
     id: root
     required property Agape48Engine engine
 
-    // Ctrl+RIGHT-click a key to rebind it. Gert asked for Ctrl+left first and
-    // changed it after using it: a left button is what you press all day on
-    // this face, so Ctrl+left is one stuck modifier away from an accident,
-    // while nothing else uses the right button here at all. While "Customize
-    // keyboard…" is on, a plain click does the same, which is the discoverable
-    // half of the pair - see design item 10d.
+    // RIGHT-click a key to rebind it. Gert asked for Ctrl+left first, then
+    // Ctrl+right, then plain right on 2026sep10: a left button is what you
+    // press all day on this face, so Ctrl+left was one stuck modifier away from
+    // an accident, and then the Ctrl itself turned out to interfere with the
+    // calculator, while nothing else uses the right button here at all. While
+    // "Customize keyboard…" is on, a plain click does the same, which is the
+    // discoverable half of the pair - see design item 10d.
     property bool customizing: false
     signal remapRequested(var keyModel)
     signal customizeCancelled()
@@ -76,8 +77,8 @@ Item {
             root.forceActiveFocus()
 
             // Only the customize mode goes through here now: a right button
-            // never reaches a MultiPointTouchArea, so Ctrl+right-click is
-            // handled by the MouseArea below instead.
+            // never reaches a MultiPointTouchArea, so right-click is handled by
+            // the MouseArea below instead.
             if (root.customizing && points.length > 0) {
                 const hit = root.keyIndexAt(points[0].x, points[0].y)
                 if (hit >= 0)
@@ -105,6 +106,17 @@ Item {
                 const i = root.held[p.pointId]
                 if (i !== undefined) { root.releaseIndex(i); delete root.held[p.pointId] }
             }
+            // KAJ LA ŜPRUCHELPILO FORIRAS KUN LA FINGRO. Sur labortablo la
+            // montrilo restas post klako kaj la ŝvebo mem forprenas la
+            // skatolon kiam ĝi moviĝas; sur tuŝekrano ne estas montrilo post
+            // la levo, containsMouse de la rando neniam ŝanĝiĝas, kaj
+            // hoverLeft() do neniam kuras - do skatolo kiu aperis restis sur
+            // la ekrano senfine. Mezurite sur la telefono 2026sep12 kun
+            // virtuala klavaro: teni la ŝovklavon montris <F7>/<Shift>, kaj ĝi
+            // ankoraŭ pendis tie du premojn poste, super klavo kiun neniu
+            // tuŝis.
+            if (root.tipShown || tipDelay.running)
+                root.hoverLeft()
         }
         onCanceled: (points) => {
             // Gesture stolen by the system (notification shade, call). Let go of
@@ -142,16 +154,141 @@ Item {
         }
     }
 
-    // Ctrl+right-click. A MultiPointTouchArea only ever sees the left button,
-    // so the gesture needs a MouseArea of its own - and because it accepts only
-    // the right button, a plain left click falls straight through to the keypad
-    // underneath, exactly as it did before.
+    // --- what is this key on my keyboard? ------------------------------------
+    //
+    // Gert, 2026sep10: "When the mouse pointer halts for 2 seconds over a button
+    // on the calculator's face, each of it's assigned keyboard keys appears at a
+    // yellow tooltip, between angle brackets <>, and when they are more than one,
+    // separated by a newline."
+    //
+    // READ FROM Agape48Keymap, NEVER FROM A SECOND TABLE. bindingsFor() is the
+    // same function KeyBindingWindow lists and it already folds the user's
+    // overrides over the defaults, so a rebound key says the truth here the
+    // moment it is rebound. A copy of the map would start lying the first time
+    // he changed a binding - the constraint written down with the request in
+    // docs/design-questions.md.
+    //
+    // RAW QtQuick, not Controls' ToolTip: the usage rule of 2026aug28 keeps
+    // Quick Controls off the calculator face, and this is on it. Which is no
+    // loss, because the yellow he asked for is not what the Basic style paints
+    // anyway.
+    //
+    // Desktop in effect rather than by a platform test: a finger has no hover
+    // state, so nothing below ever fires on a phone and this costs nothing there.
+    property var tipKey: null
+    property point tipAnchor: Qt.point(-99, -99)
+
+    // ĈU LA HORLOĜO FINIS. La flava skatolo mem ne plu estas ĉi tie: ĝi pendas
+    // en Calculator.qml, ekster la vizaĝo, kaj legas ĉi tiujn tri proprecojn.
+    // Gert, 2026sep10, provinte la konstruon: "It's cropped by the edge of the
+    // calculator face, so the buttons at the edges are less than half-displayed.
+    // Couldn't the scale problem and this problem be more elegantly solved by
+    // making the tooltip arise from" - la frazo estas tranĉita, la respondo
+    // estas jes, kaj la kialoj staras tie kie la skatolo nun vivas. Kio restas
+    // ĉi tie estas la sensilo: kiu klavo, kie, kaj ĉu la montrilo haltis
+    // sufiĉe longe.
+    property bool tipShown: false
+
+    // THERE IS NO HOVER SENSOR ON THIS FACE, AND THERE CANNOT BE ONE. Qt Quick
+    // delivers hover front to back and stops at the first item whose subtree
+    // accepts it, and Main.qml's resize border is a full-window MouseArea with
+    // hoverEnabled sitting on top of everything - so no item on the calculator
+    // has been able to receive a hover event since that border was added. Not
+    // the sensor: the roof over it. Which is why a HoverHandler per key failed,
+    // and then one HoverHandler on the keypad failed in exactly the same way,
+    // and why Gert said "I cannot see the tooltips" twice.
+    //
+    // Measured in isolation with qml.exe rather than argued about: four pointer
+    // positions over a window built like this one, four events at the border and
+    // none at the item beneath it; take the border's hover away and all four
+    // arrive. A non-blocking HoverHandler on the border instead of hoverEnabled
+    // changes nothing, because a HoverHandler makes its own parent item accept
+    // hover, and that is the thing that blocks.
+    //
+    // So the border feeds the pointer down here, the way it already hands
+    // presses back when they are not on an edge. Scene coordinates in, so
+    // nothing here depends on how deeply the face is nested in the window.
+    //
+    // "HALTS for 2 seconds", literally: any real movement restarts the timer,
+    // so the tooltip appears two seconds after the pointer stops rather than
+    // two seconds after it arrives. Three pixels of tolerance, because a hand
+    // resting on a mouse is never quite still and a strict test would never
+    // fire.
+    function hoverAtScene(sx, sy) {
+        if (root.customizing) {
+            root.hoverLeft()
+            return
+        }
+        const p = root.mapFromItem(null, sx, sy)
+        const i = root.keyIndexAt(p.x, p.y)
+        const k = i >= 0 ? root.engine.skin.keys[i] : null
+        const moved = Math.abs(p.x - root.tipAnchor.x) > 3
+                   || Math.abs(p.y - root.tipAnchor.y) > 3
+        if (k !== root.tipKey) {
+            root.tipKey = k
+            root.tipShown = false
+        }
+        if (!k) {
+            tipDelay.stop()
+            root.tipShown = false
+        } else if (moved) {
+            root.tipAnchor = p
+            root.tipShown = false
+            tipDelay.restart()
+        }
+    }
+
+    function hoverLeft() {
+        tipDelay.stop()
+        root.tipShown = false
+        root.tipKey = null
+        root.tipAnchor = Qt.point(-99, -99)
+    }
+
+    readonly property string tipText: {
+        if (!tipKey)
+            return ""
+        const rows = Agape48Keymap.bindingsFor(tipKey.key)
+        if (!rows.length)
+            return ""
+        return rows.map(function (r) { return "<" + r.label + ">" }).join("\n")
+    }
+
+    // NUR KIAM KLAVARO ESTAS KONEKTITA. Gert, provo 17, la sola problemo kiun la
+    // Androida duono trovis: "If I hold a button down for long in one place, it
+    // shows a keyboard shortcut. This should be disabled unless some kind of
+    // keyboard is connected." Kaj li pravas dufoje - fingro kiu tenas klavon ne
+    // demandas "kiu klavo de mia klavaro estas ĉi tiu", kaj sur telefono sen
+    // klavaro la respondo estus nomo de klavo kiun neniu povas premi.
+    //
+    // ĈI TIE KAJ NE EN hoverAtScene(): keyboardAttached() estas JNI-voko sur
+    // Androido, kaj hoverAtScene kuras dufoje po montrila movo. Ĉi tiu punkto
+    // kuras maksimume unu fojon po du sekundoj kaj demandas ekzakte kiam la
+    // respondo gravas, do klavaro alveninta post la lanĉo estas rimarkata.
+    Timer {
+        id: tipDelay
+        interval: 2000
+        onTriggered: root.tipShown = root.engine.keyboardAttached()
+    }
+
+    // Right-click, no modifier. A MultiPointTouchArea only ever sees the left
+    // button, so the gesture needs a MouseArea of its own - and because it
+    // accepts only the right button, a plain left click falls straight through
+    // to the keypad underneath, exactly as it did before.
+    //
+    // The Ctrl came off on 2026sep10. Gert: "please change the key settings
+    // from ctrl+right-click to simple right-click, because the ctrl key is
+    // interferring with the calculator". Nothing else on this face uses the
+    // right button, so the modifier was never earning anything.
+    //
+    // ANDROID REACHES THIS THE OTHER WAY. A touchscreen has no second button,
+    // so the phone's route is the "Customize keyboard..." menu item and a plain
+    // tap, handled in the MultiPointTouchArea above. A mouse attached to an
+    // Android device does send Qt.RightButton and does land here.
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.RightButton
         onClicked: (mouse) => {
-            if (!(mouse.modifiers & Qt.ControlModifier))
-                return
             const hit = root.keyIndexAt(mouse.x, mouse.y)
             if (hit >= 0)
                 root.remapRequested(root.engine.skin.keys[hit])

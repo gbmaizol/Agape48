@@ -1,5 +1,12 @@
 #include "Agape48Engine.h"
 
+#include "agape48_build.h"
+
+#ifdef Q_OS_ANDROID
+#include <QJniObject>
+#include <QtCore/qcoreapplication_platform.h>
+#endif
+
 #include <QCoreApplication>
 
 #include "SkinModel.h"
@@ -18,6 +25,8 @@
 #include <QHash>
 #include <QStringView>
 
+#include <memory>
+
 namespace {
 
 // Emulation pacing. The HP 48 Saturn runs at ~4 MHz (48G) / ~2 MHz (48S), so a
@@ -35,6 +44,91 @@ constexpr int  kTickIntervalMs = 16;
 constexpr int  kMinHoldMs      = 60;
 constexpr int  kCyclesPerTick  = 70000;
 constexpr int  kIdleIntervalMs = 100;
+
+// REAL HP 48 SPEED, and the number is triangulated rather than picked. Gert,
+// 2026sep09, on a game he had just tried: "it's runing at 5x the speed it
+// should be."
+//
+// Free-running, this frontend delivers kCyclesPerTick every kTickIntervalMs =
+// 4,375,000 instructions a second, so his five times puts a real machine at
+// about 875,000. TWO INDEPENDENT THINGS AGREE with that: 875,000 times the
+// Saturn's ~4.2 cycles per instruction is 3.68 MHz, which is the 48GX's clock,
+// and x48_shim.c:327 already guessed "roughly 17000 of these" for a 60 Hz tick,
+// which is 1.06 M/s - the same number to twenty percent, and never once
+// reconciled with the 70000 two lines above it.
+//
+// THE TWO CONSTANTS INSIDE X48 DISAGREE, with each other and with both of
+// those: the timer fallback at emulate.c:2376 assumes 8192 instructions per
+// 1/16 s, which is 131,072/s, and the dead throttle at emulate.c:2466 busy-waits
+// 2 us each, which is 500,000/s. Neither is authoritative - which is exactly why
+// this one is derived from something observed on a real game instead of chosen
+// from the source.
+// 205,000, MEASURED, and every earlier number in this comment's history was
+// wrong because it was taken through a ruler that was broken.
+//
+// The reference is Emu48 with Authentic Calculator Speed on: a 500-iteration
+// empty loop takes 1.30615234375 s, identical to the last digit on four
+// consecutive runs. Under Agape48 paced at 500,000, the same loop took 0.53588 s
+// - the mean of 186 samples with a standard deviation of 4.6%, out of 200 run in
+// one go on 2026sep10. So we were 2.437x too fast, and 500,000 / 2.437 is the
+// number above. (The other 14 samples of the 200 each spanned a moment when the
+// window lost focus, which stops the emulator outright - see Main.qml's
+// onActiveChanged - and they read 1.7 s to 27 s. Discarding them is not
+// cherry-picking: they measure Gert typing, not the calculator.)
+//
+// A SECOND MEASUREMENT, sharing nothing with the first, lands on a textbook
+// constant. speed-probe.txt counted 46,106,722 instructions across 142 of those
+// samples, which is 324,695 instructions per sample; over Emu48's 1.30615 s that
+// makes a real 48 execute 248,589 instructions a second. Emu48 stores
+// GXCycles = 123 cycles per timer2 tick, so 123 x 8192 = 1,007,616 cycles a
+// second, and 1007616 / 248589 = 4.05 CYCLES PER INSTRUCTION - the canonical
+// Saturn average. Two unrelated routes agreeing on 4 cycles is the only
+// corroboration this constant has ever had.
+//
+// The two numbers differ - 248,589 executed against 205,000 asked for - because
+// the pacer overshoots its target by about a fifth on this laptop. 205,000 is
+// therefore the SETTING that produces authentic speed here, not the machine's
+// instruction rate; per-machine is also why speed/rate is persisted.
+//
+// The estimates this replaces, and why each failed: 875,000 came from Gert's eye
+// ("it's runing at 5x the speed it should be") against the free-running
+// 4,375,000; 488,446 came from 49 runs whose median went through a t2_tick that
+// was being ratcheted from 61 to 3811 by get_t1_t2(); and 500,000 was x48's own
+// dead busy-wait of 2 us per instruction, a constant in code this build never
+// calls. x48's other internal figure, the timer fallback's 8192 instructions per
+// 1/16 s = 131,072/s, is 1.6x low.
+constexpr int    kRealSpeedInstrPerSec = 205000;
+
+// The most time one slice may make up. A stall - the phone backgrounding us, a
+// long frame, waking out of the 100 ms idle tick - must not hand the Saturn a
+// burst and make a game jump; two ticks' worth is enough to ride out a late
+// timer and small enough that nothing visible can accumulate behind it.
+
+// What the rate may be set to. The ceiling is the free-running rate itself -
+// past that the throttle would be asking for more instructions than the tick
+// can deliver and would silently do nothing - and the floor is low enough to be
+// obviously wrong on screen rather than to look like a hang.
+constexpr int    kRateFloor  = 50000;
+// The far left of the speed slider. Gert asked for "sluggish 0.1" and meant it
+// as a toy; there is no lower bound worth defending below that, because a tenth
+// of a real 48 is already slower than anything anybody would sit through.
+constexpr double kFactorFloor = 0.1;
+constexpr int    kRateCeiling = kCyclesPerTick * 1000 / kTickIntervalMs;
+
+// The most owed time a single slice may make up. This is a STALL threshold, not
+// a smoothing knob: past it the Saturn genuinely loses time, so it has to be far
+// longer than any ordinary late tick. 32 ms was the first value and it was much
+// too tight - see realSpeedBudget().
+constexpr qint64 kPaceMaxOwedUs = 250000;
+
+// And the most one slice may actually RUN, as a multiple of a tick's worth. The
+// debt above this stays owed and is paid off over the ticks that follow, so
+// nothing is lost and no single slice can burst.
+constexpr int    kPaceMaxSliceTicks = 4;
+
+// How often the speedometer is read. x48 resamples eight times a second, so
+// anything faster reads the same number twice; this is about twice a second.
+constexpr int    kRateSampleTicks = 32;
 
 // Waiting for another instance to answer a sleep request. Long enough for the
 // question and the answer to cross a sync folder - a busy Dropbox takes tens of
@@ -158,7 +252,106 @@ const QHash<QString, QPair<int, int>> &keyTable()
     return table;
 }
 
+
+// --- documents that are not files -------------------------------------------
+//
+// Android's picker hands back a content:// DOCUMENT, not a file. It has no
+// POSIX path at all, so toLocalFile() is empty and the C core - which fopen()s
+// what it is given - has nothing to work with. Until tonight both directions
+// simply refused, and on a phone the picker is the only way to name a file, so
+// that refusal covered every file there was. Gert, on the phone: "when I try to
+// put a file on the stack it doesn't work, saying something that 'it can only
+// read a file in this computer'."
+//
+// Qt's own QFile does understand content://, so the bytes make the trip through
+// a scratch file in the app's cache and the core still only ever sees a real
+// path. start() already does exactly this for a picked ROM; this is that,
+// generalised and used in both directions.
+//
+// One scratch name, not a unique one: an import and an export cannot be in
+// flight at the same time, since both run from the same menu on the same
+// thread, and a fixed name means a crash leaves one stale file rather than a
+// growing pile.
+QString transferScratchPath()
+{
+    const QString dir =
+        QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    QDir().mkpath(dir);
+    return dir + QLatin1String("/agape48-transfer");
+}
+
+// Either end may be a content:// document or a plain path; QFile takes both.
+bool copyBytes(const QString &from, const QString &to)
+{
+    QFile in(from);
+    if (!in.open(QIODevice::ReadOnly))
+        return false;
+    QFile out(to);
+    // Truncate matters on the way OUT: the document Android just created is
+    // empty, but one the user picked to overwrite is not, and a shorter object
+    // written over a longer one would otherwise keep the old tail.
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        // Not every document provider honours "wt". "w" alone is worth one
+        // retry before telling the user it cannot be written.
+        if (!out.open(QIODevice::WriteOnly))
+            return false;
+    }
+    const QByteArray bytes = in.readAll();
+    if (out.write(bytes) != bytes.size())
+        return false;
+    // close() rather than trusting the destructor: a content:// write is only
+    // handed to the provider on close, and that is where it can still fail.
+    out.close();
+    return out.error() == QFileDevice::NoError;
+}
+
+// --- the calculator's settings, as opposed to this computer's ---------------
+//
+// settings.ini beside the ROM, so a folder carried to another machine carries
+// its keymap and its preferences with it. What does NOT go in there is anything
+// that describes the machine: the window's geometry, the live-resize switch, and
+// above all speed/rate, which is a CALIBRATION - 205000 instructions a second is
+// what this laptop measured against a real 48, and another computer's number
+// will be different. Carrying that one across would make the calculator run at
+// the wrong speed on arrival, which is exactly the bug the whole speed
+// investigation of 2026sep09 turned out to be.
+std::unique_ptr<QSettings> calcSettings(StateFileManager *st)
+{
+    const QString path = st ? st->settingsFile().toLocalFile() : QString();
+    if (path.isEmpty())
+        return std::make_unique<QSettings>();
+    return std::make_unique<QSettings>(path, QSettings::IniFormat);
+}
+
+// FIRST RUN AFTER THE MOVE, and every first run in a NEW folder. These values
+// were machine-local until 2026sep10, so read the old place when the folder has
+// nothing to say - otherwise everyone's preferences reset themselves on upgrade.
+//
+// Deliberately NOT a one-shot copy, because the same fallback answers a second
+// question: what a folder that has never had settings of its own should start
+// from. The machine's old values, not the factory defaults - so making a new
+// shelf does not hand you a calculator with nothing set up. The first change
+// writes it into the folder, and from then on the folder is the answer.
+QVariant carried(QSettings *now, const char *key, const QVariant &def)
+{
+    const QString k = QLatin1String(key);
+    return now->contains(k) ? now->value(k) : QSettings().value(k, def);
+}
+
 } // namespace
+
+void Agape48Engine::loadCalcSettings()
+{
+    const auto s = calcSettings(m_state);
+    m_runUnfocused = carried(s.get(), "window/runUnfocused", false).toBool();
+    m_realSpeed    = carried(s.get(), "speed/real", false).toBool();
+    // Clamped against the rate in force, because the far right of the slider is
+    // a function of it. A factor stored where the calibration was different must
+    // not push the budget past the ceiling.
+    m_speedFactor  = qBound(kFactorFloor,
+                            carried(s.get(), "speed/factor", 1.0).toDouble(),
+                            speedFactorMax());
+}
 
 Agape48Engine::Agape48Engine(QObject *parent)
     : QObject(parent)
@@ -168,7 +361,16 @@ Agape48Engine::Agape48Engine(QObject *parent)
     if (QSettings().value(QLatin1String("debug/logging"), false).toBool())
         setDebugLogging(true);
 
+    // Machine-local, both of them: a workaround for a slow compositor and a
+    // measurement of this computer. See the note on calcSettings().
     m_liveResize = QSettings().value(QLatin1String("window/liveResize"), false).toBool();
+    m_realSpeedRate = qBound(kRateFloor,
+                             QSettings().value(QLatin1String("speed/rate"),
+                                               kRealSpeedInstrPerSec).toInt(),
+                             kRateCeiling);
+    // The rest belong to the calculator and are read from its folder. m_state
+    // already knows where that is: its own constructor loads the location.
+    loadCalcSettings();
 
     m_clock.start();
     m_tick.setInterval(kTickIntervalMs);
@@ -190,6 +392,13 @@ Agape48Engine::Agape48Engine(QObject *parent)
     // making the user quit and reopen to get a calculator. migrateTo() and the
     // house button both land here.
     connect(m_state, &StateFileManager::locationChanged, this, [this] {
+        // A different folder is a different calculator, with its own keymap and
+        // its own preferences. Read them before anything runs on them, and tell
+        // QML, which is showing the old ones.
+        loadCalcSettings();
+        emit runUnfocusedChanged();
+        emit realSpeedChanged();
+        emit speedFactorChanged();
         if (!m_ready) {
             start();
             return;
@@ -226,7 +435,7 @@ Agape48Engine::Agape48Engine(QObject *parent)
         m_detached = true;
         stop();
         emit detachedChanged();
-        setError(tr("This calculator was taken over by another window. "
+        setError(tr("This calculator was taken over somewhere else. "
                     "Press ON to take it back."));
     });
 
@@ -345,6 +554,34 @@ Agape48Engine::Agape48Engine(QObject *parent)
         saveState();                    // while it is still ours to save
         m_state->release();
     });
+
+#ifdef Q_OS_ANDROID
+    // THE PLATFORM'S OWN SIGNAL, because the window's is never delivered here.
+    // On a desktop the save is hung on Window.onActiveChanged -> suspend(), and
+    // that is enough: a window always loses focus before it goes away. Android
+    // does not work like that. The back gesture finishes the Activity and the
+    // process is gone; aboutToQuit does not run, the QML Window never reports
+    // itself inactive, and everything since the last explicit save is lost.
+    //
+    // MEASURED on Gert's phone, 2026sep07: cold-boot a new calculator, answer
+    // the recovery prompt, leave with the back gesture, come back - and it asks
+    // "Try To Recover Memory?" all over again, because ram and hp48 on disk
+    // were still the ones written when the calculator was last switched by
+    // hand, twenty minutes earlier.
+    //
+    // applicationStateChanged is what Qt raises from the Activity's own
+    // onPause/onStop, which Android guarantees before it may kill the process.
+    // Inactive rather than Suspended: Suspended is not reached on every device,
+    // and this is the point at which the machine must already be on disk.
+    connect(qApp, &QGuiApplication::applicationStateChanged, this,
+            [this](Qt::ApplicationState state) {
+                if (state == Qt::ApplicationInactive
+                    || state == Qt::ApplicationSuspended)
+                    suspend();
+                else if (state == Qt::ApplicationActive)
+                    resumeFromBackground();
+            });
+#endif
 }
 
 Agape48Engine::~Agape48Engine()
@@ -415,8 +652,23 @@ bool Agape48Engine::start()
         emit romRequired();
         // Naming the folder is the whole difference between "something is
         // wrong" and "put a file called rom in here".
+        //
+        // KAJ DE KIE PRENI ĜIN, ekde provo 17. Gert, veninte al ĉi tiu strio kun
+        // freŝa instalo kaj nenio alia: "What if the red message says something
+        // in the lines of 'Download an official one at
+        // https://www.hpcalc.org/hp48/pc/emulators/ ctrl-f to search for "HP 48GX
+        // Revision"?'" Ĝi estas la sola ekrano kiun homo sen ROM certe vidos, kaj
+        // ĝi estis la sola loko kiu sciis pri la problemo kaj diris nenion pri la
+        // solvo. La serĉĉeno estas laŭvorte kion oni tajpas en Ctrl-F sur tiu
+        // paĝo: ĝi havas dek unu ROM-ojn inter multe da alia, kaj li ne trovis
+        // ilin.
         setError(tr("No HP 48 ROM. There is no file named \"rom\" in %1, and "
-                    "none has been chosen in Settings.")
+                    "none has been chosen in Settings.\n"
+                    "A free one: open https://www.hpcalc.org/hp48/pc/emulators/ "
+                    "and search the page for \"HP 48GX Revision\". Download "
+                    "gxrom-r.zip, unzip it, and choose the 524,288-byte file "
+                    "called gxrom-r that comes out - or rename it to \"rom\" and "
+                    "drop it in the folder above.")
                      .arg(m_state->location().toLocalFile()));
         return false;
     }
@@ -441,6 +693,37 @@ bool Agape48Engine::start()
     cfg.fd_ram = cfg.fd_port1 = cfg.fd_port2 = cfg.fd_state = -1;
     cfg.throttle = true;
 
+    // A ROM chosen on Android does not arrive as a file. Android's document
+    // picker hands back a content:// document, which has no POSIX path at all:
+    // toLocalFile() is empty, and the C core has nothing to fopen(). Qt's own
+    // QFile does understand content://, so copy the bytes once into the state
+    // folder under the name x48 already looks for, and from the next line down
+    // this is the ordinary "a ROM sits beside the state" case that every
+    // platform takes. Costs 512 KB in the app's own folder and turns the one
+    // gesture an Android user has - pick a file from Downloads or Dropbox -
+    // into a ROM the emulator can start from.
+    if (!m_romSource.isEmpty() && !m_romSource.isLocalFile()
+        && m_state->location().isLocalFile()) {
+        const QString dest =
+            m_state->location().toLocalFile() + QLatin1String("/rom");
+        if (!QFileInfo::exists(dest)) {
+            QFile in(m_romSource.toString());
+            QFile out(dest);
+            if (!in.open(QIODevice::ReadOnly)
+                || !out.open(QIODevice::WriteOnly | QIODevice::Truncate)
+                || out.write(in.readAll()) <= 0) {
+                out.remove();
+                setError(tr("Could not copy the chosen ROM into %1.")
+                             .arg(m_state->location().toLocalFile()));
+                return false;
+            }
+        }
+        // Deliberately not through setRomSource(): what gets remembered should
+        // be the document the user picked, not a copy of it we made.
+        m_romSource = QUrl::fromLocalFile(dest);
+        emit romSourceChanged();
+    }
+
     const QByteArray romPath = m_romSource.toLocalFile().toUtf8();
     cfg.rom_path = romPath.constData();
 
@@ -452,6 +735,14 @@ bool Agape48Engine::start()
         return false;
     }
 
+    // BORN, NOT PUT DOWN. A calculator whose state file does not exist yet has
+    // never been saved by anybody, so the first frame it draws is the ROM
+    // booting - not a record of how it was left. tick() needs that difference;
+    // see the m_freshLoad branch there for what reading it wrong costs.
+    m_bornEmpty = !stateDirUtf8.isEmpty()
+               && !QFileInfo::exists(QString::fromUtf8(stateDirUtf8)
+                                     + QLatin1String("/hp48"));
+
     if (!x48_init(&cfg)) {
         setError(QString::fromUtf8(x48_last_error()));
         return false;
@@ -461,6 +752,18 @@ bool Agape48Engine::start()
     // Whatever the next frame shows is the calculator as it was saved, not as
     // anybody just left it. Spent by the first frame in tick().
     m_freshLoad = true;
+
+    // A NEW CALCULATOR MUST NOT WEAR THE OLD ONE'S SCREEN. A machine with
+    // nothing saved boots into SHUTDN and stays there until ON, and a parked
+    // machine produces no frames at all - so the LCD went on showing whatever
+    // was last drawn. Measured on the phone: "New calculator" opened Calculator
+    // 2 with Calculator 1's stack still on the glass, name and all. Blank it
+    // here, where we already know there is nothing to draw.
+    if (m_bornEmpty) {
+        m_frame = {};
+        ++m_frameSerial;
+        emit frameReady();
+    }
     setError(QString());
     emit readyChanged();
     m_tick.start();
@@ -481,7 +784,13 @@ void Agape48Engine::stop()
 
 void Agape48Engine::suspend()
 {
-    stop();
+    // THE SAVE HAPPENS EITHER WAY, and only the stop is optional. Losing focus
+    // is what writes the state folder, it is how the hand-over between the two
+    // laptops stays safe, and it is how every measurement in the speed work was
+    // read off disk at all - so a switch that skipped it would break something
+    // load-bearing to fix something cosmetic.
+    if (!m_runUnfocused)
+        stop();
     saveState();
 }
 
@@ -506,7 +815,24 @@ void Agape48Engine::resumeFromBackground()
 
 void Agape48Engine::tick()
 {
-    x48_run_slice(kCyclesPerTick);
+    ++m_tickCount;
+    // OFF IS THE UNTOUCHED PATH. Not one clock read, not one branch taken
+    // beyond this ternary, because "normally we want the calculator to run as
+    // fast as it can" and a throttle that costs something when it is off is a
+    // throttle nobody would leave off.
+    x48_run_slice(m_realSpeed ? realSpeedBudget() : kCyclesPerTick);
+
+    // Read the speedometer in BOTH modes, because the free-running rate is the
+    // reference the throttled one gets calibrated against. Twice a second, one
+    // long and one comparison, which is not a cost by any measure.
+    if (++m_rateSample >= kRateSampleTicks) {
+        m_rateSample = 0;
+        const int rate = int(x48_instructions_per_second());
+        if (rate != m_measuredRate) {
+            m_measuredRate = rate;
+            emit measuredRateChanged();
+        }
+    }
 
     if (x48_take_frame(&m_frame)) {
         ++m_frameSerial;
@@ -554,7 +880,20 @@ void Agape48Engine::tick()
             m_freshLoad = false;
             m_sawFirstFrame = true;
             m_displayOff = off;
-            if (off) {
+            // A NEW CALCULATOR IS NOT A CALCULATOR SOMEBODY SWITCHED OFF.
+            // Its first frame is blank because the ROM has not lit the display
+            // yet, which on a cold boot takes longer than the first slice - and
+            // reading that as "found off" detached the machine, released the
+            // lock, and left the keyboard dead to everything except ON, which
+            // then tried to reload a state file that had never been written.
+            // A brand-new calculator could not be started at all: measured on
+            // Gert's phone, 2026sep07, a fresh install sat on a blank green
+            // screen through every key and two restarts, at zero CPU.
+            //
+            // Linux was winning the same race rather than avoiding it - by the
+            // time it took its first frame the ROM had already switched the
+            // display on. Nothing about the desktop made it safe.
+            if (off && !m_bornEmpty) {
                 // Found switched off, and nobody asked us to wake it: hold no
                 // lock on a calculator we are not using. wakeAcquired() is what
                 // clears m_freshLoad ahead of us when somebody DID ask.
@@ -696,6 +1035,13 @@ void Agape48Engine::handOver()
 
 void Agape48Engine::setTickRate(int ms)
 {
+    // NO PACE RESET HERE. It used to set m_paceAt = 0 on every change, and the
+    // first slice after a reset hands out a whole tick's worth whatever the
+    // clock says - so every flip between the 16 ms run tick and the 100 ms idle
+    // tick was free instructions. The 48 drops into SHUTDN between key scans by
+    // design, so that flip happens constantly and the machine ran above its
+    // target by an amount nobody could predict. The elapsed-time arithmetic in
+    // realSpeedBudget() already handles a longer interval correctly.
     if (m_tick.interval() != ms)
         m_tick.setInterval(ms);
     if (m_ready && !m_tick.isActive()) {
@@ -705,6 +1051,51 @@ void Agape48Engine::setTickRate(int ms)
 }
 
 // --- keys -------------------------------------------------------------------
+
+// Ambaŭ estas konstantoj de la kompililo, do ili ne bezonas la motoron por ion
+// ajn; ili vivas ĉi tie ĉar la motoro estas kion QML jam havas ĉe la mano.
+QString Agape48Engine::buildStamp() const
+{
+    // fromUtf8, ne fromLatin1: la kaptilo portas "·" kaj BuildStamp.cmake skribas
+    // la dosieron en UTF-8, do Latin-1 faris el ĝi "Â·" - vidita sur la ekrano.
+    return QString::fromUtf8(AGAPE48_BUILD);
+}
+
+QString Agape48Engine::qtVersion() const
+{
+    return QString::fromLatin1(QT_VERSION_STR);
+}
+
+// Androido scias tion kaj Qt ne demandas ĝin: QInputDevice::primaryKeyboard()
+// elpensas "core keyboard"-aparaton kiam neniu estas registrita, do nombri la
+// aparatojn de Qt respondas "jes" sur ĉiu telefono. Configuration.keyboard
+// estas la kanona respondo - KEYBOARD_NOKEY = 1 - kaj hardKeyboardHidden
+// kaptas la duan kazon, klavaro kiu ekzistas sed estas fermita aŭ malkonektita
+// (HARDKEYBOARDHIDDEN_YES = 2).
+//
+// La labortabloj respondas jes senkondiĉe. Tekokomputilo sen klavaro ne estas
+// kazo kiun ĉi tiu programo bezonas trakti, kaj la ŝpruchelpilo tie estas
+// petita funkcio.
+bool Agape48Engine::keyboardAttached() const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject ctx(QNativeInterface::QAndroidApplication::context());
+    if (!ctx.isValid())
+        return false;
+    const QJniObject res =
+        ctx.callObjectMethod("getResources", "()Landroid/content/res/Resources;");
+    if (!res.isValid())
+        return false;
+    const QJniObject cfg =
+        res.callObjectMethod("getConfiguration", "()Landroid/content/res/Configuration;");
+    if (!cfg.isValid())
+        return false;
+    return cfg.getField<jint>("keyboard") != 1
+        && cfg.getField<jint>("hardKeyboardHidden") != 2;
+#else
+    return true;
+#endif
+}
 
 QString Agape48Engine::logPath() const
 {
@@ -721,6 +1112,138 @@ void Agape48Engine::setLiveResize(bool on)
     m_liveResize = on;
     QSettings().setValue(QLatin1String("window/liveResize"), on);
     emit liveResizeChanged();
+}
+
+// The far right of the slider: the factor at which the paced budget reaches the
+// free-running ceiling. Beyond it the throttle would be asking for more
+// instructions a second than the tick can deliver, which is not "faster", it is
+// just an unpayable debt - see the note on kPaceMaxOwedUs.
+double Agape48Engine::speedFactorMax() const
+{
+    return m_realSpeedRate > 0 ? double(kRateCeiling) / m_realSpeedRate : 1.0;
+}
+
+int Agape48Engine::effectiveRate() const
+{
+    return qBound(kRateFloor,
+                  int(qRound(m_realSpeedRate * m_speedFactor)),
+                  kRateCeiling);
+}
+
+void Agape48Engine::setSpeedFactor(double factor)
+{
+    const double f = qBound(kFactorFloor, factor, speedFactorMax());
+    if (qFuzzyCompare(m_speedFactor, f))
+        return;
+    m_speedFactor = f;
+    calcSettings(m_state)->setValue(QLatin1String("speed/factor"), f);
+    // Start from now rather than settling a debt incurred at a different rate,
+    // the same reasoning as the switch and the rate.
+    m_paceAt   = 0;
+    m_paceOwed = 0;
+    emit speedFactorChanged();
+}
+
+void Agape48Engine::setRunUnfocused(bool on)
+{
+    if (m_runUnfocused == on)
+        return;
+    m_runUnfocused = on;
+    calcSettings(m_state)->setValue(QLatin1String("window/runUnfocused"), on);
+    // Take effect immediately rather than at the next alt-tab: if the window is
+    // inactive right now, the calculator is already stopped, and a switch the
+    // user has just turned on ought to start it.
+    if (on && m_ready && !m_detached)
+        start();
+    emit runUnfocusedChanged();
+}
+
+void Agape48Engine::setRealSpeed(bool on)
+{
+    if (m_realSpeed == on)
+        return;
+    m_realSpeed = on;
+    calcSettings(m_state)->setValue(QLatin1String("speed/real"), on);
+    // Start from now, and throw the debt away: flipping the switch is not a
+    // reason to catch up on time the calculator spent running free.
+    m_paceAt   = 0;
+    m_paceOwed = 0;
+    emit realSpeedChanged();
+}
+
+// How many instructions real time has earned since the last slice. THIS IS THE
+// WHOLE OF THE THROTTLE: a smaller budget, never a wait. So real speed costs
+// LESS cpu than running free - which is the opposite of x48's own throttle, a
+// gettimeofday() spin loop of 2 us per instruction on the thread that draws,
+// and the reason that one would have been wrong for a phone even if it had been
+// reachable. It is not: it lives in emulate(), which this build never calls.
+//
+// Paced on the clock rather than on a fixed budget per tick because a fixed
+// budget is only as accurate as the timer, and a tick that fires late silently
+// loses Saturn time. In a game that is jitter.
+int Agape48Engine::realSpeedBudget()
+{
+    const qint64 now = m_clock.nsecsElapsed() / 1000;   // microseconds
+    if (m_paceAt == 0)
+        m_paceAt = now;                                 // the first slice only
+
+    qint64 us = now - m_paceAt;
+    m_paceAt = now;
+    // Only a genuine stall loses time. Measured 2026sep09: with this clamp at
+    // two ticks, 49 runs of one fixed loop had a standard deviation of 61% of
+    // their mean - 0.44 s to 3.17 s - against Emu48 producing the SAME NUMBER
+    // to twelve digits four times in a row. Anything above the clamp was
+    // discarded, and this laptop was building with -j 14 through most of that
+    // session, so ticks fired late constantly and the Saturn quietly lost the
+    // overflow every time.
+    if (us > kPaceMaxOwedUs)
+        us = kPaceMaxOwedUs;
+
+    // The remainder is carried in instruction-microseconds. Without it every
+    // tick would round down and the rate would drift low by up to one
+    // instruction per tick - sixty a second, which is small but is a bias
+    // rather than noise, so it never averages out.
+    const int rate = effectiveRate();
+    m_paceOwed += us * rate;
+    qint64 n = m_paceOwed / 1000000;
+
+    // Cap what one slice RUNS without cancelling what is owed: a burst of two
+    // hundred thousand instructions in one tick is a visible jump in a game,
+    // and throwing the debt away instead is the jitter above. Bounded above,
+    // paid off below.
+    // AGAINST THE CURRENT INTERVAL, not the 16 ms one. The 48 drops into SHUTDN
+    // between key scans by design, so setTickRate() moves this timer to
+    // kIdleIntervalMs constantly - and a 100 ms tick owes 50000 instructions
+    // at half a million a second while a cap of four 16 ms ticks would only
+    // ever pay 32000 of them. Ten ticks a second times 32000 is 320000, the
+    // debt grows for ever, and the calculator runs at two thirds of its target
+    // or worse. Measured 2026sep10: 84 samples of one fixed loop took minutes
+    // each instead of seconds.
+    const qint64 maxSlice = qint64(kPaceMaxSliceTicks) * m_tick.interval()
+                            * 1000 * rate / 1000000;
+    if (n > maxSlice)
+        n = maxSlice;
+
+    m_paceOwed -= n * 1000000;
+    return int(n);
+}
+
+// The one number the calibration produces. Persisted per machine, which is
+// right: the rate is a property of a real HP 48 and not of this laptop, but the
+// only way to arrive at it is to compare against something, and what is
+// available to compare against differs from machine to machine.
+void Agape48Engine::setRealSpeedRate(int instructionsPerSecond)
+{
+    const int rate = qBound(kRateFloor, instructionsPerSecond, kRateCeiling);
+    if (m_realSpeedRate == rate)
+        return;
+    m_realSpeedRate = rate;
+    QSettings().setValue(QLatin1String("speed/rate"), rate);
+    // Same reasoning as the switch: start from now rather than settling a debt
+    // that was incurred at a different rate.
+    m_paceAt   = 0;
+    m_paceOwed = 0;
+    emit realSpeedRateChanged();
 }
 
 void Agape48Engine::setDebugLogging(bool on)
@@ -854,6 +1377,7 @@ void Agape48Engine::askForCalculator(const QString &instance, bool takeWhenFree)
     m_waitTake  = takeWhenFree;
     m_waitUntil = QDateTime::currentDateTimeUtc().addSecs(kSleepWaitSecs);
     m_waitSeconds = kSleepWaitSecs;
+    m_waitWhy.clear();
     m_wait.start();
     emit waitSecondsChanged();
     emit waitingChanged();
@@ -861,6 +1385,23 @@ void Agape48Engine::askForCalculator(const QString &instance, bool takeWhenFree)
 
 bool Agape48Engine::takeOverCalculator(const QString &name)
 {
+    // Never read a folder we can SEE is half delivered, whichever button was
+    // pressed to get here. Two of them offer this, and both-05 line 15 is what
+    // pressing one of them costs: Gert took a calculator whose contents record
+    // named a ram that had not arrived, and got the memory from before the
+    // handover instead of the one he had waited a minute and a half for.
+    //
+    // Only bites while a request of OURS is outstanding for this calculator -
+    // that is the one window in which a delivery is known to be in flight, and
+    // handoverState() says Complete outside it. So it can never wedge somebody
+    // out of a folder in the ordinary case, and "Stop waiting" is the way out
+    // of the extraordinary one.
+    const QString which = name.isEmpty() ? m_state->instance() : name;
+    if (m_state->handoverState(which) == StateFileManager::Arriving) {
+        setError(tr("%1's memory is still on its way. Taking it now would read "
+                    "half of it.").arg(which));
+        return false;
+    }
     // Never started: there is nothing to attach TO. claim(true) first, because
     // start()'s own claim does not take over, and then start reads the files.
     if (!m_ready)
@@ -878,6 +1419,7 @@ void Agape48Engine::stopWaiting()
     m_state->withdrawSleepRequest(m_waitFor);
     m_waitFor.clear();
     m_waitSeconds = 0;
+    m_waitWhy.clear();
     emit waitSecondsChanged();
     emit waitingChanged();
 }
@@ -917,12 +1459,15 @@ void Agape48Engine::pollForRelease()
     // deletion lands first and the folder is still half the previous
     // calculator. That is dogfood both-03 line 19, and the "External" object on
     // Gert's stack in line 8 is what reading it looked like.
-    if (!m_state->isHeldBySomebody(m_waitFor) && m_state->handoverComplete(m_waitFor)) {
+    const bool held = m_state->isHeldBySomebody(m_waitFor);
+    const StateFileManager::HandoverState arrival = m_state->handoverState(m_waitFor);
+    if (!held && arrival == StateFileManager::Complete) {
         const QString name = m_waitFor;
         m_wait.stop();
         m_state->withdrawSleepRequest(name);   // answered; the question can go
         m_waitFor.clear();
         m_waitSeconds = 0;
+        m_waitWhy.clear();
         emit waitSecondsChanged();
         emit waitingChanged();
         if (m_waitTake) {
@@ -953,16 +1498,36 @@ void Agape48Engine::pollForRelease()
         emit otherLetGo(name);
         return;
     }
-    if (QDateTime::currentDateTimeUtc() >= m_waitUntil) {
-        const QString name = m_waitFor, host = m_waitHost;
-        m_wait.stop();
-        m_state->withdrawSleepRequest(name);
-        m_waitFor.clear();
-        m_waitSeconds = 0;
-        emit waitSecondsChanged();
-        emit waitingChanged();
-        emit sleepUnanswered(name, host);
-    }
+    if (QDateTime::currentDateTimeUtc() < m_waitUntil)
+        return;
+
+    // Past the deadline, and the wait does NOT end here. That it used to is the
+    // whole of both-05 line 15.
+    //
+    // MEASURED, from the two machines' own timestamps. The countdown ran out at
+    // 21:32:2x with the other machine still holding the lock, so "has not
+    // answered" was true when it was painted. At 21:33:59 that machine saved
+    // and let go, at 21:34:07 the release landed here - and the dialog said the
+    // same thing at 21:56, twenty-four minutes later, because nothing was left
+    // running to repaint it. "Take it over" was still the first button, for a
+    // folder whose ram was by then a whole session out of date.
+    //
+    // So the timer keeps going and the reason is re-tested every second. The
+    // request is not withdrawn either: we ARE still asking, and withdrawing it
+    // would also clear the expectation that lets handoverState() tell a
+    // half-delivered folder from a whole one. Both end together, in
+    // stopWaiting(), which is what every way out of the dialog calls.
+    //
+    // This does not introduce a wait with no end. The dialog was already up for
+    // ever with no end; it is merely alive now instead of dead.
+    const QString why = held ? QStringLiteral("held")
+                      : arrival == StateFileManager::Arriving
+                            ? QStringLiteral("arriving")
+                            : QStringLiteral("letgo");
+    if (why == m_waitWhy)
+        return;
+    m_waitWhy = why;
+    emit sleepUnanswered(m_waitFor, m_waitHost, why);
 }
 
 // Take the calculator back. Claim first, then read what is on disk - the whole
@@ -1022,6 +1587,42 @@ QString Agape48Engine::newCalculator()
     return made;
 }
 
+// Renaming the calculator we have OPEN is not a folder operation, whatever it
+// looks like from the shelf.
+//
+// cfg.state_dir is filled once, by populate() inside start(), and the C core
+// keeps that path for the life of the session. Move the folder underneath it
+// and the next save - a lost focus, a quit, opening another calculator - writes
+// ram and hp48 back to the path the core was born with, MAKING THE FOLDER AGAIN
+// under its old name. Gert, both-05 line 37: "there were not two, but 3:
+// 'Windows Box', 'Linux Box' and 'Calculator 1' ... It seems the rename erased
+// the files from the folder upon renaming it, but not every time."
+//
+// Nothing was erased. The renamed folder held whatever was on disk at the
+// moment it moved, and the memory went on being saved beside it under the dead
+// name. "Not every time" is simply whether a save happened afterwards.
+//
+// So the core goes down before the folder moves and comes back up after, which
+// is what openCalculator() already does for the same reason. Renaming one we do
+// not have open never involved the core at all.
+bool Agape48Engine::renameCalculator(const QString &name, const QString &to)
+{
+    if (name != m_state->instance()) {
+        if (m_state->renameInstance(name, to))
+            return true;
+        setError(m_state->lastError());
+        return false;
+    }
+    const bool wasRunning = m_ready;
+    shutdownCore();                       // saves into the folder that is moving
+    const bool ok = m_state->renameInstance(name, to);
+    if (!ok)
+        setError(m_state->lastError());
+    if (wasRunning)
+        start();                          // reads from wherever it is now
+    return ok;
+}
+
 bool Agape48Engine::hasStackObject() const
 {
     return m_ready && x48_stack_has_object();
@@ -1038,15 +1639,24 @@ bool Agape48Engine::importFile(const QUrl &url)
         setError(tr("The calculator is not running."));
         return false;
     }
-    const QString path = url.toLocalFile();
+    QString path = url.toLocalFile();
+    QString scratch;
     if (path.isEmpty()) {
-        setError(tr("Agape48 can only read a file on this computer."));
-        return false;
+        scratch = transferScratchPath();
+        if (!copyBytes(url.toString(), scratch)) {
+            QFile::remove(scratch);
+            setError(tr("Could not read that file."));
+            return false;
+        }
+        path = scratch;
     }
     // Safe to reach into the Saturn's memory from here: emulation runs on this
     // thread from a timer, so a menu handler is always between two slices and
     // never inside one.
-    if (!x48_import_file(path.toUtf8().constData())) {
+    const bool imported = x48_import_file(path.toUtf8().constData());
+    if (!scratch.isEmpty())
+        QFile::remove(scratch);
+    if (!imported) {
         setError(QString::fromUtf8(x48_last_error()));
         return false;
     }
@@ -1066,14 +1676,29 @@ bool Agape48Engine::exportFile(const QUrl &url)
         setError(tr("The calculator is not running."));
         return false;
     }
-    const QString path = url.toLocalFile();
+    QString path = url.toLocalFile();
+    QString scratch;
     if (path.isEmpty()) {
-        setError(tr("Agape48 can only write a file on this computer."));
-        return false;
+        scratch = transferScratchPath();
+        path = scratch;
     }
     if (!x48_export_file(path.toUtf8().constData())) {
+        if (!scratch.isEmpty())
+            QFile::remove(scratch);
         setError(QString::fromUtf8(x48_last_error()));
         return false;
+    }
+    if (!scratch.isEmpty()) {
+        // The document already EXISTS by now - Android creates it when the user
+        // names it, before we are asked to write anything - so failing here
+        // leaves a real, empty file behind with the user's chosen name on it.
+        // Measured on Gert's phone before the fix: "test123.hpp, 0 B".
+        const bool copied = copyBytes(scratch, url.toString());
+        QFile::remove(scratch);
+        if (!copied) {
+            setError(tr("Could not write to that file."));
+            return false;
+        }
     }
     setError(QString());
     return true;
@@ -1228,6 +1853,36 @@ void Agape48Engine::reset(bool cold)
     setTickRate(kTickIntervalMs);
 }
 
+// DIAGNOSTIC, and meant to be removed once the rate is settled. Two of these
+// taken at two saves give instructions per wall second AND ticks per wall
+// second, neither of which needs saturn.i_per_s - which on 2026sep10 held
+// steady at 434000 while the wall clock said the same loop took 58.8 s and
+// then 10.3 s - nor the 48's own TICKS, which disagreed by a factor of twenty.
+// Gert's hypothesis for the variance is Windows treating an unfocused process
+// differently, and ticks per wall second is exactly the number that settles it.
+void Agape48Engine::writeSpeedProbe()
+{
+    const QString dir = m_state->location().toLocalFile();
+    if (dir.isEmpty())
+        return;
+    QFile f(QDir(dir).filePath(QStringLiteral("speed-probe.txt")));
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+        return;
+    QTextStream out(&f);
+    out << "uptime_ms    " << m_clock.elapsed() << '\n'
+        << "instructions " << qulonglong(x48_instructions_total()) << '\n'
+        << "ticks        " << m_tickCount << '\n'
+        << "tick_ms      " << m_tick.interval() << '\n'
+        << "asleep       " << (x48_is_asleep() ? 1 : 0) << '\n'
+        << "real         " << (m_realSpeed ? 1 : 0) << '\n'
+        << "rate         " << m_realSpeedRate << '\n'
+        << "factor       " << m_speedFactor << '\n'
+        << "effective    " << effectiveRate() << '\n'
+        << "i_per_s      " << x48_instructions_per_second() << '\n'
+        << "focused      "
+        << (QGuiApplication::focusWindow() != nullptr ? 1 : 0) << '\n';
+}
+
 bool Agape48Engine::saveState()
 {
     if (!m_ready)
@@ -1259,6 +1914,7 @@ bool Agape48Engine::saveState()
         return false;
     }
     m_savedRamDigest = digest;
+    writeSpeedProbe();
     return m_state->commit(x48_state_fingerprint());
 }
 
@@ -1293,21 +1949,27 @@ bool Agape48Engine::reloadState()
 
 // --- clipboard --------------------------------------------------------------
 
-bool Agape48Engine::copyStackToClipboard()
+QString Agape48Engine::copyStackToClipboard()
 {
     QByteArray buf(512, Qt::Uninitialized);
     size_t need = x48_stack_to_text(buf.data(), size_t(buf.size()));
-    if (need == 0)
-        return false;
+    if (need == 0) {
+        setError(QString::fromUtf8(x48_last_error()));
+        return {};
+    }
     if (need > size_t(buf.size())) {          // retry once with the real size
         buf.resize(int(need));
         need = x48_stack_to_text(buf.data(), size_t(buf.size()));
-        if (need == 0 || need > size_t(buf.size()))
-            return false;
+        if (need == 0 || need > size_t(buf.size())) {
+            setError(QString::fromUtf8(x48_last_error()));
+            return {};
+        }
     }
-    buf.truncate(int(need));
-    QGuiApplication::clipboard()->setText(QString::fromUtf8(buf));
-    return true;
+    // need counts the terminator the core writes; the string does not want it.
+    buf.truncate(int(need) - 1);
+    const QString text = QString::fromUtf8(buf);
+    QGuiApplication::clipboard()->setText(text);
+    return text;
 }
 
 bool Agape48Engine::pasteClipboardToStack()
@@ -1316,10 +1978,26 @@ bool Agape48Engine::pasteClipboardToStack()
     if (text.isEmpty())
         return false;
     if (!x48_text_to_stack(text.toUtf8().constData())) {
-        setError(tr("Clipboard text is not a valid RPL object."));
+        // The core's own sentence, not a summary of it: it knows whether the
+        // text was too long, held a character it cannot translate, or would
+        // not fit in the calculator's memory.
+        setError(QString::fromUtf8(x48_last_error()));
         return false;
     }
+    setError(QString());
     setTickRate(kTickIntervalMs);
+    // THE SAME NUDGE IMPORT NEEDS, and leaving it out is why Paste looked like
+    // it did nothing at all: the object was pushed and the stack on the glass
+    // went on showing what it showed before, because the ROM redraws when
+    // something happens to the machine and nothing had. Measured on the phone
+    // on 2026sep09 - 3.14158 copied, dropped, pasted, and the display still
+    // read what was under it. ON is also CANCEL, so any latched shift comes off
+    // first or ON would be OFF.
+    QStringList seq;
+    if (m_annunciators & X48_ANN_RIGHT) seq << QStringLiteral("SHR");
+    if (m_annunciators & X48_ANN_LEFT)  seq << QStringLiteral("SHL");
+    seq << QStringLiteral("ON");
+    queueTaps(seq);
     return true;
 }
 

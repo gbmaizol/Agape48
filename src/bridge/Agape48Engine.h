@@ -71,7 +71,62 @@ class Agape48Engine : public QObject
     // top edges that lands the face at a shifted position - dogfood windows-02.
     // Machine-local, like the window geometry and the keymap.
     Q_PROPERTY(bool liveResize READ liveResize WRITE setLiveResize NOTIFY liveResizeChanged)
+
+    // Keep the Saturn running while the window is not the active one. OFF by
+    // default, which is the behaviour this app has always had: Main.qml calls
+    // suspend() on deactivation, and suspend() stops the tick. Gert found that
+    // on 2026sep10 - "It runs ONLY when the calculator in in focus!!!" - and
+    // then decided it should stay: "Although it's totally ok to have games
+    // progress only when focused." So this is an escape hatch for a long
+    // computation left to run, not a repair. Machine-local, like liveResize.
+    Q_PROPERTY(bool runUnfocused READ runUnfocused WRITE setRunUnfocused NOTIFY runUnfocusedChanged)
+
+    // A MULTIPLIER OVER THE CALIBRATED RATE, for playing with rather than for
+    // getting right. Gert, 2026sep10: "We can let the user have fun with the
+    // speed calibration. Default is 1.0 at the middle, and the user and set it
+    // all the way to the left at sluggish 0.1 to all the way to the right at
+    // almost unregulated speed."
+    //
+    // SEPARATE FROM realSpeedRate ON PURPOSE. That one is the measurement - the
+    // instructions a second at which this machine matches a real 48, arrived at
+    // over three evenings and worth 0.8% - and dragging a slider must not be
+    // able to destroy it. So the slider moves this instead, 1.0 means "what a
+    // real 48 does", and coming back to the middle restores authentic speed
+    // exactly. speedFactorMax is the far right: the factor at which the pacing
+    // budget reaches the free-running ceiling, so the calculator is as fast as
+    // it can be without the throttle being switched off.
+    Q_PROPERTY(double speedFactor READ speedFactor WRITE setSpeedFactor NOTIFY speedFactorChanged)
+    Q_PROPERTY(double speedFactorMax READ speedFactorMax NOTIFY realSpeedRateChanged)
+    Q_PROPERTY(int effectiveRate READ effectiveRate NOTIFY speedFactorChanged)
+
+    // Off by default, and off means the calculator runs as fast as the machine
+    // allows - Gert's words: "Normally we want the calculator to run as fast as
+    // it can." On, the Saturn is paced to a real HP 48's instruction rate,
+    // which is what makes a game written for one playable rather than five
+    // times too fast. See kRealSpeedInstrPerSec for where the rate comes from.
+    Q_PROPERTY(bool realSpeed READ realSpeed WRITE setRealSpeed NOTIFY realSpeedChanged)
+
+    // THE RATE ITSELF, so calibrating it never needs a rebuild. Gert asked for
+    // exactly this: "What if we make a calibration program... and then we can
+    // make this one time calibration on the screen using it?" The default is
+    // derived rather than picked - see kRealSpeedInstrPerSec - and it was still
+    // too fast for his game, which is the whole argument for the number being a
+    // setting instead of a constant.
+    Q_PROPERTY(int realSpeedRate READ realSpeedRate WRITE setRealSpeedRate NOTIFY realSpeedRateChanged)
+
+    // What the emulator is ACTUALLY executing, straight out of x48's own
+    // continuous measurement against the host clock. This is the answer to "Don't
+    // you see the clock tiks?" - yes, and this is what they say. Live while the
+    // calculator is awake; it falls towards nothing in SHUTDN, where the 48
+    // spends most of its life by design.
+    Q_PROPERTY(int measuredRate READ measuredRate NOTIFY measuredRateChanged)
     Q_PROPERTY(QString logPath      READ logPath      CONSTANT)
+
+    // Kion la fenestro "About" montras. La versio jam estas en
+    // Qt.application.version; ĉi tiuj du ne havas QML-ekvivalenton, kaj
+    // buildStamp estas skribita je konstruotempo de cmake/BuildStamp.cmake.
+    Q_PROPERTY(QString buildStamp   READ buildStamp   CONSTANT)
+    Q_PROPERTY(QString qtVersion    READ qtVersion    CONSTANT)
 
     // Counts down while a sleep request is outstanding; 0 when nothing is.
     Q_PROPERTY(int waitSeconds READ waitSeconds NOTIFY waitSecondsChanged)
@@ -93,13 +148,37 @@ public:
     bool soundEnabled() const   { return m_sound; }
     bool debugLogging() const   { return m_debugLogging; }
     bool liveResize() const     { return m_liveResize; }
+    bool runUnfocused() const   { return m_runUnfocused; }
+    double speedFactor() const  { return m_speedFactor; }
+    double speedFactorMax() const;
+    int  effectiveRate() const;
+    bool realSpeed() const      { return m_realSpeed; }
+    int  realSpeedRate() const  { return m_realSpeedRate; }
+    int  measuredRate() const   { return m_measuredRate; }
     QString logPath() const;
+    QString buildStamp() const;
+    QString qtVersion() const;
+
+    // ĈU IU KLAVARO ESTAS KONEKTITA. Gert, provo 17, la sola problemo kiun la
+    // Androida duono trovis: "If I hold a button down for long in one place, it
+    // shows a keyboard shortcut. This should be disabled unless some kind of
+    // keyboard is connected."
+    //
+    // FUNKCIO KAJ NE PROPRECO, ĉar la respondo ŝanĝiĝas dum la programo kuras -
+    // Bludenta klavaro povas alveni kaj foriri - kaj propreco kun NOTIFY kiu
+    // neniam pafas estus kaŝmemorigita de la unua ligo por ĉiam. Ĝi estas vokata
+    // maksimume unu fojon po du sekundoj, kiam klavo estas ŝvebita.
+    Q_INVOKABLE bool keyboardAttached() const;
 
     void setRomSource(const QUrl &url);
     void setHapticsEnabled(bool on);
     void setSoundEnabled(bool on);
     void setDebugLogging(bool on);
     void setLiveResize(bool on);
+    void setRunUnfocused(bool on);
+    void setSpeedFactor(double factor);
+    void setRealSpeed(bool on);
+    void setRealSpeedRate(int instructionsPerSecond);
 
     // --- asking another instance for a calculator ---------------------------
     // Writes the request, then waits for whoever has it to save and let go.
@@ -175,6 +254,10 @@ public:
     // somebody else's.
     Q_INVOKABLE bool    takeOverCalculator(const QString &name);
     Q_INVOKABLE QString newCalculator();
+    // Renaming goes through the engine, not straight to the state file
+    // manager, because the C core holds the folder's path from start()
+    // and has to be put down while the folder moves. See the definition.
+    Q_INVOKABLE bool    renameCalculator(const QString &name, const QString &to);
 
     Q_INVOKABLE bool hasStackObject() const;
     // The banner times out but lastError did not, so a failed import was still
@@ -223,7 +306,14 @@ public slots:
     bool reloadState();
 
     // --- clipboard ---------------------------------------------------------
-    bool copyStackToClipboard();
+    // THE TEXT, not a bool. Copy used to answer yes-or-no to a caller that
+    // asked nothing and told nobody, which is how two menu items over a stub
+    // in the core - "clipboard: not implemented" - went weeks without anyone
+    // noticing they did nothing. Handing back what was copied lets the menu
+    // say it out loud, and that sentence is also the only way to see, from
+    // outside, that the number was read correctly. Empty means it failed and
+    // lastError says why.
+    QString copyStackToClipboard();
     bool pasteClipboardToStack();
 
 signals:
@@ -236,7 +326,12 @@ signals:
     void hapticsEnabledChanged();
     void soundEnabledChanged();
     void debugLoggingChanged();
+    void realSpeedChanged();
+    void realSpeedRateChanged();
+    void measuredRateChanged();
     void liveResizeChanged();
+    void runUnfocusedChanged();
+    void speedFactorChanged();
 
     void frameReady();                      // LcdItem listens; fires only on change
     void waitingChanged();
@@ -245,7 +340,15 @@ signals:
     // style for these; lastError is red and stays up four times as long.
     void notice(const QString &text);
     void otherLetGo(const QString &instance);
-    void sleepUnanswered(const QString &instance, const QString &host);
+    // The ask ran out of time, and WHY it did decides what the dialog may
+    // offer. reason is one of:
+    //   "held"      they still hold the lock and have said nothing
+    //   "arriving"  they let go and their memory is still coming over
+    //   "letgo"     they let go, but nothing addressed to us arrived
+    // Emitted again, without raising the window a second time, whenever
+    // the reason changes - because it does, and used not to.
+    void sleepUnanswered(const QString &instance, const QString &host,
+                         const QString &reason);
     void beep(int frequencyHz, int durationMs);
     void keyFeedback(const QString &keyId); // QML plays haptics/sound off this
     void detachedChanged();
@@ -265,6 +368,12 @@ private:
     void markPressed(int row, int mask, bool down);
     void finishRelease(int row, int mask);
     void setTickRate(int ms);
+    // Re-read the settings that live in the state folder. Called at startup and
+    // again every time the folder changes, because a different folder is a
+    // different calculator with its own preferences.
+    void loadCalcSettings();
+    int  realSpeedBudget();
+    void writeSpeedProbe();
     void queueTaps(const QStringList &keys);
     void shutdownCore();
     // Save, release, detach: the single way a calculator leaves this window,
@@ -278,6 +387,7 @@ private:
     void logStartupFacts() const;
 
     QTimer            m_tick;
+    qint64            m_tickCount = 0;
     // Polled rather than watched: the calculator being waited for is often not
     // the one this window has open, so its folder is not the one the watcher is
     // pointed at. One stat a second for at most a minute and a half.
@@ -288,6 +398,9 @@ private:
     bool              m_waitTake = true;
     QDateTime         m_waitUntil;
     int               m_waitSeconds = 0;
+    // Empty until the countdown runs out; then whichever of held /
+    // arriving / letgo is true right now, re-tested on every poll.
+    QString           m_waitWhy;
     x48_frame_t       m_frame {};
     quint64           m_frameSerial = 0;
     int               m_annunciators = 0;
@@ -295,7 +408,20 @@ private:
     bool              m_haptics = true;
     bool              m_sound = true;
     bool              m_debugLogging = false;
+
+    // Real-speed pacing. m_paceAt is the reading of m_clock at the last slice
+    // and m_paceOwed the fraction of an instruction carried over, in
+    // instruction-microseconds - without it the rate would be quietly rounded
+    // down once per tick, which over a minute is a visible loss.
+    bool              m_realSpeed = false;
+    int               m_realSpeedRate = 0;   // set from settings in the ctor
+    int               m_measuredRate  = 0;
+    int               m_rateSample    = 0;   // ticks since the last reading
+    qint64            m_paceAt    = 0;
+    qint64            m_paceOwed  = 0;
     bool              m_liveResize    = false;
+    bool              m_runUnfocused  = false;
+    double            m_speedFactor   = 1.0;
     bool              m_displayOff = false;
     bool              m_detached = false;
     bool              m_heldElsewhere = false;
@@ -304,6 +430,10 @@ private:
     // calculator as it was SAVED, so it must never be read as the user having
     // just switched the machine off - see tick().
     bool              m_freshLoad = false;
+    // Set by start() when the calculator has never been saved. A machine with
+    // no state file on disk was not "left" anywhere, so its first frame says
+    // nothing about how anybody put it down - see tick().
+    bool              m_bornEmpty = false;
     // Who asked for this calculator, held from the moment the request arrives
     // until the machine has actually switched itself off and been handed over.
     // Empty at every other time, so it doubles as "a hand-over is in progress".

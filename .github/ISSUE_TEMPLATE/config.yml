@@ -1,0 +1,14 @@
+# Malplenaj aferoj estas malŝaltitaj, por ke ĉiu kiu skribas vidu la regulon
+# ANTAŬ ol tajpi anstataŭ post kiam la roboto fermis lian tekston.
+blank_issues_enabled: false
+contact_links:
+  - name: Mi ankoraŭ ne parolas Esperanton
+    url: https://lernu.net
+    about: >-
+      Ĉi tiu projekto akceptas nur Esperanton. Komencu ĉi tie - kelkaj monatoj
+      da vesperoj sufiĉas, kaj la kalkulilo atendos vin.
+  - name: La regulo kaj ĝia kialo
+    url: https://github.com/gbmaizol/Agape48/blob/main/Readme_Programmers.md
+    about: >-
+      Kial ĉi tiu deponejo laboras nur en Esperanto, kio ĝuste devas esti
+      Esperanta, kaj kio restas angla.

@@ -2,7 +2,13 @@
 ;
 ; Built with:
 ;   python tools\make-icon.py
-;   & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\agape48.iss
+;   & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=0.9.1 installer\agape48.iss
+;
+; The version number is NOT kept here. It lives in project(Agape48 VERSION ...)
+; in CMakeLists.txt, and the CMake configure step prints the whole ISCC line
+; above with the number already in it. Run this script without /DAppVersion and
+; the output is called Agape48-0.0.0-nekonata-windows-x64-setup.exe, which is
+; meant to be impossible to mistake for a release.
 ;
 ; Deliberately NOT included: an HP 48 ROM. The app looks for a file called "rom"
 ; in its state folder (%LOCALAPPDATA%\Agape48\Agape48\) and reports a clear error when
@@ -17,7 +23,9 @@
 ; to be flagged, because it is what malware does to hide.
 
 #define AppName        "Agape48"
-#define AppVersion     "0.1.0"
+#ifndef AppVersion
+  #define AppVersion   "0.0.0-nekonata"
+#endif
 #define AppPublisher   "Agape48"
 #define AppExeName     "agape48.exe"
 

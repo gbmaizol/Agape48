@@ -13,6 +13,31 @@
 #include <stdlib.h>
 #endif
 
+// Q_DECL_EXPORT on Android, and this is the whole of why the first four APKs
+// came up as a black screen with nothing in the log.
+//
+// qt_add_executable builds a SHARED LIBRARY on Android, not an executable, and
+// QtActivity starts it with dlsym(handle, "main"). We build everything with
+// -fvisibility=hidden - cmake/Agape48Size.cmake:58, for a smaller dynsym and
+// better LTO and ICF - so the one symbol Android has to find was the one we had
+// told the linker to hide. Measured in the shipped library: 487 entries in
+// .dynsym and "main" not among them, and on the phone:
+//
+//   D/nativeloader: Load .../libagape48_arm64-v8a.so : ok
+//   E/default     : dlsym failed: undefined symbol: main
+//   E/default     : Could not find main method
+//
+// Everything loaded and then nothing ran - no QGuiApplication, no QML, and
+// therefore none of the diagnostics we had added for a black screen, which is
+// why it was silent as well as black.
+//
+// Q_DECL_EXPORT is __attribute__((visibility("default"))) here, so this one
+// symbol is exempted and every other symbol keeps the size win. Not extern "C":
+// main already has an unmangled name and the standard forbids giving it
+// linkage of its own.
+#ifdef Q_OS_ANDROID
+Q_DECL_EXPORT
+#endif
 int main(int argc, char *argv[])
 {
 #ifdef Q_OS_WIN
@@ -99,6 +124,26 @@ int main(int argc, char *argv[])
     QGuiApplication::setApplicationVersion(QStringLiteral(AGAPE48_VERSION));
     QGuiApplication::setOrganizationName(QStringLiteral("Agape48"));
     QGuiApplication::setOrganizationDomain(QStringLiteral("agape48.local"));
+
+    // platform/linux/agape48.desktop, minus the extension. It is how a window
+    // says which menu entry it belongs to, so the shell can draw the installed
+    // icon on the pinned launcher instead of a generic one. Nothing on Windows
+    // or Android reads it, where it costs one stored string.
+    //
+    // On WAYLAND it is the whole story: it becomes the xdg-shell app_id, and
+    // that is the only handle a compositor has - there is no WM_CLASS there to
+    // fall back on.
+    //
+    // On X11 it does NOT touch WM_CLASS - measured with xprop before and after
+    // on 2026sep09, still "agape48", "Agape48probe": argv[0], then
+    // QGuiApplication::applicationName(), which --profile moves. That is why
+    // the entry says StartupWMClass=agape48 and matches the first field, the
+    // half a dogfood profile cannot change.
+    //
+    // It does set two other properties on the window, which is the modern way
+    // to answer the same question and was measured at the same time:
+    // _GTK_APPLICATION_ID = "agape48" and _KDE_NET_WM_DESKTOP_FILE = "agape48".
+    QGuiApplication::setDesktopFileName(QStringLiteral("agape48"));
 
     // No multisampling: the LCD is nearest-filtered on purpose and the skin is
     // a photograph. Asking for MSAA costs memory bandwidth and buys nothing.

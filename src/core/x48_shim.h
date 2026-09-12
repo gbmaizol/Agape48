@@ -1,14 +1,14 @@
 /* ---------------------------------------------------------------------------
- * x48_shim.h - the ONLY surface of the x48 C engine that Agape48's C++ sees.
+ * x48_shim.h - la SOLA surfaco de la C-motoro x48 kiun la C++ de Agape48 vidas.
  *
- * Why a shim at all: x48 (Dost), x48ng (Le Moine) and Droid48 each expose a
- * different set of globals and entry points, and all three reach into a shared
- * `saturn` struct from their UI code. Adapting each fork behind these ~16
- * functions means a vendor swap is a rewrite of x48_shim.c and nothing else -
- * never the bridge, never the QML.
+ * Kial kudro entute: x48 (Dost), x48ng (Le Moine) kaj Droid48 ĉiu prezentas
+ * alian aron da mallokaj variabloj kaj enirpunktoj, kaj ĉiuj tri fingrumas
+ * komunan strukturon `saturn` el sia fasada kodo. Adapti ĉiun forkon malantaŭ ĉi tiuj
+ * ~16 funkcioj signifas ke ŝanĝo de la fonto estas reskribo de x48_shim.c kaj
+ * de nenio alia - neniam de la ponto, neniam de la QML.
  *
- * Threading contract: every function here must be called from one thread only.
- * Agape48 calls them from the Qt GUI thread (see Agape48Engine).
+ * Fadena kontrakto: ĉiu funkcio ĉi tie devas esti vokata el nur unu fadeno.
+ * Agape48 vokas ilin el la fasada fadeno de Qt (vidu Agape48Engine).
  * ------------------------------------------------------------------------- */
 #ifndef AGAPE48_X48_SHIM_H
 #define AGAPE48_X48_SHIM_H
@@ -21,137 +21,159 @@
 extern "C" {
 #endif
 
-/* The HP 48 LCD is 131x64 visible. The Saturn display driver can offset the
- * scanline start, so the frame buffer is over-wide and the visible window is
- * reported per frame. */
+/* La LCD de HP 48 estas 131x64 videbla. La ekranpelilo de Saturn povas
+ * deŝovi la komencon de la skanlinio, do la kadrobufro estas trolarĝa kaj la
+ * videbla fenestro estas raportata po kadro. */
 #define X48_LCD_WIDTH       131
 #define X48_LCD_HEIGHT       64
 #define X48_LCD_STRIDE      144
 #define X48_LCD_PIXELS      (X48_LCD_STRIDE * X48_LCD_HEIGHT)
 
-/* Keyboard matrix: 9 "out" rows driven by the Saturn, six "in" columns read
- * back as bits 0x01..0x20. Confirmed against the vendored buttons[] table at
- * x48.c:233 - rows 1, 2 and 3 have the sixth key (SHR, SHL, ALPHA), the other
- * six rows have five.
+/* Klavara matrico: 9 eliraj vicoj stiritaj de la Saturn, ses eniraj kolumnoj
+ * relegataj kiel bitoj 0x01..0x20. Konfirmita kontraŭ la enkorpigita tabelo
+ * buttons[] ĉe x48.c:233 - vicoj 1, 2 kaj 3 havas la sesan klavon (SHR, SHL,
+ * ALPHA), la aliaj ses vicoj havas kvin.
  *
- * ON is not in the matrix. x48 gives it code 0x8000 and sets that bit in ALL
- * nine rows (x48.c:381), so the mask carries the meaning and the row argument
- * is ignored: pass X48_KB_MASK_ON to x48_key_down/up in a single call. */
+ * ON ne estas en la matrico. x48 donas al ĝi kodon 0x8000 kaj metas tiun biton
+ * en ĈIUJ naŭ vicoj (x48.c:381), do la masko portas la signifon kaj la
+ * vic-argumento estas ignorata: donu X48_KB_MASK_ON al x48_key_down/up per unu
+ * sola voko. */
 #define X48_KB_ROWS           9
 #define X48_KB_MASK_ON   0x8000u
 
-/* Annunciator bits, in the left-to-right order they appear on the glass. */
-#define X48_ANN_LEFT     0x0001u   /* left shift  */
-#define X48_ANN_RIGHT    0x0002u   /* right shift */
+/* Bitoj de la indikiloj, en la maldekstra-al-dekstra ordo en kiu ili aperas
+ * sur la vitro. */
+#define X48_ANN_LEFT     0x0001u   /* maldekstra ŝovklavo */
+#define X48_ANN_RIGHT    0x0002u   /* dekstra ŝovklavo    */
 #define X48_ANN_ALPHA    0x0004u
 #define X48_ANN_BATTERY  0x0008u
 #define X48_ANN_BUSY     0x0010u
 #define X48_ANN_IO       0x0020u
 
 typedef struct x48_config_s {
-    const char *rom_path;     /* required; NULL means "look next to state" */
+    const char *rom_path;     /* deviga; NULL signifas "serĉu apud la stato" */
 
-    /* Desktop: a directory holding ram / port1 / port2 / state.
-     * Android SAF: leave NULL and hand over pre-opened descriptors instead,
-     * because a content:// tree URI has no POSIX path to give. */
+    /* Labortablo: dosierujo enhavanta ram / port1 / port2 / state.
+     * Androida SAF: lasu NULL kaj transdonu anstataŭe antaŭmalfermitajn
+     * priskribilojn, ĉar content://-arbadreso havas nenian POSIX-vojon por
+     * doni. */
     const char *state_dir;
-    int   fd_ram;             /* -1 when unused */
+    int   fd_ram;             /* -1 kiam neuzata */
     int   fd_port1;
     int   fd_port2;
     int   fd_state;
 
-    bool  read_only;          /* mount the card ports read-only */
-    bool  throttle;           /* pace to real HP 48 speed vs. run free */
+    bool  read_only;          /* surmetu la kartpordojn nurlege */
+    bool  throttle;           /* paŝu je vera HP 48-rapido, aŭ kuru libere */
 } x48_config_t;
 
 typedef struct x48_frame_s {
-    /* One byte per pixel, 0 or 1. Indexed8 rather than packed bits: 8.4 KB is
-     * nothing, and it lets QImage wrap the buffer with no bit twiddling. */
+    /* Unu bajto por bildero, 0 aŭ 1. Indexed8 prefere ol pakitaj bitoj: 8,4 KB
+     * estas nenio, kaj tio lasas QImage ĉirkaŭi la bufron sen bitmanipulado. */
     uint8_t  pixels[X48_LCD_PIXELS];
-    int      width;           /* visible width, normally X48_LCD_WIDTH */
-    int      height;          /* visible height; 0 when the LCD is off */
+    int      width;           /* videbla larĝo, normale X48_LCD_WIDTH */
+    int      height;          /* videbla alteco; 0 kiam la LCD estas malŝaltita */
     int      stride;
-    int      contrast;        /* 0..31 as programmed by the Saturn */
-    uint16_t annunciators;    /* X48_ANN_* bitfield */
+    int      contrast;        /* 0..31, kiel programita de la Saturn */
+    uint16_t annunciators;    /* bitkampo X48_ANN_* */
 } x48_frame_t;
 
-/* --- lifecycle ---------------------------------------------------------- */
+/* --- vivociklo ---------------------------------------------------------- */
 
-/* Loads ROM + state and brings the Saturn up. Returns false and sets
- * x48_last_error() on a bad or missing ROM. */
+/* Ŝargas ROM-on + staton kaj ekfunkciigas la Saturn. Redonas false kaj metas
+ * x48_last_error() je malbona aŭ manka ROM. */
 bool        x48_init(const x48_config_t *cfg);
 void        x48_shutdown(void);
 
-/* Runs up to max_cycles Saturn cycles, returns the number actually executed.
- * The HP 48 clock is ~4 MHz / ~2 MHz depending on model, so a 60 Hz tick wants
- * roughly 70000 cycles. Returns 0 if the CPU is halted in deep sleep. */
+/* Rulas ĝis max_cycles Saturn-ciklojn, redonas la nombron vere plenumitan. La
+ * horloĝo de HP 48 estas ~4 MHz / ~2 MHz depende de la modelo, do 60 Hz-a
+ * tiktako volas proksimume 70000 ciklojn. Redonas 0 se la procesoro estas
+ * haltigita en profunda dormo. */
 int         x48_run_slice(int max_cycles);
 
-/* True if the CPU is in SHUTDN and nothing but a key or timer will wake it -
- * the frontend can then stop ticking and let the device sleep. */
+/* Vera se la procesoro estas en SHUTDN kaj nenio krom klavo aŭ horloĝo vekos
+ * ĝin - la fasado tiam povas ĉesi tiktaki kaj lasi la aparaton dormi. */
 bool        x48_is_asleep(void);
 
-/* --- display ------------------------------------------------------------ */
+/* LA PROPRA RAPIDMEZURILO DE X48, kaj ĝi kostas nenion ĉar ĝi jam funkcias.
+ * schedule() specimenas la realtempan horloĝon de la gastiganto ĉiujn 0x7ffff
+ * instrukciojn - ĉirkaŭ okfoje sekunde - kaj tenas dek-specimenan glatigitan
+ * nombron de la instrukcioj vere plenumitaj po reala sekundo, kiun ĝi uzas por
+ * teni la propran horloĝon de la kalkulilo ĝusta, kiun ajn rapidon la
+ * gastiganto havas. Ĉi tio nur legas ĝin. 0 antaŭ la unua specimeno kaj dum
+ * nenio estas ŝargita.
+ *
+ * Ĝi respondas "kiom rapide ĉi tio kuras", kio estas la sola mezurebla flanko
+ * de la rapid-demando: la kerno nombras INSTRUKCIOJN kaj neniam Saturn-ciklojn
+ * (emulate.c:2216 estas la unu kaj sola nombrilo), do ĝi ne povas diri kiom
+ * rapida estus vera 48. Tiu numero devas veni de ekstere kaj esti kalibrita. */
+long        x48_instructions_per_second(void);
+/* Ĉiu step_instruction() kiun ĉi tiu procezo rulis. Ne la propra nombrilo de
+ * la kerno, kiun schedule() periode renulas. */
+unsigned long long x48_instructions_total(void);
 
-/* Copies the current LCD into *out. Returns false if nothing changed since the
- * previous call, so the caller can skip the texture upload entirely. */
+/* --- ekrano ------------------------------------------------------------- */
+
+/* Kopias la nunan LCD-on en *out. Redonas false se nenio ŝanĝiĝis de la antaŭa
+ * voko, por ke la vokanto povu tute preterlasi la teksturalŝuton. */
 bool        x48_take_frame(x48_frame_t *out);
 
-/* --- keyboard ----------------------------------------------------------- */
+/* --- klavaro ------------------------------------------------------------ */
 
-/* row is 0..X48_KB_ROWS-1, mask is the "in" column bit, or X48_KB_MASK_ON for
- * ON (row ignored). Multiple simultaneous presses are the point: ON+A+F is the
- * HP 48 hard reset and must arrive as three live keys, not a sequence. */
+/* row estas 0..X48_KB_ROWS-1, mask estas la enira kolumnobito, aŭ
+ * X48_KB_MASK_ON por ON (vico ignorata). Pluraj samtempaj premoj estas la tuta
+ * celo: ON+A+F estas la malmola restarigo de HP 48 kaj devas alveni kiel tri
+ * vivaj klavoj, ne kiel sinsekvo. */
 void        x48_key_down(int row, uint16_t mask);
 void        x48_key_up(int row, uint16_t mask);
 void        x48_key_release_all(void);
 
-/* --- state -------------------------------------------------------------- */
+/* --- stato -------------------------------------------------------------- */
 
-void        x48_reset(bool cold);        /* cold == wipe RAM (ON+A+F equivalent) */
+void        x48_reset(bool cold);        /* cold == viŝu la RAM-on (ekvivalento de ON+A+F) */
 bool        x48_save_state(void);
-bool        x48_reload_state(void);      /* re-read after an external sync wrote it */
+bool        x48_reload_state(void);      /* relegu post kiam ekstera sinkronigo skribis ĝin */
 
-/* Fingerprint of the on-disk state, for detecting "another device wrote this".
- * Cheap: size + mtime + a hash of the first and last page. */
+/* Fingropremo de la stato sur disko, por detekti "alia aparato skribis ĉi
+ * tion". Malmultekosta: grando + mtime + haketo de la unua kaj lasta paĝo. */
 uint64_t    x48_state_fingerprint(void);
 
-/* Digest of the RAM that would be written, for skipping a save that would
- * change nothing. 0 means "no opinion". See the comment on the definition for
- * why the fingerprint above cannot be used for this. */
+/* Resumo de la RAM kiu estus skribita, por preterlasi konservon kiu ŝanĝus
+ * nenion. 0 signifas "nenia opinio". Vidu la komenton ĉe la difino por tio,
+ * kial la supra fingropremo ne uzeblas por ĉi tio. */
 uint64_t    x48_ram_digest(void);
 
-/* --- object interchange ------------------------------------------------- */
+/* --- objektinterŝanĝo --------------------------------------------------- */
 
-/* The HP 48 binary transfer format: "HPHP48-" plus a revision letter, then the
- * object as raw nibbles. Import pushes onto stack level 1; export writes
- * whatever is on level 1, whatever type it is - the format does not care.
- * Both return false and set x48_last_error() on any failure, including a file
- * that is not an HP 48 object at all. */
-bool        x48_stack_has_object(void);   /* is there anything on level 1? */
+/* La duuma transiga formato de HP 48: "HPHP48-" plus revizia litero, poste la
+ * objekto kiel krudaj duonbajtoj. Enporto puŝas sur stakan nivelon 1; elporto
+ * skribas kion ajn estas sur nivelo 1, de kiu ajn tipo - la formato ne
+ * zorgas. Ambaŭ redonas false kaj metas x48_last_error() je ĉia malsukceso,
+ * inkluzive de dosiero kiu tute ne estas HP 48-objekto. */
+bool        x48_stack_has_object(void);   /* ĉu io estas sur nivelo 1? */
 bool        x48_import_file(const char *path);
 bool        x48_export_file(const char *path);
 
-/* --- clipboard ---------------------------------------------------------- */
+/* --- tondujo ------------------------------------------------------------ */
 
-/* Renders level 1 of the RPL stack as UTF-8 into buf. Returns the byte length
- * written, or the required length (> buflen) if buf was too small. */
+/* Bildigas nivelon 1 de la RPL-stako kiel UTF-8 en buf. Redonas la skribitan
+ * bajtolongon, aŭ la bezonatan longon (> buflen) se buf estis tro malgranda. */
 size_t      x48_stack_to_text(char *buf, size_t buflen);
 
-/* Parses UTF-8 and pushes the result onto the stack. Returns false if the text
- * is not a valid RPL object. */
+/* Analizas UTF-8 kaj puŝas la rezulton sur la stakon. Redonas false se la
+ * teksto ne estas valida RPL-objekto. */
 bool        x48_text_to_stack(const char *utf8);
 
-/* --- beeper ------------------------------------------------------------- */
+/* --- pepilo ------------------------------------------------------------- */
 
-/* Non-zero return means the Saturn asked for a beep since the last call; the
- * frontend plays it. Consumes the request. */
+/* Nenula redono signifas ke la Saturn petis pepon post la lasta voko; la
+ * fasado ludas ĝin. Konsumas la peton. */
 bool        x48_take_beep(uint32_t *freq_hz, uint32_t *duration_ms);
 
-/* --- diagnostics -------------------------------------------------------- */
+/* --- diagnozo ----------------------------------------------------------- */
 
 const char *x48_last_error(void);
-const char *x48_core_version(void);      /* which fork/revision got vendored */
+const char *x48_core_version(void);      /* kiu forko/revizio estis enkorpigita */
 
 #ifdef __cplusplus
 }  /* extern "C" */

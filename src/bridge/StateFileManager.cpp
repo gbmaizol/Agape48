@@ -24,6 +24,7 @@
 
 #ifdef Q_OS_ANDROID
 #  include <QCoreApplication>
+#  include <QJniEnvironment>
 #  include <QJniObject>
 #  include <QtCore/qnativeinterface.h>
 #endif
@@ -40,27 +41,18 @@ constexpr auto kInstanceKey    = "state/instance";
 constexpr int kHeartbeatMs = 60 * 1000;
 constexpr int kQuietMinutes = 15;
 
-// Two lists, because they had two jobs and one of them was silently wrong.
-//
-// kSafFiles is POSITIONAL: Android opens one fd per name, in the order of
-// { fd_ram, fd_port1, fd_port2, fd_state }, so nothing may be inserted here.
-// The fourth was called "state"; the C core names that file "hp48"
-// (x48_shim.c sets conf_filename), so the Android tree was writing a file the
-// desktop would never read back.
-const char *const kSafFiles[] = { "ram", "port1", "port2", "hp48" };
-
-// kMigrateFiles is everything that has to travel when the state folder moves.
-// It used to be the list above, which meant migrating copied "ram", looked in
-// vain for a "state", and left the ROM behind. The folder it produced could
-// not boot: dogfood #8, where a moved state folder gave "No HP 48 ROM
-// selected" on the next start, with the message hidden behind the settings
-// window that the same failure had opened.
+// Everything that has to travel when the state folder moves. It used to be
+// the Storage Access Framework's own list, which was positional and named the
+// state file "state" where the C core names it "hp48" - so migrating copied
+// "ram", looked in vain for a "state", and left the ROM behind. The folder it
+// produced could not boot: dogfood #8, where a moved state folder gave "No HP
+// 48 ROM selected" on the next start, with the message hidden behind the
+// settings window that the same failure had opened.
 const char *const kMigrateFiles[] = { "rom", "ram", "hp48", "port1", "port2" };
 
 // kWatchedFiles is what a calculator IS: change any of them and the machine in
-// memory and the machine on disk are two different calculators. Deliberately
-// not kSafFiles, which is positional and must not be read for anything else.
-// The ROM is not here - it does not change, and a sync client re-landing an
+// memory and the machine on disk are two different calculators. The ROM is not
+// here - it does not change, and a sync client re-landing an
 // identical ROM is not a reason to stop.
 const char *const kWatchedFiles[] = { "ram", "hp48", "port1", "port2" };
 
@@ -78,9 +70,310 @@ constexpr auto kSleepName = "sleep-request";
 // found days later would put a calculator to sleep the moment it opened.
 constexpr int kSleepStaleMinutes = 10;
 
+// WHAT THIS MACHINE IS CALLED, in the lock files and the handover records.
+//
+// QSysInfo::machineHostName() is the answer on a desktop and is "localhost" on
+// every Android phone ever made - the kernel's hostname, which no Android
+// device sets. Gert saw it: dogfood android-09 line 22, "the phone calls itself
+// localhost in the lock file, so a handover from it would say left open on
+// localhost". Harmless while the phone had a shelf of its own; not harmless now
+// that a phone, a laptop and a Windows box can hold calculators on one shared
+// folder, where this name is the only thing telling them apart.
+//
+// device_name is what the owner typed into Settings, so it is the name they
+// already know the phone by ("Nothing (4a) Pro do Gert" on Gert's). Build.MODEL
+// is the fallback for a device that has none.
 #ifdef Q_OS_ANDROID
-constexpr auto kSafClass = "dk/geeak/agape48/SafBridge";
+QString androidDeviceName()
+{
+    QString name;
+    const QJniObject context = QNativeInterface::QAndroidApplication::context();
+    if (context.isValid()) {
+        const QJniObject resolver = context.callObjectMethod(
+            "getContentResolver", "()Landroid/content/ContentResolver;");
+        if (resolver.isValid()) {
+            const QJniObject got = QJniObject::callStaticObjectMethod(
+                "android/provider/Settings$Global", "getString",
+                "(Landroid/content/ContentResolver;Ljava/lang/String;)Ljava/lang/String;",
+                resolver.object<jobject>(),
+                QJniObject::fromString(QStringLiteral("device_name")).object<jstring>());
+            if (got.isValid())
+                name = got.toString();
+        }
+    }
+    if (name.trimmed().isEmpty()) {
+        const QJniObject model =
+            QJniObject::getStaticObjectField<jstring>("android/os/Build", "MODEL");
+        if (model.isValid())
+            name = model.toString();
+    }
+    // A lock file is line-oriented "key=value", so a newline in this name would
+    // make the rest of the file unreadable to the machine that has to parse it.
+    // Length is cut for the dialog that says it out loud, not for the file.
+    name = name.simplified().left(40);
+    return name.isEmpty() ? QStringLiteral("Android") : name;
+}
 #endif
+
+// THE FOLDER PICKER HANDS BACK A content:// TREE, AND THE CORE NEEDS A PATH.
+//
+// This is the whole of dogfood android-09 line 24. Gert put the shared shelf on
+// the phone at /sdcard/Documents/Agape48Emulator/TestShelf, pressed the "..."
+// button, picked it, allowed it - and got "Migration between local and SAF
+// storage is not implemented yet", which is what this program used to say to
+// anything that was not a plain path. "I believe no progress is possible while
+// [that]. Please do fix it."
+//
+// A tree uri is not as opaque as it looks. The system's own storage provider
+// builds it out of a volume and a relative path -
+//
+//   content://com.android.externalstorage.documents/tree/primary%3ADocuments%2FX
+//                                                        \_____/ \__________/
+//                                                        volume    path in it
+//
+// - so it can be turned back into /storage/emulated/0/Documents/X, and then
+// every line of this file works on it exactly as it does on a desktop: the
+// shelf, the per-calculator folders, the locks, the handover records and the
+// watcher. That is worth far more than the four open file descriptors the SAF
+// path used to produce, which the C core never read (x48_config_t::fd_ram and
+// its three neighbours are declared and used nowhere) - so that path was
+// fiction from end to end, and it is gone.
+//
+// Done with QUrl rather than DocumentsContract.getTreeDocumentId() on purpose:
+// that method throws IllegalArgumentException at anything that is not a tree
+// uri, and a pending Java exception has to be found and cleared before the next
+// JNI call or it surfaces somewhere else entirely. QUrl::path() already decodes
+// the %3A and the %2F, and it can be tested on a desktop, which JNI cannot.
+QUrl localised(const QUrl &picked)
+{
+    if (picked.isLocalFile() || picked.scheme() != QLatin1String("content"))
+        return picked;
+#ifdef Q_OS_ANDROID
+    // Only the OS's own storage provider names files that exist on this device.
+    // Google Drive, Dropbox and the rest are content providers over a network;
+    // there is no path behind them and there is not going to be one.
+    if (picked.host() != QLatin1String("com.android.externalstorage.documents"))
+        return {};
+    const QString path = picked.path();
+    const int tree = path.indexOf(QLatin1String("/tree/"));
+    if (tree < 0)
+        return {};
+    QString id = path.mid(tree + 6);
+    // Some providers append the document inside the tree; the tree is the part
+    // before it, and the tree is what was granted.
+    const int doc = id.indexOf(QLatin1String("/document/"));
+    if (doc >= 0)
+        id = id.left(doc);
+    const int colon = id.indexOf(QLatin1Char(':'));
+    if (colon < 0)
+        return {};
+    const QString volume = id.left(colon);
+    const QString inside = id.mid(colon + 1);
+    QString base;
+    if (volume == QLatin1String("primary")) {
+        const QJniObject dir = QJniObject::callStaticObjectMethod(
+            "android/os/Environment", "getExternalStorageDirectory",
+            "()Ljava/io/File;");
+        if (dir.isValid()) {
+            const QJniObject abs =
+                dir.callObjectMethod("getAbsolutePath", "()Ljava/lang/String;");
+            if (abs.isValid())
+                base = abs.toString();
+        }
+    } else {
+        // An SD card, mounted under its own volume id.
+        base = QStringLiteral("/storage/") + volume;
+    }
+    if (base.isEmpty())
+        return {};
+    return QUrl::fromLocalFile(
+        inside.isEmpty() ? base : base + QLatin1Char('/') + inside);
+#else
+    return {};
+#endif
+}
+
+// WHICH FOLDERS ARE THIS APP'S OWN, which on Android is the whole question.
+//
+// Scoped storage does not hand out read and write as one thing, and the way it
+// fails is far worse than a refusal. Measured on Gert's phone at 22:51 on
+// 2026sep09, pointing at his shared shelf with no permission granted:
+//
+//   the folder listed              - Documents/Agape48Emulator/TestShelf showed
+//                                    its three calculators
+//   a NEW file could be made in it - the en-uzo lock was written, 109 bytes,
+//                                    with this device's name in it
+//   an EXISTING file could not be  - "agape48: can't open .../Windows box/hp48"
+//     read                           because that file belongs to whichever app
+//                                    put it there
+//
+// So every check this program had - exists(), isWritable(), and even writing a
+// probe file and deleting it again - said yes, and the calculator came up blank
+// with somebody else's memory sitting unread beside it. Worse, it had claimed
+// the lock, and the next save would have written a fresh machine over a
+// calculator carried there from another computer.
+//
+// There is no probe for this. The rule is the one Android actually applies: a
+// folder inside this app's own storage is ours whatever the permissions say,
+// and everything else needs "all files access". These are the three roots -
+// the internal data folder, /Android/data/<pkg>/files and
+// /Android/media/<pkg> - asked of the system rather than spelled out here,
+// because a phone with an SD card has two of each.
+#ifdef Q_OS_ANDROID
+// THE SHELF A PHONE STARTS WITH, and since 2026sep09 it is a folder that can
+// be seen. Android/media/<package>/Agape48 calculators: a real path, no
+// permission of any kind, the app's own - and unlike the app's data folder, not
+// hidden from every file manager on the phone. Gert, dogfood android-08 line 7:
+// "I don't have access to the internal calculator folder, and I can't change it
+// to a visible folder before you implement this possibility." Now nothing has
+// to be changed for it to be visible; it starts that way.
+//
+// IT IS NOT DURABLE, AND THAT IS MEASURED, NOT ASSUMED. On this phone (Android
+// 16) uninstalling the app deleted /sdcard/Android/media/br.gbmaizol.agape48
+// whole, marker file and all - which is the other half of what happened to him:
+// "I even tried to uninstall it and install again, but this caused the newly
+// installed version to have no memory folder". Visible is not the same as safe.
+// A calculator that must outlive the app belongs in a folder of the user's own,
+// which is what the picker and canUseAnyFolder() are for.
+//
+// A SUBFOLDER, not the media directory itself: the shelf adopts every
+// subdirectory it finds as a calculator, and the media scanner and other apps
+// both write into that directory - the same mistake the old default made once,
+// when Qt's own "settings" folder appeared on the shelf wearing the name of a
+// calculator.
+#ifdef Q_OS_ANDROID
+QString androidMediaShelf()
+{
+    QJniEnvironment env;
+    const QJniObject context = QNativeInterface::QAndroidApplication::context();
+    if (!context.isValid())
+        return {};
+    // File[], one per storage volume - internal first, then any SD card. The
+    // first one that exists and can be written to wins; a phone with no card
+    // returns a single entry, and an unmounted volume returns a null one.
+    const QJniObject dirs =
+        context.callObjectMethod("getExternalMediaDirs", "()[Ljava/io/File;");
+    if (!dirs.isValid())
+        return {};
+    const auto array = dirs.object<jobjectArray>();
+    if (!array)
+        return {};
+    const jsize count = env->GetArrayLength(array);
+    for (jsize i = 0; i < count; ++i) {
+        const QJniObject dir(env->GetObjectArrayElement(array, i));
+        if (!dir.isValid())
+            continue;
+        const QJniObject path =
+            dir.callObjectMethod("getAbsolutePath", "()Ljava/lang/String;");
+        if (!path.isValid())
+            continue;
+        const QString shelf =
+            path.toString() + QStringLiteral("/Agape48 calculators");
+        if (!QDir().mkpath(shelf))
+            continue;
+        if (!QFileInfo(shelf).isWritable())
+            continue;
+        return shelf;
+    }
+    return {};
+}
+#endif
+
+QStringList ownStorageRoots()
+{
+    QStringList roots;
+    const QString internal =
+        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    if (!internal.isEmpty())
+        roots << internal;
+    const QJniObject context = QNativeInterface::QAndroidApplication::context();
+    if (context.isValid()) {
+        QJniEnvironment env;
+        const QJniObject dirs[] = {
+            context.callObjectMethod("getExternalFilesDirs",
+                                     "(Ljava/lang/String;)[Ljava/io/File;",
+                                     static_cast<jstring>(nullptr)),
+            context.callObjectMethod("getExternalMediaDirs", "()[Ljava/io/File;")
+        };
+        for (const QJniObject &list : dirs) {
+            if (!list.isValid())
+                continue;
+            const auto array = list.object<jobjectArray>();
+            if (!array)
+                continue;
+            const jsize count = env->GetArrayLength(array);
+            for (jsize i = 0; i < count; ++i) {
+                const QJniObject dir(env->GetObjectArrayElement(array, i));
+                if (!dir.isValid())
+                    continue;   // an unmounted card comes back null
+                const QJniObject abs =
+                    dir.callObjectMethod("getAbsolutePath", "()Ljava/lang/String;");
+                if (abs.isValid())
+                    roots << abs.toString();
+            }
+        }
+    }
+    return roots;
+}
+
+bool withinOwnStorage(const QString &path)
+{
+    // Once: they cannot change while the process lives, and this is asked on
+    // every start.
+    static const QStringList roots = ownStorageRoots();
+    const QString clean = QDir::cleanPath(path);
+    for (const QString &root : roots) {
+        const QString r = QDir::cleanPath(root);
+        if (!r.isEmpty() && (clean == r || clean.startsWith(r + QLatin1Char('/'))))
+            return true;
+    }
+    return false;
+}
+#endif
+
+// isWritable() asks the filesystem's opinion; this asks the filesystem. On
+// Android the two disagree: a folder in shared storage that the app has no
+// permission for is reported writable by stat and refuses every open, so a
+// migration would delete its way through half a calculator before finding out.
+// One file, made and removed, before anything is copied.
+bool canWriteInto(const QDir &dir)
+{
+    QFile probe(dir.filePath(QStringLiteral(".agape48-write-test")));
+    if (!probe.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return false;
+    const bool ok = probe.write("x", 1) == 1;
+    probe.close();
+    probe.remove();
+    return ok;
+}
+
+QString thisHost()
+{
+#ifdef Q_OS_ANDROID
+    static const QString name = androidDeviceName();
+    return name;
+#else
+    return QSysInfo::machineHostName();
+#endif
+}
+
+// Comparing rather than equality, because of what the phone used to write.
+// Every Agape48 built before 2026sep09 put "localhost" in its lock files on
+// Android, and a lock this build does not recognise as its own is a calculator
+// the phone would refuse to open - on the very upgrade that gave it a name. No
+// real machine on a shared shelf is called localhost; the ambiguity is only
+// with another Android that has not been upgraded yet, which would be this
+// phone's own past self.
+bool isThisHost(const QString &host)
+{
+    if (host == thisHost())
+        return true;
+#ifdef Q_OS_ANDROID
+    return host == QLatin1String("localhost");
+#else
+    return false;
+#endif
+}
 } // namespace
 
 StateFileManager::StateFileManager(QObject *parent)
@@ -101,11 +394,29 @@ void StateFileManager::loadPersistedLocation()
     const QString stored = s.value(QLatin1String(kSettingsKey)).toString();
     m_lastFingerprint = s.value(QLatin1String(kFingerprintKey)).toULongLong();
     if (!stored.isEmpty()) {
-        m_location = QUrl(stored);
-        prepareInstances();
-        return;
+        // An older build could store a content:// tree here. It can be turned
+        // into a path now; if it cannot, the default is a working calculator
+        // and a stored uri that nothing can open is not.
+        const QUrl saved = QUrl(stored);
+        m_location = saved.isLocalFile() ? saved : localised(saved);
+        if (m_location.isLocalFile()) {
+            prepareInstances();
+            return;
+        }
     }
     useDefaultLocation();
+}
+
+// Beside the ROM rather than inside the calculator's own subfolder: one shelf,
+// one keymap, one set of preferences, shared by every calculator in it. Which is
+// also what "the same folder as the ROM" says, and the ROM is shared the same
+// way.
+QUrl StateFileManager::settingsFile() const
+{
+    if (!m_location.isLocalFile())
+        return QUrl();
+    return QUrl::fromLocalFile(
+        QDir(m_location.toLocalFile()).filePath(QStringLiteral("settings.ini")));
 }
 
 void StateFileManager::persistLocation()
@@ -117,7 +428,7 @@ void StateFileManager::persistLocation()
 // AppLocalData, not AppData. They are the same directory on Linux and Android
 // and two different ones on Windows: AppDataLocation is AppData\Roaming, which
 // a domain-joined machine's policy may sync between the user's computers all by
-// itself. This folder holds a 512 KB ROM, a 128 KB memory image and an "in-use"
+// itself. This folder holds a 512 KB ROM, a 128 KB memory image and an "en-uzo"
 // file naming one host and one pid - roaming it would carry a calculator
 // between machines behind the back of the very lock that exists to stop two
 // machines sharing one, and with none of the conflict handling the state folder
@@ -127,11 +438,113 @@ void StateFileManager::persistLocation()
 // Gert's Windows laptop is Azure-AD joined, which is what raised it. Only fresh
 // installs move: the location is written to QSettings on first run, so anything
 // already running keeps the folder it has.
+// A SUBFOLDER ON ANDROID, the data folder itself everywhere else.
+//
+// The shelf is a folder whose subdirectories are calculators, so it has to be a
+// folder nothing else writes into. On Android it was not: AppConfigLocation is
+// AppLocalDataLocation + "/settings" there, so the moment QSettings saved
+// anything it created a directory called "settings" inside the shelf and the
+// program adopted it as a calculator. Measured on the phone at ef76dd2 - the
+// nameplate read "settings", which is Qt's own config directory wearing the
+// name of a calculator.
+//
+// Desktop is unaffected: the config folder is in a different tree there, and
+// changing this on Windows or Linux would move everybody's calculators.
+QString StateFileManager::defaultLocationPath()
+{
+    const QString base =
+        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+#ifdef Q_OS_ANDROID
+    // Asked once. It cannot change while the process lives, and isDefault()
+    // asks it on every repaint of the settings page.
+    static const QString shelf = androidMediaShelf();
+    // The fallback is the folder this used to be: a phone with no external
+    // storage mounted at all still has to start.
+    return shelf.isEmpty() ? base + QStringLiteral("/calculators") : shelf;
+#else
+    return base;
+#endif
+}
+
+// ANDROID KEEPS AN APP OUT OF THE USER'S OWN FOLDERS unless the user says
+// otherwise, once, in the system settings. Everything Agape48 does by default
+// stays inside its own storage and asks for nothing - the folder it starts in,
+// and the Android/media folder the button below hands out, are both the app's
+// own. The moment the user wants the calculators in a folder that a sync client
+// already watches - Gert's is Documents/Agape48Emulator - that is somebody
+// else's storage, and Android has exactly one answer for an app that needs to
+// read and write arbitrary folders: MANAGE_EXTERNAL_STORAGE, granted by hand on
+// a system screen, revocable there at any time.
+//
+// It is declared in the manifest and requested nowhere else, which is the rule
+// Gert set on 2026sep06: "Remember to request the required permissions for the
+// APK, but make them be requested to the system as they become required. For
+// example, only if the user desires to change to a folder outside the sandbox
+// to integrate Dropbox, and so on." Nothing asks for it at startup; nothing
+// asks for it to open the folder the app starts in; the settings page offers it
+// only when a chosen folder turns out to need it.
+bool StateFileManager::canUseAnyFolder() const
+{
+#ifdef Q_OS_ANDROID
+    return QJniObject::callStaticMethod<jboolean>(
+        "android/os/Environment", "isExternalStorageManager", "()Z");
+#else
+    // Every desktop lets a program open the folders its user can open.
+    return true;
+#endif
+}
+
+void StateFileManager::requestAnyFolderAccess()
+{
+#ifdef Q_OS_ANDROID
+    const QJniObject context = QNativeInterface::QAndroidApplication::context();
+    if (!context.isValid())
+        return;
+    const QJniObject package =
+        context.callObjectMethod("getPackageName", "()Ljava/lang/String;");
+    if (!package.isValid())
+        return;
+    // ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION with our own package in the
+    // data uri, which opens the switch for THIS app. The list-of-every-app
+    // screen is the version without the uri, and it makes the user find us.
+    const QJniObject uri = QJniObject::callStaticObjectMethod(
+        "android/net/Uri", "parse", "(Ljava/lang/String;)Landroid/net/Uri;",
+        QJniObject::fromString(QStringLiteral("package:") + package.toString())
+            .object<jstring>());
+    if (!uri.isValid())
+        return;
+    QJniObject intent(
+        "android/content/Intent", "(Ljava/lang/String;Landroid/net/Uri;)V",
+        QJniObject::fromString(
+            QStringLiteral("android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION"))
+            .object<jstring>(),
+        uri.object<jobject>());
+    if (!intent.isValid())
+        return;
+    context.callMethod<void>("startActivity", "(Landroid/content/Intent;)V",
+                             intent.object<jobject>());
+#endif
+}
+
+QUrl StateFileManager::sharedLocation()
+{
+    setError(QString());
+#ifdef Q_OS_ANDROID
+    const QString shelf = androidMediaShelf();
+    if (!shelf.isEmpty())
+        return QUrl::fromLocalFile(shelf);
+    // Every volume refused. It says so rather than returning empty in silence:
+    // the caller is a button, and a button that does nothing and explains
+    // nothing is the worst of the three outcomes.
+    setError(tr("This device has no external storage to keep the calculators on."));
+#endif
+    return {};
+}
+
 void StateFileManager::useDefaultLocation()
 {
     setError(QString());
-    const QString dir =
-        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    const QString dir = defaultLocationPath();
     QDir().mkpath(dir);
     setLocation(QUrl::fromLocalFile(dir));
     prepareInstances();
@@ -139,9 +552,8 @@ void StateFileManager::useDefaultLocation()
 
 bool StateFileManager::isDefault() const
 {
-    const QString def =
-        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
-    return m_location.isLocalFile() && m_location.toLocalFile() == def;
+    return m_location.isLocalFile()
+           && m_location.toLocalFile() == defaultLocationPath();
 }
 
 void StateFileManager::setLocation(const QUrl &url, bool mustClaim)
@@ -173,7 +585,7 @@ void StateFileManager::setLocation(const QUrl &url, bool mustClaim)
 
 namespace {
 
-constexpr auto kLockName = "in-use";
+constexpr auto kLockName = "en-uzo";
 
 bool processAlive(qint64 pid)
 {
@@ -257,7 +669,7 @@ SleepReq readSleep(const QString &path)
 bool lockIsOurs(const LockInfo &in)
 {
     return in.present && in.pid == QCoreApplication::applicationPid()
-           && in.host == QSysInfo::machineHostName();
+           && isThisHost(in.host);
 }
 
 // A calculator, as opposed to an empty folder somebody made by hand: it has at
@@ -307,7 +719,7 @@ QString digestOfFile(const QString &path)
 // whole point of the tag is to be unmistakably ours.
 QString instanceTag()
 {
-    return QSysInfo::machineHostName() + QLatin1Char('/')
+    return thisHost() + QLatin1Char('/')
            + QString::number(QCoreApplication::applicationPid());
 }
 
@@ -346,7 +758,7 @@ Contents readContents(const QString &path)
 bool writeContents(const QDir &dir, const QString &answering)
 {
     QString body = QStringLiteral("agape48-contents 1\nby=%1\nat=%2\n")
-                       .arg(QSysInfo::machineHostName(),
+                       .arg(thisHost(),
                             QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
     if (!answering.isEmpty())
         body += QStringLiteral("answers=%1\n").arg(answering);
@@ -377,14 +789,31 @@ bool contentsMatch(const QDir &dir, const Contents &c)
 
 bool StateFileManager::busyAt(const QString &dirPath) const
 {
+#ifdef Q_OS_ANDROID
+    // ANDROID RUNS ONE COPY OF AN APP, so the question this asks - is a SECOND
+    // Agape48 on THIS device holding that folder - has one answer there, and it
+    // is no. Another device's lock is a different question and is asked in
+    // claim().
+    //
+    // Answering it the desktop way is not merely pointless on a phone, it is
+    // wrong. The system kills this process whenever it likes and the lock
+    // outlives it; the pid in that lock is then reused, quickly, by some other
+    // app; and /proc is hidden between apps, so kill(pid, 0) comes back EPERM -
+    // "it exists and belongs to somebody else, which still counts" - about a
+    // pid that belongs to a browser. The calculator would refuse to open its
+    // own memory, and nothing the user could do would clear it.
+    Q_UNUSED(dirPath)
+    return false;
+#else
     const QDir dir(dirPath);
     if (dirPath.isEmpty() || !dir.exists())
         return false;
     const LockInfo in = readLock(dir.filePath(QLatin1String(kLockName)));
     return in.present
-        && in.host == QSysInfo::machineHostName()
+        && isThisHost(in.host)
         && in.pid != QCoreApplication::applicationPid()
         && processAlive(in.pid);
+#endif
 }
 
 // The whole shelf, not one folder. The lock moved into each calculator's own
@@ -464,6 +893,23 @@ void StateFileManager::prepareInstances(const QUrl &where)
     }
 
     QStringList found = base.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+
+    // Somebody else's folder is not a calculator. This is the belt to the
+    // Android braces above: even when the shelf is the app's own data folder -
+    // which it still is for anyone who ran an earlier build, because the
+    // location was written to QSettings on their first run - the config
+    // directory must never be offered as a machine to work on. Hidden
+    // directories are already excluded by entryList, which is what keeps a
+    // synced folder's .dropbox.cache or .stfolder out.
+    const QString configDir = QDir(QStandardPaths::writableLocation(
+                                       QStandardPaths::AppConfigLocation))
+                                  .absolutePath();
+    if (!configDir.isEmpty()) {
+        found.removeIf([&](const QString &n) {
+            return QDir(base.filePath(n)).absolutePath() == configDir;
+        });
+    }
+
     if (found.isEmpty()) {
         const QString name = freeNameIn(base);
         if (!name.isEmpty() && base.mkdir(name))
@@ -553,7 +999,7 @@ bool StateFileManager::openInstance(const QString &name, bool takeOver)
 QString StateFileManager::createInstance()
 {
     if (!m_location.isLocalFile()) {
-        setError(tr("A new calculator needs a state folder on this computer."));
+        setError(tr("A new calculator needs a state folder on this device."));
         return QString();
     }
     QDir base(m_location.toLocalFile());
@@ -561,6 +1007,28 @@ QString StateFileManager::createInstance()
     if (name.isEmpty() || !base.mkdir(name)) {
         setError(tr("Could not make a new calculator."));
         return QString();
+    }
+    // A new calculator starts as a copy of the one you are looking at. Gert,
+    // both-05 line 37: "It also would be great if the new calculator was always
+    // a clone of the calculator that's open when it's created."
+    //
+    // An empty folder makes the ROM build RAM from nothing, and that is the one
+    // path that still ends at "Try To Recover Memory?" with no key getting past
+    // it - the entry this report and the three before it all say to keep away
+    // from. A clone starts from a memory image that is known to work.
+    //
+    // The caller has already saved and put the core down, so these are the
+    // bytes the open calculator actually has. The lock and the contents record
+    // are deliberately left behind: one names a process that does not hold this
+    // folder, and the other describes files in a different one.
+    const QString from = instanceDir();
+    if (!from.isEmpty() && QDir(from).exists()) {
+        const QDir src(from), dst(base.filePath(name));
+        for (const char *leaf : { "ram", "hp48", "port1", "port2" }) {
+            const QString one = src.filePath(QLatin1String(leaf));
+            if (QFile::exists(one))
+                QFile::copy(one, dst.filePath(QLatin1String(leaf)));
+        }
     }
     return openInstance(name) ? name : QString();
 }
@@ -578,9 +1046,22 @@ bool StateFileManager::renameInstance(const QString &from, const QString &to)
         setError(tr("There is already a calculator called %1.").arg(clean));
         return false;
     }
+    // Let go of the folder before moving it. Windows will not move a directory
+    // that anything holds a handle on, and the file-system watcher holds one on
+    // this very folder - ReadDirectoryChangesW keeps the directory itself open,
+    // which is the whole point of watching it. MEASURED, 2026sep05: with the
+    // watch armed, base.rename() returns false every time and the calculator
+    // keeps its old name with no complaint the user can see. Linux does not
+    // care, which is why this only ever showed up here.
+    if (m_watch) {
+        const QStringList watched = m_watch->files() + m_watch->directories();
+        if (!watched.isEmpty())
+            m_watch->removePaths(watched);
+    }
     // Renaming the folder we are holding is fine - the lock file travels with
     // it and still names this process - but the remembered name has to follow.
     if (!base.rename(from, clean)) {
+        watchFiles();                   // nothing moved: watch what is still there
         setError(tr("Could not rename %1.").arg(from));
         return false;
     }
@@ -590,6 +1071,59 @@ bool StateFileManager::renameInstance(const QString &from, const QString &to)
             m_heldPath = QDir(base.filePath(clean)).filePath(QLatin1String(kLockName));
         QSettings().setValue(QLatin1String(kInstanceKey), m_instance);
         emit instanceChanged();
+    }
+    watchFiles();                       // the folder it watches has a new name
+    return true;
+}
+
+bool StateFileManager::deleteInstance(const QString &name)
+{
+    setError(QString());
+    if (!m_location.isLocalFile()) {
+        setError(tr("Calculators can only be deleted from a local state folder."));
+        return false;
+    }
+    const QString clean = name.trimmed();
+    if (clean.isEmpty() || clean.contains(QLatin1Char('/'))
+            || clean.contains(QLatin1Char('\\'))) {
+        setError(tr("That name cannot be used for a folder."));
+        return false;
+    }
+    // The open one. Refused here as well as disabled in the shelf - see the
+    // header.
+    if (clean == m_instance) {
+        setError(tr("%1 is the calculator you are using. Open another one "
+                    "first, then delete this one.").arg(clean));
+        return false;
+    }
+    QDir base(m_location.toLocalFile());
+    const QString path = base.filePath(clean);
+    if (!QFileInfo::exists(path)) {
+        setError(tr("There is no calculator called %1.").arg(clean));
+        return false;
+    }
+    // Somebody else is mid-session in it. busyAt() only knows about live
+    // processes on THIS machine, so the lock file answers for the other ones -
+    // the same two-part question the shelf already asks to draw "open somewhere
+    // else" beside a name.
+    if (busyAt(path) || isHeldBySomebody(clean)) {
+        setError(tr("%1 is open somewhere else. Close it there first.").arg(clean));
+        return false;
+    }
+    // Stop watching before removing, for the reason renameInstance gives at
+    // length: on Windows the watcher holds the directory open and the removal
+    // fails with nothing the user can see.
+    if (m_watch) {
+        const QStringList watched = m_watch->files() + m_watch->directories();
+        if (!watched.isEmpty())
+            m_watch->removePaths(watched);
+    }
+    QDir doomed(path);
+    const bool gone = doomed.removeRecursively();
+    watchFiles();
+    if (!gone) {
+        setError(tr("Could not delete %1.").arg(clean));
+        return false;
     }
     return true;
 }
@@ -605,18 +1139,25 @@ bool StateFileManager::claim(bool takeOver)
         return true;                    // populate() says this better than we can
 
     const QString path = dir.filePath(QLatin1String(kLockName));
-    const QString here = QSysInfo::machineHostName();
+    const QString here = thisHost();
     const LockInfo in = readLock(path);
 
     if (!takeOver && busyAt(instanceDir())) {
-        setError(tr("%1 is already open in another Agape48 window. Close it, "
+        setError(tr("%1 is already open in another Agape48. Close it there, "
                     "or open a different calculator.").arg(m_instance));
         return false;
     }
     // A lock from a dead process - a crash, or a machine that went down with
     // it open - means nothing is reading the folder. Take it over, say nothing.
 
-    if (!takeOver && in.present && !in.host.isEmpty() && in.host != here) {
+    // isThisHost(), not "!= here", and the difference is a phone that cannot
+    // open its own calculator. The name this device puts in a lock file changed
+    // on 2026sep09 - "localhost" for every build before it - so on the upgrade
+    // itself the lock left behind by the previous run is written by a machine
+    // this one does not recognise. Measured, on the first launch of the build
+    // that introduced the name: "Calculator 1 is open on localhost, which
+    // checked in less than 15 minutes ago", about itself.
+    if (!takeOver && in.present && !in.host.isEmpty() && !isThisHost(in.host)) {
         // Another machine has it. Until 2026sep02 this allowed the claim and
         // merely warned, because there was no way to ask that machine anything
         // and refusing would have locked the user out whenever it was simply
@@ -693,7 +1234,7 @@ bool StateFileManager::requestSleep(const QString &instance)
     }
     f.write(QStringLiteral("agape48-sleep 1\npid=%1\nhost=%2\nat=%3\n")
                 .arg(QCoreApplication::applicationPid())
-                .arg(QSysInfo::machineHostName(),
+                .arg(thisHost(),
                      QDateTime::currentDateTimeUtc().toString(Qt::ISODate))
                 .toUtf8());
     f.close();
@@ -709,8 +1250,7 @@ bool StateFileManager::requestSleep(const QString &instance)
     const LockInfo held = readLock(QDir(dir).filePath(QLatin1String(kLockName)));
     m_askedFor = instance;
     m_expectAnswer = held.present
-                     && (held.host != QSysInfo::machineHostName()
-                         || processAlive(held.pid));
+                     && (!isThisHost(held.host) || processAlive(held.pid));
     return true;
 }
 
@@ -724,7 +1264,7 @@ void StateFileManager::withdrawSleepRequest(const QString &instance)
     // Only our own. Two machines can be waiting on the same calculator, and
     // withdrawing somebody else's question would leave them waiting for ever.
     if (r.present && r.pid == QCoreApplication::applicationPid()
-        && r.host == QSysInfo::machineHostName())
+        && isThisHost(r.host))
         QFile::remove(path);
     // Answered, timed out or given up on - either way nobody owes us anything
     // now, and a stale expectation would gate the NEXT wait on this folder.
@@ -746,7 +1286,7 @@ bool StateFileManager::isHeldBySomebody(const QString &instance) const
     const LockInfo in = readLock(QDir(dir).filePath(QLatin1String(kLockName)));
     if (!in.present || lockIsOurs(in))
         return false;
-    return in.host != QSysInfo::machineHostName() || processAlive(in.pid);
+    return !isThisHost(in.host) || processAlive(in.pid);
 }
 
 // The lock going is not the handover finishing. See the header for why, and
@@ -765,17 +1305,23 @@ bool StateFileManager::isHeldBySomebody(const QString &instance) const
 // in silence. It cannot carry our tag, because it was written before we asked.
 bool StateFileManager::handoverComplete(const QString &instance) const
 {
+    return handoverState(instance) == Complete;
+}
+
+StateFileManager::HandoverState
+StateFileManager::handoverState(const QString &instance) const
+{
     if (!m_expectAnswer || instance != m_askedFor)
-        return true;
+        return Complete;
     const QString dir = instancePath(instance);
     if (dir.isEmpty())
-        return true;
+        return Complete;
     const QDir d(dir);
     const Contents c = readContents(d.filePath(QLatin1String(kContentsName)));
     if (!c.present)
-        return false;                   // nothing has been written yet
+        return Nothing;                 // nothing has been written yet
     if (!contentsMatch(d, c))
-        return false;                   // half a delivery: the defect itself
+        return Arriving;                // half a delivery: the defect itself
     // And it has to have been written FOR US. Nothing else will do, and two
     // weaker rules were tried and thrown away before this one.
     //
@@ -799,7 +1345,12 @@ bool StateFileManager::handoverComplete(const QString &instance) const
     // The tag is the only thing on disk that says "this is the save you asked
     // for", so the tag is the whole test - and a holder that quits instead of
     // answering costs the asker the full ninety seconds, deliberately.
-    return c.answers == instanceTag();
+    //
+    // The digest test above comes FIRST on purpose. A folder whose files do not
+    // match its own record is torn whoever wrote it, so Arriving outranks the
+    // tag: NotOurs means "readable, just not the save we asked for", and
+    // anything that is not readable must not be dressed up as merely untagged.
+    return c.answers == instanceTag() ? Complete : NotOurs;
 }
 
 // Does that folder already hold somebody's calculator? Pointing at a folder
@@ -953,7 +1504,7 @@ void StateFileManager::settle()
         const QString path = QDir(instanceDir()).filePath(QLatin1String(kSleepName));
         const SleepReq r = readSleep(path);
         if (r.present && !(r.pid == QCoreApplication::applicationPid()
-                           && r.host == QSysInfo::machineHostName())) {
+                           && isThisHost(r.host))) {
             QFile::remove(path);        // letting go IS the answer
             if (!r.at.isValid()
                 || r.at.secsTo(QDateTime::currentDateTimeUtc()) < kSleepStaleMinutes * 60) {
@@ -1002,9 +1553,9 @@ QVariantMap StateFileManager::lockHolderOf(const QString &instance) const
 
     out.insert(QStringLiteral("calculator"), instance);
     out.insert(QStringLiteral("host"), in.host);
-    out.insert(QStringLiteral("sameMachine"), in.host == QSysInfo::machineHostName());
+    out.insert(QStringLiteral("sameMachine"), isThisHost(in.host));
     out.insert(QStringLiteral("alive"),
-               in.host == QSysInfo::machineHostName() && processAlive(in.pid));
+               isThisHost(in.host) && processAlive(in.pid));
     out.insert(QStringLiteral("since"),
                QDateTime::fromString(in.started, Qt::ISODate).toLocalTime());
     out.insert(QStringLiteral("seen"), seen.toLocalTime());
@@ -1047,28 +1598,15 @@ QString StateFileManager::displayName() const
 {
     if (m_location.isLocalFile())
         return QDir::toNativeSeparators(m_location.toLocalFile());
-#ifdef Q_OS_ANDROID
-    // content:// uris are unreadable to humans; ask SAF for the tree's name.
-    const QJniObject name = QJniObject::callStaticObjectMethod(
-        kSafClass, "displayName",
-        "(Ljava/lang/String;)Ljava/lang/String;",
-        QJniObject::fromString(m_location.toString()).object<jstring>());
-    if (name.isValid())
-        return name.toString();
-#endif
+    // Nothing else can become the location any more - see localised() - so this
+    // is only ever reached by a location saved by an older build.
     return m_location.toString();
 }
 
 bool StateFileManager::isWritable() const
 {
-    if (m_location.isLocalFile())
-        return QFileInfo(m_location.toLocalFile()).isWritable();
-#ifdef Q_OS_ANDROID
-    return QJniObject::callStaticMethod<jboolean>(
-        kSafClass, "isWritable", "(Ljava/lang/String;)Z",
-        QJniObject::fromString(m_location.toString()).object<jstring>());
-#endif
-    return false;
+    return m_location.isLocalFile()
+           && QFileInfo(m_location.toLocalFile()).isWritable();
 }
 
 // --- population -------------------------------------------------------------
@@ -1078,8 +1616,18 @@ bool StateFileManager::populate(x48_config_t *cfg, QByteArray *storage)
     if (!cfg || !storage)
         return false;
 #ifdef Q_OS_ANDROID
-    if (!m_location.isLocalFile())
-        return populateAndroidSaf(cfg);
+    // The permission is the user's to revoke, in Android's own settings, while
+    // this app is not running. Say so plainly rather than starting a calculator
+    // that cannot read its own memory.
+    if (m_location.isLocalFile() && !canUseAnyFolder()
+        && !withinOwnStorage(m_location.toLocalFile())) {
+        setError(tr("Agape48 is not allowed into %1 any more. Turn \"Allow "
+                    "access to manage all files\" back on for Agape48, or use "
+                    "the settings page to put the calculators back in a folder "
+                    "of its own.")
+                     .arg(QDir::toNativeSeparators(m_location.toLocalFile())));
+        return false;
+    }
 #endif
     return populateDesktop(cfg, storage);
 }
@@ -1098,34 +1646,6 @@ bool StateFileManager::populateDesktop(x48_config_t *cfg, QByteArray *storage)
     *storage = QFile::encodeName(path);
     cfg->state_dir = storage->constData();
     return true;
-}
-
-bool StateFileManager::populateAndroidSaf(x48_config_t *cfg)
-{
-#ifdef Q_OS_ANDROID
-    // SafBridge.openFd() does buildDocumentUriUsingTree + createDocument if
-    // missing + openFileDescriptor("rw") + ParcelFileDescriptor.detachFd(),
-    // so the fd outlives the Java object and the C core can keep it.
-    int *slots[] = { &cfg->fd_ram, &cfg->fd_port1, &cfg->fd_port2, &cfg->fd_state };
-    for (int i = 0; i < 4; ++i) {
-        const jint fd = QJniObject::callStaticMethod<jint>(
-            kSafClass, "openFd",
-            "(Ljava/lang/String;Ljava/lang/String;)I",
-            QJniObject::fromString(m_location.toString()).object<jstring>(),
-            QJniObject::fromString(QLatin1String(kSafFiles[i])).object<jstring>());
-        if (fd < 0) {
-            setError(tr("Storage Access Framework refused \"%1\". "
-                        "Re-pick the folder to renew the permission grant.")
-                         .arg(QLatin1String(kSafFiles[i])));
-            return false;
-        }
-        *slots[i] = int(fd);
-    }
-    return true;
-#else
-    Q_UNUSED(cfg)
-    return false;
-#endif
 }
 
 // --- conflicts --------------------------------------------------------------
@@ -1169,15 +1689,12 @@ bool StateFileManager::commit(quint64 fingerprint)
 
 void StateFileManager::requestLocation()
 {
-#ifdef Q_OS_ANDROID
-    // Java side runs ACTION_OPEN_DOCUMENT_TREE and, on result, calls
-    // takePersistableUriPermission() and stores the uri. It then notifies back
-    // through SafBridge -> a registered native callback; wire that in
-    // main.cpp with QJniEnvironment::registerNativeMethods().
-    QJniObject::callStaticMethod<void>(kSafClass, "pickTree", "()V");
-#else
-    emit pickerRequested();   // QML shows QtQuick.Dialogs FolderDialog
-#endif
+    // One picker on every platform: QtQuick.Dialogs FolderDialog, which on
+    // Android is the system's own ACTION_OPEN_DOCUMENT_TREE screen. The Java
+    // half this used to call was never reachable - SafBridge.activity was
+    // declared, never assigned, and every method began by returning on it being
+    // null - so the button it belonged to did nothing at all on a phone.
+    emit pickerRequested();
 }
 
 bool StateFileManager::migrateTo(const QUrl &destination)
@@ -1186,14 +1703,40 @@ bool StateFileManager::migrateTo(const QUrl &destination)
     // folder" message stayed on screen after picking a folder that did exist,
     // because nothing ever put lastError back to empty.
     setError(QString());
-    if (!m_location.isLocalFile() || !destination.isLocalFile()) {
-        // TODO: the local -> content:// direction needs SAF writes; do it by
-        // reading each file here and pushing the bytes through SafBridge.
-        setError(tr("Migration between local and SAF storage is not implemented yet."));
+    // What the folder picker gives back on Android is a content:// tree, and
+    // what everything below this line needs is a path. See localised().
+    const QUrl where = localised(destination);
+    if (!where.isLocalFile()) {
+        setError(tr("That folder is not on this device. Agape48 keeps the "
+                    "calculator's memory in real files, so it needs a folder on "
+                    "the phone or on its card - let your sync app put one "
+                    "there, and point Agape48 at that."));
+        return false;
+    }
+#ifdef Q_OS_ANDROID
+    // BEFORE THE FOLDER IS EVEN LOOKED AT. Everything that could ask the
+    // filesystem whether this will work gets the wrong answer - see
+    // withinOwnStorage() - so the only sound order is to ask Android's question
+    // first: is this the app's own storage, and if not, has the user said yes?
+    if (!canUseAnyFolder() && !withinOwnStorage(where.toLocalFile())) {
+        setError(tr("Android will not let Agape48 into %1 until you say so. "
+                    "Use \"Let Agape48 into your own folders\" below - the folder "
+                    "you picked is remembered and moved into as soon as you come "
+                    "back. Or use \"Move it where other apps can see it\", which "
+                    "needs no permission at all.")
+                     .arg(QDir::toNativeSeparators(where.toLocalFile())));
+        return false;
+    }
+#endif
+    if (!m_location.isLocalFile()) {
+        // A location left behind by a build that could store a content:// uri.
+        setError(tr("The calculators are in a folder Agape48 can no longer "
+                    "read. Use the house button to go back to the folder it "
+                    "starts in, then move them from there."));
         return false;
     }
     const QDir from(m_location.toLocalFile());
-    const QDir to(destination.toLocalFile());
+    const QDir to(where.toLocalFile());
 
     // Same folder in, same folder out, and this has to come BEFORE the busy
     // check below: pressing Enter on the path you are already on moves nothing,
@@ -1209,9 +1752,21 @@ bool StateFileManager::migrateTo(const QUrl &destination)
     // The folder has to exist. It used to be created here, so a typo in the
     // path silently made a folder and moved into it - dogfood #9: "folders
     // should be created by an explicit click, not by a typo."
-    if (!to.exists()) {
-        setError(tr("There is no folder called %1. Use the \"…\" button to "
-                    "pick one, or to make one.").arg(to.absolutePath()));
+    if (!to.exists() || !canWriteInto(to)) {
+        // ANDROID SAYS NO BEFORE IT SAYS ANYTHING ELSE. A folder of the user's
+        // own - Documents, Download, a card - is not merely unwritable to an
+        // app without "all files" access: it does not exist, because scoped
+        // storage hides what it does not grant. Saying "there is no folder
+        // called ..." about a folder he is looking at in his file manager is
+        // the least helpful true sentence available, so ask the other question
+        // first and let the caller offer the switch.
+        if (!to.exists()) {
+            setError(tr("There is no folder called %1. Use the \"…\" button to "
+                        "pick one, or to make one.").arg(to.absolutePath()));
+            return false;
+        }
+        setError(tr("%1 is read-only, so the calculator's memory cannot live "
+                    "there.").arg(QDir::toNativeSeparators(to.absolutePath())));
         return false;
     }
     // Gert, 2026sep02: "if the folder already contains a calculator, it just
@@ -1223,7 +1778,7 @@ bool StateFileManager::migrateTo(const QUrl &destination)
     // Your own calculator is not touched and not moved. It stays in the folder
     // it was in, which is what makes this reversible: point back at that folder
     // and there it is.
-    if (shelfHasCalculators(destination)) {
+    if (shelfHasCalculators(where)) {
         // The remembered name must NOT come with us. Every machine has a
         // "Calculator 1", so carrying the name over is how a window opens the
         // other machine's calculator believing it is its own.
@@ -1234,8 +1789,8 @@ bool StateFileManager::migrateTo(const QUrl &destination)
         // knows the name of.
         QSettings().remove(QLatin1String(kInstanceKey));
         m_instance.clear();
-        prepareInstances(destination);
-        setLocation(destination, /*mustClaim=*/false);
+        prepareInstances(where);
+        setLocation(where, /*mustClaim=*/false);
         emit instanceChanged();
         setError(tr("That folder already has calculators in it, so %1 opened "
                     "instead of moving yours in. Yours is untouched, in %2.")
@@ -1247,9 +1802,9 @@ bool StateFileManager::migrateTo(const QUrl &destination)
     // it, so this guard is now about the copy alone - which is the only thing
     // that can hurt anybody. A calculator being open is not a reason to refuse
     // to JOIN a shelf; it is the reason the sleep dialog exists.
-    if (isBusy(destination)) {
-        setError(tr("A calculator in that folder is open in another Agape48 "
-                    "window. Close it, or choose a different state folder."));
+    if (isBusy(where)) {
+        setError(tr("A calculator in that folder is open in another Agape48. "
+                    "Close it there, or choose a different state folder."));
         return false;
     }
 
@@ -1310,7 +1865,7 @@ bool StateFileManager::migrateTo(const QUrl &destination)
             }
         }
     }
-    setLocation(destination);
+    setLocation(where);
     prepareInstances();
     // Said after the move rather than asked before it: nothing was lost either
     // way - the originals are still in the old folder - but the user has to be

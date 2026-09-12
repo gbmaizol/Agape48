@@ -1,0 +1,166 @@
+<?xml version="1.0"?>
+<!--
+  Qt's own template, with three deliberate differences. Compare against
+    <qt-android>/src/android/templates/AndroidManifest.xml
+  after a Qt bump.
+
+  1. NO "%%INSERT_PERMISSIONS" MARKER, and that is the whole point of this file
+     existing. androiddeployqt does not read the code to decide what an app may
+     do; it unions the permissions declared by every Qt module it deploys and
+     pastes them in at that marker. Qt Network is linked transitively by Qt
+     Quick, so a calculator that has never opened a socket was asking for
+     INTERNET, ACCESS_NETWORK_STATE, READ_EXTERNAL_STORAGE and
+     WRITE_EXTERNAL_STORAGE - measured on the first APK this project ever
+     built. Gert, 2026sep06: "Remember to request the required permissions for
+     the APK, but make them be requested to the system as they become required.
+     For example, only if the user desires to change to a folder outside the
+     sandbox to integrate Dropbox, and so on." With the marker gone the union is
+     pasted nowhere and the app ships asking for nothing at all.
+
+     ONE PERMISSION IS DECLARED, and it is the one Gert's example named.
+     MANAGE_EXTERNAL_STORAGE is what lets Agape48 keep the calculators in a
+     folder of his own - Documents/Agape48Emulator, which his sync client
+     watches - instead of one only Agape48 can see. Declaring it asks for
+     nothing: it is a "special" permission that no prompt can grant, only a
+     switch on a system settings screen that the user reaches deliberately, from
+     a button that appears in Settings only after a folder that needs it has
+     been chosen. Everything the app does by itself - the folder it starts in,
+     and the Android/media folder the "Move it where other apps can see it"
+     button hands out - is the app's own storage and needs no permission at all,
+     which is why this is not asked for at startup and never will be.
+
+     The Storage Access Framework was the alternative and it could not do the
+     job: a content:// tree has no path, the C core cannot fopen() one, and the
+     shelf is a folder of folders with lock files in it. What the picker returns
+     is now turned back into the path it stands for; the permission is what
+     makes that path openable. See localised() and canUseAnyFolder() in
+     StateFileManager.cpp.
+
+     One permission does still appear in the built manifest, and it is not ours
+     to remove: androidx.core declares
+     "<applicationId>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION", a signature
+     permission scoped to this app that exists so its own broadcast receivers
+     are not exported. It grants nothing to the app, is never shown to the user
+     and never prompts. Deleting it with tools:node="remove" would only break
+     androidx's own receiver registration.
+
+  2. package, and a launcher icon. Qt's default is org.qtproject.example.<app>,
+     which would put this calculator in the same namespace as Qt's examples and
+     next to a blank icon in the launcher. It is br.gbmaizol.agape48 since
+     2026sep07, on Gert's instruction: "Why dk.geeag? Please make a note to
+     change it to something more related to me, like br.gbmaizol.agape48." The
+     old prefix was invented in the first commit and defended by a comment that
+     argued in a circle - the Java was in that package because the same commit
+     had put it there. A reverse-DNS prefix names the publisher, and this one
+     names him. Renaming is a NEW APP IDENTITY: the build installs beside the
+     old one instead of over it, and nothing carries across, which is why it was
+     done on the night the old install was being deleted anyway.
+
+  3. android:enableOnBackInvokedCallback is FALSE, and it is the reason the
+     back gesture works at all. Android 13 introduced a second way to deliver
+     "back": an app that opts in stops receiving KEYCODE_BACK as a key event in
+     its view hierarchy and gets an OnBackInvokedCallback instead. Qt 6.12's
+     QtActivityBase registers no such callback - it has dispatchKeyEvent,
+     onKeyDown and onKeyUp and nothing else - so with the opt-in ON the system
+     had nobody to call and did the default thing, which is to finish the
+     activity.
+
+     Measured on Gert's phone on 2026sep09, with the Settings page open: back
+     put the app in the launcher, every time, and a console.log at the top of
+     the QML key handler never printed. With this attribute false the same
+     press prints "PROBE key 16777313", which is Qt::Key_Back, and Settings
+     closes onto the calculator the way dogfood android-08 line 16 asked.
+
+     So the whole page-and-back design was correct and unreachable. Revisit
+     this only when Qt registers a callback of its own; the day it does, this
+     attribute becomes the way to get the predictive-back animation.
+
+  4. android:screenOrientation is "portrait", which is the dogfood round's
+     answer to the question this comment used to leave open. Gert, 2026sep07,
+     on the phone: "please keep the Agape48 from rotating when the phone turns
+     around. It looks too ugly." A 48GX is a portrait object - the face is 854
+     wide for 1438 tall - so landscape can only letterbox it or stretch it, and
+     the Android build already stretches to fill, which in landscape would make
+     the keys twice as wide as they are tall.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="br.gbmaizol.agape48"
+    android:installLocation="auto"
+    android:versionCode="-- %%INSERT_VERSION_CODE%% --"
+    android:versionName="-- %%INSERT_VERSION_NAME%% --">
+    <!-- %%INSERT_FEATURES -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <supports-screens
+        android:anyDensity="true"
+        android:largeScreens="true"
+        android:normalScreens="true"
+        android:smallScreens="true" />
+    <application
+        android:name="org.qtproject.qt.android.bindings.QtApplication"
+        android:hardwareAccelerated="true"
+        android:label="-- %%INSERT_APP_NAME%% --"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:enableOnBackInvokedCallback="false"
+        android:allowBackup="true"
+        android:fullBackupOnly="false">
+        <activity
+            android:name="org.qtproject.qt.android.bindings.QtActivity"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
+            android:label="-- %%INSERT_APP_NAME%% --"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:resizeableActivity="true"
+            android:exported="true">
+            <!--
+              LA FENESTRO RAJTAS ESTI MALGRANDA, kaj ĉi tiuj kvin nombroj diras
+              kian formon ĝi volas kiam la sistemo flosigas ĝin. Gert, 2026sep12,
+              sur sia OnePlus Pad 3: "in tablets or devices with a screen that's
+              big it should be a much smaller, resizeable floating window that
+              gives simultaneous access to the apps not being covered by it."
+
+              defaultWidth/defaultHeight portas la proporcion de la vizaĝo,
+              854x1438 = 0,594, do flosanta fenestro malfermiĝas jam en la ĝusta
+              formo anstataŭ esti tirata en ĝin.
+
+              minWidth 220dp estas la propra minimumo de la sistemo - la tabulo
+              raportas mMinSizeOfResizeableTaskDp=220 - do peti malpli estus peti
+              ion kion neniu donos.
+
+              resizeableActivity estas la defaŭlto ĉe targetSdk 35 kaj estas
+              skribita ĉi tie ĉar ĝi estas la kondiĉo de ĉio supre: aplikaĵo
+              markita ne-regrandigebla estas tiu kiun tabulo rifuzas flosigi.
+              screenOrientation restas "portrait" por la telefono; en plurfenestra
+              reĝimo Androido ignoras ĝin ĉiuokaze.
+            -->
+            <layout
+                android:defaultWidth="412dp"
+                android:defaultHeight="694dp"
+                android:gravity="center"
+                android:minWidth="220dp"
+                android:minHeight="370dp" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="-- %%INSERT_APP_LIB_NAME%% --" />
+
+            <meta-data
+                android:name="android.app.arguments"
+                android:value="-- %%INSERT_APP_ARGUMENTS%% --" />
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.qtprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/qtprovider_paths"/>
+        </provider>
+    </application>
+</manifest>
