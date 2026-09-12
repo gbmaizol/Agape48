@@ -11,16 +11,16 @@
      Quick, so a calculator that has never opened a socket was asking for
      INTERNET, ACCESS_NETWORK_STATE, READ_EXTERNAL_STORAGE and
      WRITE_EXTERNAL_STORAGE - measured on the first APK this project ever
-     built. Gert, 2026sep06: "Remember to request the required permissions for
+     built. The rule, 2026sep06: "Remember to request the required permissions for
      the APK, but make them be requested to the system as they become required.
      For example, only if the user desires to change to a folder outside the
      sandbox to integrate Dropbox, and so on." With the marker gone the union is
      pasted nowhere and the app ships asking for nothing at all.
 
-     ONE PERMISSION IS DECLARED, and it is the one Gert's example named.
+     ONE PERMISSION IS DECLARED, and it is the one that rule's example named.
      MANAGE_EXTERNAL_STORAGE is what lets Agape48 keep the calculators in a
-     folder of his own - Documents/Agape48Emulator, which his sync client
-     watches - instead of one only Agape48 can see. Declaring it asks for
+     folder of the owner's own - Documents/Agape48Emulator, say, which a sync
+     client already watches - instead of one only Agape48 can see. Declaring it asks for
      nothing: it is a "special" permission that no prompt can grant, only a
      switch on a system settings screen that the user reaches deliberately, from
      a button that appears in Settings only after a folder that needs it has
@@ -47,12 +47,12 @@
   2. package, and a launcher icon. Qt's default is org.qtproject.example.<app>,
      which would put this calculator in the same namespace as Qt's examples and
      next to a blank icon in the launcher. It is br.gbmaizol.agape48 since
-     2026sep07, on Gert's instruction: "Why dk.geeag? Please make a note to
-     change it to something more related to me, like br.gbmaizol.agape48." The
+     2026sep07: dk.geeag was invented in the first commit and named nobody, so
+     it became br.gbmaizol.agape48, which names the publisher. The
      old prefix was invented in the first commit and defended by a comment that
      argued in a circle - the Java was in that package because the same commit
      had put it there. A reverse-DNS prefix names the publisher, and this one
-     names him. Renaming is a NEW APP IDENTITY: the build installs beside the
+     names one. Renaming is a NEW APP IDENTITY: the build installs beside the
      old one instead of over it, and nothing carries across, which is why it was
      done on the night the old install was being deleted anyway.
 
@@ -65,7 +65,7 @@
      had nobody to call and did the default thing, which is to finish the
      activity.
 
-     Measured on Gert's phone on 2026sep09, with the Settings page open: back
+     Measured on the phone on 2026sep09, with the Settings page open: back
      put the app in the launcher, every time, and a console.log at the top of
      the QML key handler never printed. With this attribute false the same
      press prints "PROBE key 16777313", which is Qt::Key_Back, and Settings
@@ -76,8 +76,8 @@
      attribute becomes the way to get the predictive-back animation.
 
   4. android:screenOrientation is "portrait", which is the dogfood round's
-     answer to the question this comment used to leave open. Gert, 2026sep07,
-     on the phone: "please keep the Agape48 from rotating when the phone turns
+     answer to the question this comment used to leave open. 2026sep07, on the
+     phone: "please keep the Agape48 from rotating when the phone turns
      around. It looks too ugly." A 48GX is a portrait object - the face is 854
      wide for 1438 tall - so landscape can only letterbox it or stretch it, and
      the Android build already stretches to fill, which in landscape would make
@@ -114,8 +114,8 @@
             android:exported="true">
             <!--
               LA FENESTRO RAJTAS ESTI MALGRANDA, kaj ĉi tiuj kvin nombroj diras
-              kian formon ĝi volas kiam la sistemo flosigas ĝin. Gert, 2026sep12,
-              sur sia OnePlus Pad 3: "in tablets or devices with a screen that's
+              kian formon ĝi volas kiam la sistemo flosigas ĝin. 2026sep12, sur
+              13-cola OnePlus Pad 3: "in tablets or devices with a screen that's
               big it should be a much smaller, resizeable floating window that
               gives simultaneous access to the apps not being covered by it."
 

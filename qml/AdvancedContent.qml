@@ -5,9 +5,9 @@ import Agape48
 // Text sizes, with no shell around them - see SettingsContent.qml for why the
 // contents of every dialog now live apart from the thing that frames them.
 //
-// Gert, 2026sep03: "I'll find a size that works and make it default." So the
-// point is not the sliders, it is the NUMBER beside each one - he drags until it
-// looks right, reads the figure off, and that figure becomes a default in
+// 2026sep03, and it decides the shape of this window: the point is not the
+// sliders, it is the NUMBER beside each one. A slider is dragged until the text
+// looks right, the figure is read off, and that figure becomes a default in
 // TextSizes.qml.
 //
 // On a desktop this is framed by a window BESIDE the settings window, because
@@ -24,8 +24,8 @@ Item {
     // and the menu is the ⋮ in the calculator's corner; on a phone Settings is
     // a page and the menu is the underlined "48GX" on the nameplate, because
     // the ⋮ was buried under the status bar and went. Naming the wrong one is
-    // worse than saying nothing - it sends him hunting for a button that is not
-    // there, which is what "it mentioned an outdated menu" was about.
+    // worse than saying nothing - it sends the reader hunting for a button that
+    // is not there, which is what "it mentioned an outdated menu" was about.
     // The calculator, for the speed calibration below. Not required: the
     // text-size half of this page works without one, and a page that refuses to
     // open because no calculator is loaded would be a poor trade.
@@ -35,11 +35,11 @@ Item {
     readonly property string shellWord: onPhone ? qsTr("Page") : qsTr("Window")
     readonly property string shellHere: onPhone ? qsTr("page")  : qsTr("window")
     // "48GX" on both since 2026sep10: the three-dot button is gone from the
-    // desktop too, so naming it in the help text would send him looking for
-    // something that is no longer drawn.
+    // desktop too, so naming it in the help text would point at something that
+    // is no longer drawn.
     readonly property string menuWord:  "48GX"
 
-    // One row: label, slider, and the figure he is going to tell us about.
+    // One row: label, slider, and the figure that becomes the new default.
     component SizeRow: Column {
         id: rowRoot
         required property string label
@@ -66,7 +66,7 @@ Item {
                 id: readout
                 width: 34
                 // Monospaced so the row does not jiggle as the number changes
-                // while he is dragging, which makes it much harder to read.
+                // during a drag, which makes it much harder to read.
                 font.family: "monospace"
                 font.pixelSize: TextSizes.dialogBody
                 horizontalAlignment: Text.AlignRight
@@ -121,10 +121,9 @@ Item {
                 // A GUTTER FOR THE SCROLLBAR. The bar is an overlay anchored to the
                 // Flickable's right edge, and this content was parent.width, so every
                 // full-width row - every wrapped paragraph and the two-column value
-                // grid - ran underneath it with no clearance at all. Gert, 2026sep09:
-                // "We also
-                // need to check that there's at least a bit of clearance around every
-                // object in the dialogs." Fourteen is the Basic style's bar plus air;
+                // grid - ran underneath it with no clearance at all. 2026sep09:
+                // every object in every dialog gets at least a little clearance
+                // around it. Fourteen is the Basic style's bar plus air;
                 // when there is nothing to scroll the bar is hidden and this is just a
                 // slightly narrower column, which is invisible.
                 width: parent.width - 14
@@ -140,7 +139,7 @@ Item {
                 SizeRow {
                     label: qsTr("Messages over the calculator")
                     // Not "Save memory now": saving emits no notice, so that
-                    // sentence sent him looking for a banner that never comes.
+                    // sentence pointed at a banner that never comes.
                     // These two do, and one of each colour.
                     note: qsTr("The red error strip and the blue notices. %1 → Import file to stack… shows a blue one; a folder that does not exist, typed into State folder, shows a red one.").arg(root.menuWord)
                     value: TextSizes.banner
@@ -184,8 +183,9 @@ Item {
 
                 // --- the ones a slider cannot reach ------------------------------
                 //
-                // Not hidden, because he asked for "calculator buttons text, text
-                // over buttons" by name and silence would read as an oversight.
+                // Not hidden, because "calculator buttons text, text over
+                // buttons" was asked for by name and silence would read as an
+                // oversight.
                 Label {
                     width: parent.width
                     text: qsTr("The keys themselves")
@@ -234,13 +234,12 @@ Item {
                 }
 
                 // ------------------------------------------------------------
-                // THE SPEED CALIBRATION. Gert, 2026sep10: "I believe the speed
-                // adjustment setting (currently still invisible) can be
-                // relinquished to the advanced settings window."
+                // THE SPEED CALIBRATION, moved here on 2026sep10 from the
+                // settings window, where it was still invisible.
                 //
                 // It was invisible in Settings because it sat below the fold of
-                // a window his face size makes about 356x599, and he lost an
-                // evening of measurements to a rate he could not see. It also
+                // a window the face size makes about 356x599, and an evening of
+                // speed measurements went to a rate nobody could see. It also
                 // belongs here on its own merits: a one-time per-machine
                 // calibration, like the text sizes it now sits under.
                 Rectangle {
@@ -270,12 +269,12 @@ Item {
                              + "so it is not synced.")
                 }
 
-                // A SLIDER, AND 1.0 IS EXACTLY IN THE MIDDLE. Gert, 2026sep10:
+                // A SLIDER, AND 1.0 IS EXACTLY IN THE MIDDLE, from 2026sep10:
                 // "Default is 1.0 at the middle, and the user and set it all the
                 // way to the left at sluggish 0.1 to all the way to the right at
                 // almost unregulated speed."
                 //
-                // TWO LOG HALVES rather than one scale, because his three
+                // TWO LOG HALVES rather than one scale, because those three
                 // numbers cannot all sit on a single logarithmic axis: 0.1 on the
                 // left and 1.0 at the centre would put 10 on the right, and the
                 // right end is the free-running ceiling, which on this machine is
@@ -303,8 +302,8 @@ Item {
                 }
 
                 // ON TOP OF THE SLIDER, one decimal, and deliberately not large:
-                // Gert, 2026sep10, "Show the actual number as 'X.X' on top of
-                // the slider, but keep it not so big." Body size rather than the
+                // 2026sep10: the number shows as "X.X" on top of the slider and
+                // stays small. Body size rather than the
                 // title size the headings above use.
                 Label {
                     visible: root.engine !== null

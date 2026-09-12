@@ -4,7 +4,7 @@ import Agape48
 
 // Tekstgrandoj, vivaj, kun la numero videbla.
 //
-// Gert, 2026sep03: "I'll find a size that works and make it default." Do la
+// 2026sep03: "I'll find a size that works and make it default." Do la
 // celo de ĉi tiu fenestro ne estas la ŝovbutonoj, ĝi estas la NUMERO apud ĉiu
 // el ili - li ŝovas ĝis ĝi aspektas ĝusta, legas la ciferon, kaj tiu cifero
 // fariĝas defaŭlto en TextSizes.qml. Ĉiu el ili aplikiĝas tuj al la fenestro
@@ -30,7 +30,7 @@ Window {
 
     // "Advanced" prefere ol "Text sizes" ekde 2026sep10, kiam la rapidkalibrado
     // enmoviĝis ĉi tien kaj faris mensogon el la malnova titolo. Ĝi estas ankaŭ
-    // kion diras la butono kiu malfermas ĝin, kaj kiel Gert nomas ĝin: "the
+    // kion diras la butono kiu malfermas ĝin, kaj kiel la raporto nomas ĝin: "the
     // advanced settings window".
     title: qsTr("Advanced")
     flags: Qt.Dialog

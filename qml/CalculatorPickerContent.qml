@@ -7,8 +7,8 @@ import Agape48
 // The state folder is a shelf: one shared ROM and a subfolder per calculator.
 // Opening Agape48 gives you the calculator you used last; if that one is
 // already open somewhere else, this appears instead of a dead calculator,
-// which is the whole difference between the design Gert took and the one he
-// rejected. Nothing is chosen for you by a timestamp and nothing is cloned.
+// which is the whole difference between the design this window took and the one
+// it rejected. Nothing is chosen for you by a timestamp and nothing is cloned.
 //
 // Contents only. What frames them is CalculatorPickerWindow on a desktop and
 // CalculatorPickerPage on a phone - see SettingsContent.qml, which was split
@@ -82,7 +82,7 @@ Item {
             spacing: 6
             // NO COLOUR OF ITS OWN. A Dialog paints its own background from
             // the system palette - light on a laptop with no theme set, dark on
-            // Gert's Windows - so ink fixed at either end is unreadable on the
+            // Windows - so ink fixed at either end is unreadable on the
             // other. Measured: on a bare X session this label was #e8e8e8 on the
             // Basic style's white and could not be read at all. The page behind
             // it is a different case and keeps its light ink, because that
@@ -124,8 +124,8 @@ Item {
             text: qsTr("Calculators in this state folder")
             color: "#f0f0f0"; font.pixelSize: TextSizes.dialogTitle; font.weight: Font.DemiBold
         }
-        // A LINK TO THE FOLDER. Gert, 2026sep10: "I also would like the folder
-        // path in the 'Calculators' window to be underlined and clickable, so
+        // A LINK TO THE FOLDER, from 2026sep10: the folder path in this window
+        // is underlined and clickable, so
         // that it will open in a new window of the default file manager when
         // clicked, if there's no result after searching for an already open
         // window in ANY file manager program showing this folder to bring it to
@@ -259,8 +259,8 @@ Item {
         Item { id: gap; width: 1; height: 2 }
 
         // ONE ROW OF FOUR, EQUAL WIDTHS. It was a Flow first, which wrapped
-        // Close onto a second line on a narrow shelf; Gert, 2026sep08: "Keep
-        // the four buttons on the same row. they can be smaller." So they
+        // Close onto a second line on a narrow shelf. 2026sep08: the four
+        // buttons stay on one row and may be smaller for it. So they
         // divide the width between them instead of asking for what their text
         // wants - four equal quarters, which also stops the row from
         // rearranging itself as the selection changes the labels' state.
@@ -288,10 +288,10 @@ Item {
                     if (made !== "") { root.selected = made; root.closeRequested() }
                 }
             }
-            // Gert, dogfood android-08 line 6: "we need a 4th button to delete
+            // Dogfood android-08 line 6: "we need a 4th button to delete
             // a calculator! It should be disabled if the selected calculator is
             // the one that's loaded." Both halves of that are here: the enabled
-            // condition is his, and deleteInstance() refuses the open one again
+            // condition is that rule, and deleteInstance() refuses the open one
             // on its own account.
             //
             // KEPT BEFORE Close rather than after it. Close has been the last

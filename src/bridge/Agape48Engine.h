@@ -74,16 +74,16 @@ class Agape48Engine : public QObject
 
     // Keep the Saturn running while the window is not the active one. OFF by
     // default, which is the behaviour this app has always had: Main.qml calls
-    // suspend() on deactivation, and suspend() stops the tick. Gert found that
-    // on 2026sep10 - "It runs ONLY when the calculator in in focus!!!" - and
-    // then decided it should stay: "Although it's totally ok to have games
+    // suspend() on deactivation, and suspend() stops the tick. 2026sep10 caught
+    // it - the emulator ran ONLY while the calculator had focus - and the
+    // default stays off anyway: "Although it's totally ok to have games
     // progress only when focused." So this is an escape hatch for a long
     // computation left to run, not a repair. Machine-local, like liveResize.
     Q_PROPERTY(bool runUnfocused READ runUnfocused WRITE setRunUnfocused NOTIFY runUnfocusedChanged)
 
     // A MULTIPLIER OVER THE CALIBRATED RATE, for playing with rather than for
-    // getting right. Gert, 2026sep10: "We can let the user have fun with the
-    // speed calibration. Default is 1.0 at the middle, and the user and set it
+    // getting right. 2026sep10: the speed calibration is there to be played
+    // with. Default is 1.0 at the middle, and it can be set
     // all the way to the left at sluggish 0.1 to all the way to the right at
     // almost unregulated speed."
     //
@@ -100,18 +100,17 @@ class Agape48Engine : public QObject
     Q_PROPERTY(int effectiveRate READ effectiveRate NOTIFY speedFactorChanged)
 
     // Off by default, and off means the calculator runs as fast as the machine
-    // allows - Gert's words: "Normally we want the calculator to run as fast as
-    // it can." On, the Saturn is paced to a real HP 48's instruction rate,
+    // allows, because normally a calculator should run as fast as it can. On,
+    // the Saturn is paced to a real HP 48's instruction rate,
     // which is what makes a game written for one playable rather than five
     // times too fast. See kRealSpeedInstrPerSec for where the rate comes from.
     Q_PROPERTY(bool realSpeed READ realSpeed WRITE setRealSpeed NOTIFY realSpeedChanged)
 
-    // THE RATE ITSELF, so calibrating it never needs a rebuild. Gert asked for
-    // exactly this: "What if we make a calibration program... and then we can
-    // make this one time calibration on the screen using it?" The default is
-    // derived rather than picked - see kRealSpeedInstrPerSec - and it was still
-    // too fast for his game, which is the whole argument for the number being a
-    // setting instead of a constant.
+    // THE RATE ITSELF, so calibrating it never needs a rebuild: a calibration
+    // program on the calculator measures the rate, and the number it produces is
+    // typed in here once. The default is derived rather than picked - see
+    // kRealSpeedInstrPerSec - and it was still too fast for a real game, which is
+    // the whole argument for the number being a setting instead of a constant.
     Q_PROPERTY(int realSpeedRate READ realSpeedRate WRITE setRealSpeedRate NOTIFY realSpeedRateChanged)
 
     // What the emulator is ACTUALLY executing, straight out of x48's own
@@ -159,8 +158,8 @@ public:
     QString buildStamp() const;
     QString qtVersion() const;
 
-    // ĈU IU KLAVARO ESTAS KONEKTITA. Gert, provo 17, la sola problemo kiun la
-    // Androida duono trovis: "If I hold a button down for long in one place, it
+    // ĈU IU KLAVARO ESTAS KONEKTITA. Provo 17, la sola problemo kiun la Androida
+    // duono trovis: "If I hold a button down for long in one place, it
     // shows a keyboard shortcut. This should be disabled unless some kind of
     // keyboard is connected."
     //
@@ -194,8 +193,8 @@ public:
     Q_INVOKABLE void stopWaiting();
     Q_INVOKABLE bool waitingForCalculator() const { return m_wait.isActive(); }
     // Seconds left before the ask is written off, for the dialog to count down.
-    // Gert asked for the number to be on screen: a wait with no end in sight is
-    // the difference between "it is working" and "it has hung".
+    // The number is on screen because a wait with no end in sight is the
+    // difference between "it is working" and "it has hung".
     int waitSeconds() const { return m_waitSeconds; }
 
     // The live modifier state, not an event's cached copy. A mouse press on the
@@ -229,14 +228,14 @@ public:
     // The handover. OFF hands the calculator back - it saves, lets go of the
     // lock, and the window sits detached until ON. ON claims it again and
     // reloads from disk, so whatever another machine did in between is what
-    // you get. Gert's design, 2026aug31.
+    // you get. The shape of it was settled on 2026aug31.
     Q_PROPERTY(bool detached READ isDetached NOTIFY detachedChanged)
     bool isDetached() const { return m_detached; }
 
     // Whether SOMEBODY ELSE is holding the memory this window is pointed at -
     // a live lock file that is not ours. A different question from detached,
     // which only says WE are not holding it, and the difference is the whole
-    // of Gert's 2026sep04 report: a calculator you left switched off comes up
+    // of the 2026sep04 report: a calculator you left switched off comes up
     // detached with nobody else involved at all, and the screen said "in use by
     // another device" over an empty shelf. Polled while detached, because a
     // window that is not running the machine has no other way to notice the

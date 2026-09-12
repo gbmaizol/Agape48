@@ -81,10 +81,10 @@ int main(int argc, char *argv[])
     // with it the default state folder and the log. One switch isolates all
     // three.
     //
-    // Gert, 2026sep03, after both-03 had been run against an installed build:
+    // 2026sep03, after both-03 had been run against an installed build:
     // "For the next dogfood report, let's work with a dogfood build rather than
     // making an installation right away." Before this, testing a build on this
-    // machine meant writing his live settings - which is exactly what got
+    // machine meant writing the live settings - which is exactly what got
     // blocked, correctly, earlier the same day.
     //
     // Parsed by hand, and before the QGuiApplication: setApplicationName has to
@@ -168,8 +168,8 @@ int main(int argc, char *argv[])
     }
 
     // The window and taskbar icon, on every platform from one place. Without it
-    // Qt supplies its own default - a cogwheel on Linux, which is what Gert saw.
-    // Windows only looked right by accident: the icon he liked belonged to the
+    // Qt supplies its own default - a cogwheel, which is what Linux showed.
+    // Windows only looked right by accident: the icon it drew belonged to the
     // Start-menu shortcut the installer creates, so a window opened any other
     // way had nothing either, and the executable itself still has no icon.
     //

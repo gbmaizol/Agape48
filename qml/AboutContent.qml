@@ -6,11 +6,10 @@ import Agape48
 // fenestron ĉirkaŭ ĝi kaj telefono paĝon. Sama divido kiel Agordoj, la breto kaj
 // la transdono; vidu PageShell.qml pri kial ĝi ne estas elektebla.
 //
-// Gert, provo 17 linio 4, provinte la Vindozan instalilon: "now I think we
-// should have an about menu option (please decide the best position for it),
-// with the title, version, build number and timestamp of building (can we make
-// the building process create this timestamp automatically?), and a couple of
-// paragraphs about the Agape48 Emulator."
+// Provo 17 linio 4, el la Vindoza instalilo: la menuo ricevas eron "About" kun
+// la titolo, la versio, la konstrunumero kaj tempindiko kiun la konstruo mem
+// faras, plus kelkajn alineojn pri Agape48. La pozicio estis lasita al ĉi tiu
+// dosiero por elekti.
 //
 // LA POZICIO, ĉar li petis ke ni elektu: propra sekcio malsupre, super Fini.
 // Tio estas kie ĉiu labortabla programo metas ĝin, kaj la menuo jam finiĝas per

@@ -5,7 +5,7 @@ import QtCore
 // Ĉiu tekstgrando kiun la aplikaĵo desegnas je RULTEMPO, en unu loko, por ke
 // oni povu agordi ilin rigardante ilin anstataŭ diveni kaj rekonstrui.
 //
-// Gert, 2026sep03: "expose the size of all kinds of text on banners messages,
+// 2026sep03: "expose the size of all kinds of text on banners messages,
 // calculator buttons text, text over buttons, on a separate settings window
 // that appears when clicking on 'Advanced' on the settings window. I'll find a
 // size that works and make it default."
@@ -49,7 +49,7 @@ QtObject {
     readonly property int maxSize: 72
 
     // La klavaj ŝpruchelpiloj: DERIVITA, ne konservita, kaj tial ne sur
-    // ŝovbutono. Gert, 2026sep10, unue: "make the size of the tooltip text 1.5
+    // ŝovbutono. 2026sep10, unue: "make the size of the tooltip text 1.5
     // times as big as the main menu text" - proporcio, kiu naskis funkcion kiu
     // legis Qt.application.font kaj remultiplikis per la vizaĝskalo por elveni
     // konstanta. Poste, la saman tagon kaj vidinte ĝin: "Also, now the font

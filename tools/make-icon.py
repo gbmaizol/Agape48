@@ -16,7 +16,7 @@ Unu peco da arto, ĉiu platformo, por ke ili ne povu disiĝi:
                                fona koloro, kaj la malnova kvadrato por ĉio pli
                                aĝa ol API 26
 
-LA FONTO ESTAS FOTOGRAFAĴO, ne la desegnita vizaĝo, de 2026sep08. Gert: "my
+LA FONTO ESTAS FOTOGRAFAĴO, ne la desegnita vizaĝo, de 2026sep08: "my
 wife is a designer, and she made me change my mind... rotate this image 30
 degrees counter-clockwise instead, and this will be the base for the adaptive
 icon." assets/icon-source.png estas ŝia HP48GXDusty.png, polva proksimfoto de
@@ -44,15 +44,15 @@ kiujn Pillow 12.2.0 enarbigis, kaj ĉiuj 18 estas bildero post bildero identaj -
 maksimuma diferenco de kanalo 0. Nur la bajtoj de la kodilo moviĝis; la 16x16
 eĉ ne tio.)
 
-LA FOTOGRAFAĴO ESTAS TURNITA 30 GRADOJN MALDEKSTRUME. Gert, 2026sep08: "one
+LA FOTOGRAFAĴO ESTAS TURNITA 30 GRADOJN MALDEKSTRUME. 2026sep08: "one
 quirk to make it different from Droid48: Rotate it 30 counter-clockwise. But
 this needs to be the new icon for all OSs." La turno nun okazas ANTAŬ la tondo -
 vidu FENESTRO - do la klino vivas interne de la bildo anstataŭ esti ĝia silueto,
 kaj la ikono povas esti plena ĝis siaj randoj sen nigraj trianguloj ĉe la
 anguloj.
 
-TRAVIDEBLA KIE AJN LA FORMATO PERMESAS, kaj la ardezo de Gert kie ne. Liaj
-vortoj, en tiu ordo: "make the background r66,g75,b92" kaj poste "or transparent
+TRAVIDEBLA KIE AJN LA FORMATO PERMESAS, kaj la ardezo kie ne. La du postuloj,
+en tiu ordo: "make the background r66,g75,b92" kaj poste "or transparent
 when possible". Estas ekzakte unu loko kie tio ne eblas: la fona tavolo de
 Androida ADAPTA ikono, kiu devas esti opaka kaj kiun iuj lanĉiloj pentras nigra
 se ĝi ne estas - nigraj strioj denove, kio estas la plendo per kiu ĉi tio
@@ -127,7 +127,7 @@ FENESTRO = (170, 289, 426, 545)
 CONTRAST = 1.2
 BRIGHTNESS = 1.2
 
-# LA DU ŜOVKLAVOJ, 2026sep11. Gert: "Please use this one, making the purple and
+# LA DU ŜOVKLAVOJ, 2026sep11: "Please use this one, making the purple and
 # the green colors look more bright and shiny, to catch the eye."
 #
 # KIAL TIO NE POVAS ESTI FARITA LAŬ NUANCO. Mezurita sur lia fenestro: 87% de
@@ -203,7 +203,7 @@ FILL_DESKTOP = 1.0
 # por rekompensi, kaj neniu iam vidos ĝin, ĉar la masko tranĉas antaŭ ĝi.
 FILL_ADAPTIVE = 0.75
 
-# "Oh, and make the edges a bit blurry!" - Gert, 2026sep08. Frakcio de la propra
+# "Oh, and make the edges a bit blurry!" - 2026sep08. Frakcio de la propra
 # grando de la ikono anstataŭ fiksa nombro da bilderoj, por ke la moleco aspektu
 # same je 16 kaj je 432 anstataŭ igi malgrandan ikonon kaĉo. La fadenado estas
 # puŝita INTERNEN unue: malakrigi nur la maskon disvastigus ĝin eksteren super la
@@ -255,7 +255,7 @@ def tinted(img: Image.Image, spec) -> Image.Image:
 
 
 def artwork() -> Image.Image:
-    """La fotografaĵo turnita, tondita al la fenestro de Gert, agordita, kaj kun
+    """La fotografaĵo turnita, tondita al la elektita fenestro, agordita, kaj kun
     la du ŝovklavoj repentritaj. Ordo gravas dufoje: la turno antaŭ la tondo, ĉar
     lia fenestro estas akse ordigita en la turnita spaco, kaj la kontrasto post
     la tondo, ĉar ImageEnhance mezuras la bildon kiun ĝi ricevas."""

@@ -30,16 +30,16 @@ Item {
     readonly property size faceSize: engine.skin.faceSize
 
     // KIOM GRANDA ESTAS LA EKRANO, kaj kial DU malsamaj mezuroj estas necesaj.
-    // Gert, 2026sep12, vidinte Agape48 sur sia OnePlus Pad 3: "agape48 looks
-    // ridiculous and distorted when occupying the whole screen of a tablet. It
-    // should never do that", kaj tuj poste "Even if it wasn't distorted, it's
-    // uselessly big."
+    // 2026sep12, sur 13-cola OnePlus Pad 3: la kalkulilo estas distordita kaj
+    // ridinde granda kiam ĝi okupas la tutan ekranon de tabulo, kaj ĝi neniam
+    // devas fari tion. Malstreĉi ĝin ne sufiĉas - senstreĉa kalkulilo de 193 mm
+    // estas ankoraŭ senutile granda.
     //
     // ĈU GRANDA: en dp, ĉar tio estas la mezuro per kiu Androido mem decidas, kaj
     // ĝi neniam mensogas - ĝi estas derivita de la denseca fako, kiun la sistemo
     // konas. sw600dp estas la limo de Androido inter telefono kaj tabulo, kaj la
-    // du aparatoj ĉi tie kuŝas malproksime ambaŭflanke: la telefono de Gert
-    // raportas sw458dp, la tabulo sw914dp.
+    // du aparatoj ĉi tie kuŝas malproksime ambaŭflanke: la telefono raportas
+    // sw458dp, la tabulo sw914dp.
     //
     // KIOM GRANDA DESEGNI: en milimetroj, ĉar la demando "ĉu ĉi tiu kalkulilo
     // estas ridinde granda" estas demando pri la mano kaj ne pri bilderoj. Kaj
@@ -81,11 +81,11 @@ Item {
             ? Math.min(width / faceSize.width, height / faceSize.height, maxScale)
             : 1
 
-    // ANDROID FILLS THE SCREEN, the desktops keep the face's proportions. Gert,
-    // 2026sep07: "I prefer that only for Android it does the same as Droid48
-    // does. Keep the desktop versions as they are."
+    // ANDROID FILLS THE SCREEN, the desktops keep the face's proportions, and
+    // the split is deliberate: Android does what Droid48 does, the desktops stay
+    // as they were. 2026sep07.
     //
-    // The face is 854x1438, which is 0.594 wide for its height; his phone is
+    // The face is 854x1438, which is 0.594 wide for its height; the phone is
     // 0.450. Fitted by the smaller of the two ratios - which is what every
     // other platform does - the calculator ends at 75% of the screen's height
     // and the rest is background. Droid48 stretches instead, and that is now
@@ -99,7 +99,7 @@ Item {
     // KAJ LA STREĈO HALTAS ĈE LA TABULO. La citaĵo supre estas de telefono kaj
     // restas vera pri telefonoj; sur ekrano kies proporcio estas 0,708 kontraŭ
     // la 0,594 de la vizaĝo, la sama regulo larĝigas ĉiun klavon je 19% kaj tio
-    // estas la "distorted" kiun li vidis. Droid48 neniam kuris sur 13-cola
+    // estas la distordo kiun tabulo montras. Droid48 neniam kuris sur 13-cola
     // tabulo.
     readonly property bool fillScreen: Qt.platform.os === "android" && !bigScreen
     readonly property real scaleX:
@@ -153,10 +153,10 @@ Item {
         }
 
         // The open calculator's name, printed between the two words the skin
-        // has already printed on itself. Gert, both-05 line 37: "I'd like the
-        // first 20 letters of the name of the current calculator to be shown
-        // between the 'HEWLETT-PACKARD' and the '48GX' at the top, same font,
-        // center-aligned in the middle." Then both-06 line 20, having seen it:
+        // has already printed on itself. both-05 line 37: the first 20 letters
+        // of the current calculator's name, between "HEWLETT-PACKARD" and
+        // "48GX" at the top, same font, centred. Then both-06 line 20, having
+        // seen it:
         // "Looks great! Increate the limit to 30!"
         //
         // Everything about it - where, how big, what colour, how many letters,
@@ -197,10 +197,10 @@ Item {
             font.bold: plate ? plate.bold === true : true
             // Bigger on a phone, and only on a phone. The name is read at
             // arm's length there, and the printed 17 px that suits a desktop
-            // face is too small for it. Gert, 2026sep07: "make the top center
-            // calculator name bigger, about 1.5x the size of the '48GX' text"
-            // - then, having seen it on both, "my request was only for
-            // Android" and "the desktop version look perfect". So the size is
+            // face is too small for it. 2026sep07: the name goes to about 1.5x
+            // the size of the "48GX" text - then, once it was on both, that
+            // turns out to have been an Android request only, the desktop
+            // already looking right. So the size is
             // a second number in the skin rather than a change to the first,
             // and the band's rect stays the printed row's: the taller text
             // centres in it and reaches nothing, because the annunciator strip
@@ -219,8 +219,8 @@ Item {
             // the condensed families exist and the fallback is wider, the
             // margin is thinner still. Fit only ever SHRINKS, so an ordinary
             // name is untouched at 17 and only a freakishly wide one gives up
-            // any size. Cutting letters he asked to see would be the wrong way
-            // round.
+            // any size. Cutting letters the name was widened to show would be
+            // the wrong way round.
             fontSizeMode: Text.HorizontalFit
             minimumPixelSize: 12
             // Below 12 px it would be unreadable anyway, so the last resort is
@@ -241,9 +241,9 @@ Item {
             // Free resizing puts a fractional number of device pixels on every
             // HP 48 dot, and nearest-neighbour then rounds each dot's two edges
             // on its own account: at two and a half pixels to the dot, one stem
-            // of an H comes out two pixels wide and the other three. Gert,
-            // 2026sep04: "this looks like very poor rendering." The dots being
-            // small is not the complaint - the dots being DIFFERENT SIZES is.
+            // of an H comes out two pixels wide and the other three, and at
+            // 2026sep04 that was the rendering fault. Small dots are not the
+            // fault; dots of DIFFERENT SIZES are.
             //
             // So enlarge in two steps instead of one. Draw the matrix into a
             // layer at a whole number of pixels per dot - the smallest whole
@@ -277,11 +277,10 @@ Item {
 
         // A window that no longer holds its calculator goes on showing the last
         // frame it drew, which reads as a freeze rather than as sleep. Dogfood
-        // both-03 line 16: "the other screen should blank instead of freezing",
-        // and line 26: "the 'sleeping' calculator failed to blank its screen, so
-        // I doubted it was really sleeping. I tested the keyboard, and the keys
-        // are dead, as they should be in a sleeping machine." The keys were
-        // right and only the glass was lying. Wording is his.
+        // both-03 line 16: the other screen blanks instead of freezing. Line 26
+        // is why it matters - a sleeping calculator that had not blanked read as
+        // a calculator that was not asleep at all, while its keys were already
+        // dead. The keys were right and only the glass was lying.
         //
         // The LCD's own background rather than black: a blank HP 48 screen is
         // pale green, and a black hole in the bezel looks like a fault.
@@ -297,16 +296,16 @@ Item {
                 // Only when somebody else really is holding the memory. The
                 // rectangle above blanks the glass whenever this window is not
                 // driving the machine, which is right; this sentence used to
-                // follow it, which was not. Gert, 2026sep04: "it seems to be
-                // showing even when no other calculator is even running to use
-                // the memory" - and it was, because a calculator that was saved
+                // follow it, which was not. 2026sep04: the phrase was showing
+                // even when no other calculator was running to use the memory -
+                // and it was, because a calculator that was saved
                 // switched off, or that you switched off yourself, releases the
                 // lock and comes up detached with nobody else in the picture.
                 // detached says WE do not hold it; this says SOMEBODY ELSE
                 // does, and only the second one is what the words claim.
                 //
                 // A lock left behind by a machine that died stays on disk and
-                // still counts, which is his instruction: "If another host died
+                // still counts, and the rule is literal: "If another host died
                 // and left the lock on, keep showing the locked screen as is
                 // with the phrase on it. Otherwise screen blank as normal."
                 visible: root.engine.memoryHeldElsewhere
@@ -327,7 +326,7 @@ Item {
                 height: parent.height * 0.36
                 verticalAlignment: Text.AlignTop
                 // Broken across two lines deliberately, and four times the size
-                // it was. Gert, both-04 line 7: "the text is way too small. It
+                // it was. both-04 line 7: "the text is way too small. It
                 // should be 4x as large, divided in two lines." It was small
                 // because Text.Fit only ever SHRINKS - pixelSize is its ceiling,
                 // not its target - and the ceiling was 13. The default skin's
@@ -377,18 +376,16 @@ Item {
             onBodyPressed: root.bodyPressed()
         }
 
-        // THE WAY INTO THE MENU ON EVERY PLATFORM since 2026sep10, when Gert
-        // asked for the phone's design on the desktop too: "make the 48GX
-        // underlined and get rid of the 3 dots, like the Android solution". So
-        // Main.qml's corner button is gone and this is the only door.
+        // THE WAY INTO THE MENU ON EVERY PLATFORM since 2026sep10, when the
+        // phone's design came to the desktop too: the 48GX is underlined and the
+        // three dots are gone, as on Android. So Main.qml's corner button is
+        // gone and this is the only door.
         //
-        // It began as Android's, and only Android's. Gert, 2026sep07,
-        // after the corner button turned out to be sitting under the status
-        // bar: "in Android the '48GX' at the corner must be changed to look
-        // like a web link, and clicking there opens the menu. This is the most
-        // intuitive interface I can come up with", then "just put a golden
-        // underline under the golden 48GX and it will look like a link
-        // allright."
+        // It began as Android's, and only Android's. 2026sep07, after the corner
+        // button turned out to be sitting under the status bar: the "48GX" in
+        // the corner looks like a web link and opens the menu when tapped. A
+        // golden underline under the golden word is the whole of the cue, and it
+        // is the most intuitive door the face has room for.
         //
         // The word itself is printed into face.png, so all QML can do is
         // underline it in the skin's own ink and take the taps. Where it is
@@ -433,8 +430,8 @@ Item {
     // numero kiun ĝi desegnis - tio funkciis, sed ĝi estis kontraŭpezo kaj ne
     // solvo. Kaj la randojn de la vizaĝo, kiuj estas la randoj de la fenestro
     // kiam la vizaĝo plenigas ĝin: ŝpruchelpilo de klavo el la malsupra vico
-    // naskiĝis sub la fundo de la fenestro kaj estis fortranĉita. Gert,
-    // 2026sep10: "It's cropped by the edge of the calculator face, so the
+    // naskiĝis sub la fundo de la fenestro kaj estis fortranĉita. 2026sep10,
+    // provinte la konstruon: "It's cropped by the edge of the calculator face, so the
     // buttons at the edges are less than half-displayed. Couldn't the scale
     // problem and this problem be more elegantly solved by making the tooltip
     // arise from" - la frazo haltas tie, sed ĝia fino estas ĉi tiu dosiero.

@@ -16,7 +16,7 @@ Android upgrades in place over 0.9.0 — same signing key, so your calculators s
 
 ## The icon is a different picture
 
-Not a different photograph: a different part of the same one, and much closer in. It is the frame Gert cut by hand out of the old icon — the violet shift key, the green shift key and `ON`, with the keyboard running diagonally across it — and the two shift keys are painted back to the colours a real 48GX has and the dusty blue light of the photograph took away.
+Not a different photograph: a different part of the same one, and much closer in. It is a frame I cut by hand out of the old icon — the violet shift key, the green shift key and `ON`, with the keyboard running diagonally across it — and the two shift keys are painted back to the colours a real 48GX has and the dusty blue light of the photograph took away.
 
 It is a circle now on Windows and Linux. That is not decoration: the corners the circle removes are the black shadow under `CANCEL` and the dark table behind the calculator, which a square icon carried as a black band along its bottom edge. On Android it stays a square, because there the launcher holds the scissors and cuts its own shape.
 

@@ -7,14 +7,14 @@ import Agape48
 // Androido ne havas duan fenestron: peti unu de Qt igas la platforman kromaĵon
 // akiri denaskan surfacon, kaj tiu voko prenas procez-vastan seruron kiun tenas
 // la alirebleca ponto, post kio Qt abortas anstataŭ interblokiĝi. Mezurite sur
-// la telefono de Gert ĉe 67b2f08: Agordoj malfermiĝis 0 el 10, "Open another
+// la telefono ĉe 67b2f08: Agordoj malfermiĝis 0 el 10, "Open another
 // calculator" 0 el 3. Mezurite denove ĉe bc57de7, kun la agorda enhavo en paĝo
 // kiel ĉi tiu: Agordoj 10 el 10, kaj la elektilo - ankoraŭ Window, kaj tial la
 // kontrolo - ankoraŭ 0 el 5.
 //
-// Gert nomis kaj la kaŭzon kaj la formon: "What could be crashing is we trying
-// to use some desktop feature that doesn't exist in Android", kaj "What if we
-// use android-settings style pages, instead of drawing windows-style? Maybe
+// La kaŭzo kaj la formo estis nomitaj kune: la kraŝo estas labortabla trajto
+// kiu ne ekzistas sur Androido, kaj la respondo estas paĝoj en la stilo de
+// Androidaj agordoj anstataŭ desegnitaj fenestroj. "Maybe
 // they are usually like this for a reason."
 //
 // Popup estas desegnita interne de la sceno kiu jam ekzistas, do ĝi neniam
@@ -23,9 +23,8 @@ import Agape48
 // la projekto forlasis je 2026aug29, kaj la kalkulilo ne trabrilas.
 //
 // Paĝoj staplas. Unu malfermita el alia sidas super ĝi kaj la reensago forprenas
-// la supran, kio estas kion faras la agordoj de telefono kaj kion Gert petis:
-// "the advanced wouldn't be a new window. It would be a new page inside
-// settings, right?"
+// la supran, kio estas kion faras la agordoj de telefono: Altnivela ne estas
+// nova fenestro, ĝi estas nova paĝo interne de Agordoj.
 Popup {
     id: root
 
@@ -36,8 +35,8 @@ Popup {
 
     // LA SISTEMA "REEN" NE ESTAS LA DESEGNITA SAGO, ekde dogfood android-08. La
     // sago signifas "unu paĝon supren" - ĝi estas kio reportas Tekstgrandojn al
-    // Agordoj. Gert volas ke la propra "reen" de la telefono signifu ion pli
-    // fortan: "The back button should take out of every internal configs or
+    // Agordoj. La propra "reen" de la telefono signifas ion pli fortan:
+    // "The back button should take out of every internal configs or
     // selections, stopping at the calculator", kaj "make it go back to the
     // calculator if swiping back or clicking the back bottom-button." Do la
     // gesto kaj la naviga strio eligas ĉi tion anstataŭe, kaj Main.qml - kiu
@@ -129,9 +128,9 @@ Popup {
     // poste supren laŭ ĝia GEPATRA ĉeno; kaptilo apud la enhavo estas gefrato,
     // ne prapatro, do en la momento kiam tekstkampo aŭ butono interne de la paĝo
     // prenis la fokuson, la reen-klavo preterpasis ĝin kaj nenio okazis. Jen
-    // precize dogfood android-08, linio 8, de Gert: "In some circumstances, like
-    // if I just entered the settings, swiping back goes back to the calculator"
-    // - la cirkonstanco estante ke li ankoraŭ ne tuŝis la paĝon.
+    // precize dogfood android-08, linio 8: en iuj cirkonstancoj, ekzemple tuj
+    // post eniro en la agordojn, reen-svingo iris rekte al la kalkulilo - la
+    // cirkonstanco estante ke la paĝo ankoraŭ ne estis tuŝita.
     //
     // Ĉio deklarita interne de PageShell alvenas ĉi tien, do ĉi tie la
     // reen-klavo estas ĉiam kontraŭflue de kio ajn havas la fokuson.

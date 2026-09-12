@@ -14,8 +14,8 @@
 # VERSION x.y.z), do ĝi ne povas malkonsenti kun la duumaĵo.
 
 param(
-    # Du kernoj restas liberaj defaŭlte. Gert laboras sur ĉi tiu komputilo dum
-    # ĝi konstruas, kaj plena ŝarĝo faras la maŝinon neuzebla.
+    # Du kernoj restas liberaj defaŭlte. Ĉi tiu komputilo estas uzata dum ĝi
+    # konstruas, kaj plena ŝarĝo faras la maŝinon neuzebla.
     [int]$Jobs = [Math]::Max(1, [int]$env:NUMBER_OF_PROCESSORS - 2)
 )
 
@@ -77,8 +77,8 @@ foreach ($s in @("qmltooling", "tls", "networkinformation")) {
     if (Test-Path $d) { Remove-Item -LiteralPath $d -Recurse -Force }
 }
 # opengl32sw estas la programa rastrumilo al kiu Qt retiriĝas kiam ne ekzistas
-# funkcianta OpenGL-pelilo - ekstere de 2026aug31, kaj decido de Gert revizii
-# tion antaŭ ol ĉi tio atingos aliajn homojn.
+# funkcianta OpenGL-pelilo - ekstere de 2026aug31, kaj tio estas revizienda
+# antaŭ ol ĉi tio atingos aliajn homojn.
 foreach ($n in @("opengl32sw.dll", "D3Dcompiler_47.dll")) {
     if (Test-Path "$pay\$n") { Remove-Item -LiteralPath "$pay\$n" -Force }
 }

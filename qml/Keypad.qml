@@ -12,7 +12,7 @@ Item {
     id: root
     required property Agape48Engine engine
 
-    // RIGHT-click a key to rebind it. Gert asked for Ctrl+left first, then
+    // RIGHT-click a key to rebind it. The gesture was Ctrl+left first, then
     // Ctrl+right, then plain right on 2026sep10: a left button is what you
     // press all day on this face, so Ctrl+left was one stuck modifier away from
     // an accident, and then the Ctrl itself turned out to interfere with the
@@ -156,22 +156,21 @@ Item {
 
     // --- what is this key on my keyboard? ------------------------------------
     //
-    // Gert, 2026sep10: "When the mouse pointer halts for 2 seconds over a button
-    // on the calculator's face, each of it's assigned keyboard keys appears at a
-    // yellow tooltip, between angle brackets <>, and when they are more than one,
-    // separated by a newline."
+    // 2026sep10, and this is the whole specification: when the pointer halts for
+    // two seconds over a key on the face, that key's assigned keyboard keys
+    // appear in a yellow box, each between angle brackets, one to a line.
     //
     // READ FROM Agape48Keymap, NEVER FROM A SECOND TABLE. bindingsFor() is the
     // same function KeyBindingWindow lists and it already folds the user's
     // overrides over the defaults, so a rebound key says the truth here the
     // moment it is rebound. A copy of the map would start lying the first time
-    // he changed a binding - the constraint written down with the request in
+    // a binding changed - the constraint written down with the request in
     // docs/design-questions.md.
     //
     // RAW QtQuick, not Controls' ToolTip: the usage rule of 2026aug28 keeps
     // Quick Controls off the calculator face, and this is on it. Which is no
-    // loss, because the yellow he asked for is not what the Basic style paints
-    // anyway.
+    // loss, because the yellow the box is specified in is not what the Basic
+    // style paints anyway.
     //
     // Desktop in effect rather than by a platform test: a finger has no hover
     // state, so nothing below ever fires on a phone and this costs nothing there.
@@ -180,7 +179,7 @@ Item {
 
     // ĈU LA HORLOĜO FINIS. La flava skatolo mem ne plu estas ĉi tie: ĝi pendas
     // en Calculator.qml, ekster la vizaĝo, kaj legas ĉi tiujn tri proprecojn.
-    // Gert, 2026sep10, provinte la konstruon: "It's cropped by the edge of the
+    // 2026sep10, en la konstruo de tiu tago: "It's cropped by the edge of the
     // calculator face, so the buttons at the edges are less than half-displayed.
     // Couldn't the scale problem and this problem be more elegantly solved by
     // making the tooltip arise from" - la frazo estas tranĉita, la respondo
@@ -196,7 +195,7 @@ Item {
     // has been able to receive a hover event since that border was added. Not
     // the sensor: the roof over it. Which is why a HoverHandler per key failed,
     // and then one HoverHandler on the keypad failed in exactly the same way,
-    // and why Gert said "I cannot see the tooltips" twice.
+    // and why two separate reports said the tooltips could not be seen.
     //
     // Measured in isolation with qml.exe rather than argued about: four pointer
     // positions over a window built like this one, four events at the border and
@@ -254,10 +253,10 @@ Item {
         return rows.map(function (r) { return "<" + r.label + ">" }).join("\n")
     }
 
-    // NUR KIAM KLAVARO ESTAS KONEKTITA. Gert, provo 17, la sola problemo kiun la
-    // Androida duono trovis: "If I hold a button down for long in one place, it
-    // shows a keyboard shortcut. This should be disabled unless some kind of
-    // keyboard is connected." Kaj li pravas dufoje - fingro kiu tenas klavon ne
+    // NUR KIAM KLAVARO ESTAS KONEKTITA. Provo 17, la sola problemo kiun la
+    // Androida duono trovis: klavo tenata longe en unu loko montris klavaran
+    // fulmoklavon, kaj tio devas esti malŝaltita krom se klavaro estas
+    // konektita. La regulo pravas dufoje - fingro kiu tenas klavon ne
     // demandas "kiu klavo de mia klavaro estas ĉi tiu", kaj sur telefono sen
     // klavaro la respondo estus nomo de klavo kiun neniu povas premi.
     //
@@ -276,9 +275,8 @@ Item {
     // accepts only the right button, a plain left click falls straight through
     // to the keypad underneath, exactly as it did before.
     //
-    // The Ctrl came off on 2026sep10. Gert: "please change the key settings
-    // from ctrl+right-click to simple right-click, because the ctrl key is
-    // interferring with the calculator". Nothing else on this face uses the
+    // The Ctrl came off on 2026sep10, because the Ctrl key interferes with the
+    // calculator itself. Nothing else on this face uses the
     // right button, so the modifier was never earning anything.
     //
     // ANDROID REACHES THIS THE OTHER WAY. A touchscreen has no second button,
