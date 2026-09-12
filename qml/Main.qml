@@ -127,6 +127,26 @@ Window {
         visible = true
     }
 
+    // KIO LA EKRANO ESTAS, presita unufoje ĉe la lanĉo sur ĉiu platformo. Tri
+    // nombroj kiujn oni alie devas kalkuli mane el `adb shell wm size` kaj
+    // `dumpsys display`, kaj kiuj decidas ĉu Calculator.qml nomas ĉi tion
+    // granda ekrano - vidu bigScreen tie. La milimetroj estas la propra
+    // fizika denso de la aparato; kie ĝi estas nekredebla, ili legiĝas 0.
+    function logScreen() {
+        const dpr = Screen.devicePixelRatio > 0 ? Screen.devicePixelRatio : 1
+        const mm = Screen.pixelDensity > 2 && Screen.pixelDensity < 30
+                       ? Screen.pixelDensity : 0
+        // Screen.width estas logika - dp - do la fizikaj bilderoj estas la
+        // produto kaj ne la kvociento. Vidu la noton ĉe screenMinDp.
+        console.info("agape48: screen",
+                     Math.round(Screen.width * dpr) + "x" + Math.round(Screen.height * dpr), "px,",
+                     Screen.width + "x" + Screen.height, "dp,",
+                     mm > 0 ? Math.round(Screen.width / mm) + "x" + Math.round(Screen.height / mm) + " mm"
+                            : "physical size not reported",
+                     "| dpr", dpr.toFixed(3),
+                     "| big screen", calculator.bigScreen)
+    }
+
     // The window always keeps the face's proportions.
     //
     // Dogfood #1 dropped the Ctrl escape hatch that used to be here: unlocking
@@ -1088,6 +1108,7 @@ Window {
     }
 
     Component.onCompleted: {
+        logScreen()
         applyDefaultGeometry()
         engine.start()
     }

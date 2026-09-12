@@ -28,9 +28,57 @@ Item {
     function grabKeyboardFocus() { keypad.forceActiveFocus() }
 
     readonly property size faceSize: engine.skin.faceSize
+
+    // KIOM GRANDA ESTAS LA EKRANO, kaj kial DU malsamaj mezuroj estas necesaj.
+    // Gert, 2026sep12, vidinte Agape48 sur sia OnePlus Pad 3: "agape48 looks
+    // ridiculous and distorted when occupying the whole screen of a tablet. It
+    // should never do that", kaj tuj poste "Even if it wasn't distorted, it's
+    // uselessly big."
+    //
+    // ĈU GRANDA: en dp, ĉar tio estas la mezuro per kiu Androido mem decidas, kaj
+    // ĝi neniam mensogas - ĝi estas derivita de la denseca fako, kiun la sistemo
+    // konas. sw600dp estas la limo de Androido inter telefono kaj tabulo, kaj la
+    // du aparatoj ĉi tie kuŝas malproksime ambaŭflanke: la telefono de Gert
+    // raportas sw458dp, la tabulo sw914dp.
+    //
+    // KIOM GRANDA DESEGNI: en milimetroj, ĉar la demando "ĉu ĉi tiu kalkulilo
+    // estas ridinde granda" estas demando pri la mano kaj ne pri bilderoj. Kaj
+    // tio estas vere mezurebla: la tabulo raportas 315,9 x 314,4 verajn punktojn
+    // per colo apud sia fako de 420, kio donas 193 x 274 mm kaj diagonalon de
+    // 13,19 colo - la Pad 3 estas vendata kiel 13,2. La fako, uzata kiel fizika
+    // nombro, estus dirinta 9,9 colon.
+    //
+    // Sed xdpi kaj ydpi estas la du kampoj kiujn fabrikantoj plej ofte lasas ĉe
+    // iu defaŭlto, do la milimetroj estas kontrolitaj antaŭ uzo kaj la decido
+    // mem neniam dependas de ili.
+    // Screen.width ESTAS JAM EN DP, kaj tio estis mezurita anstataŭ supozita: la
+    // tabulo raportas 914x1292 kie `wm size` diras 2400x3392 kaj devicePixelRatio
+    // estas 2,625 - 914 x 2,625 = 2400. Qt donas logikajn bilderojn sur ĉiu
+    // platformo, do dividi denove per la rilatumo dividus dufoje kaj nomus
+    // 13-colan tabulon malgranda. Ĝi faris ĝuste tion en la unua konstruo:
+    // "348x492 dp | big screen false".
+    readonly property real screenMinDp: Math.min(Screen.width, Screen.height)
+    readonly property bool bigScreen: screenMinDp >= 600
+
+    // Bilderoj po milimetro, aŭ nul kiam la aparato raportas ion nekredeblan.
+    // 2 ĝis 30 kovras ĉion de televidilo ĝis poŝtelefona ekrano de 500 dpi.
+    readonly property real pxPerMm:
+        Screen.pixelDensity > 2 && Screen.pixelDensity < 30 ? Screen.pixelDensity : 0
+
+    // LA LARĜO DE VERA 48GX, 91 mm. Tio estas la respondo al "uselessly big":
+    // sur ekrano pli granda ol la maŝino mem, la ekrana maŝino ĉesas kreski kaj
+    // restas je la grando de tiu en la skatolo. Sur la tabulo tio estas 1129 el
+    // 2400 bilderoj - malpli ol kvarono de la areo - kaj sur telefono la ekrano
+    // estas pli mallarĝa ol 91 mm, do la limo neniam mordas tie.
+    readonly property real realMachineMm: 91
+    readonly property real maxScale:
+        Qt.platform.os === "android" && bigScreen && pxPerMm > 0 && faceSize.width > 0
+            ? pxPerMm * realMachineMm / faceSize.width
+            : Infinity
+
     readonly property real scaleFactor:
         faceSize.width > 0 && faceSize.height > 0
-            ? Math.min(width / faceSize.width, height / faceSize.height)
+            ? Math.min(width / faceSize.width, height / faceSize.height, maxScale)
             : 1
 
     // ANDROID FILLS THE SCREEN, the desktops keep the face's proportions. Gert,
@@ -48,7 +96,12 @@ Item {
     // One transform for the whole face, so every key, annunciator and hit area
     // follows it without knowing about any of this - the same property the
     // uniform version relied on.
-    readonly property bool fillScreen: Qt.platform.os === "android"
+    // KAJ LA STREĈO HALTAS ĈE LA TABULO. La citaĵo supre estas de telefono kaj
+    // restas vera pri telefonoj; sur ekrano kies proporcio estas 0,708 kontraŭ
+    // la 0,594 de la vizaĝo, la sama regulo larĝigas ĉiun klavon je 19% kaj tio
+    // estas la "distorted" kiun li vidis. Droid48 neniam kuris sur 13-cola
+    // tabulo.
+    readonly property bool fillScreen: Qt.platform.os === "android" && !bigScreen
     readonly property real scaleX:
         faceSize.width > 0 ? (fillScreen ? width / faceSize.width : scaleFactor) : 1
     readonly property real scaleY:

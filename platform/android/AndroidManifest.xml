@@ -110,7 +110,35 @@
             android:label="-- %%INSERT_APP_NAME%% --"
             android:launchMode="singleTop"
             android:screenOrientation="portrait"
+            android:resizeableActivity="true"
             android:exported="true">
+            <!--
+              LA FENESTRO RAJTAS ESTI MALGRANDA, kaj ĉi tiuj kvin nombroj diras
+              kian formon ĝi volas kiam la sistemo flosigas ĝin. Gert, 2026sep12,
+              sur sia OnePlus Pad 3: "in tablets or devices with a screen that's
+              big it should be a much smaller, resizeable floating window that
+              gives simultaneous access to the apps not being covered by it."
+
+              defaultWidth/defaultHeight portas la proporcion de la vizaĝo,
+              854x1438 = 0,594, do flosanta fenestro malfermiĝas jam en la ĝusta
+              formo anstataŭ esti tirata en ĝin.
+
+              minWidth 220dp estas la propra minimumo de la sistemo - la tabulo
+              raportas mMinSizeOfResizeableTaskDp=220 - do peti malpli estus peti
+              ion kion neniu donos.
+
+              resizeableActivity estas la defaŭlto ĉe targetSdk 35 kaj estas
+              skribita ĉi tie ĉar ĝi estas la kondiĉo de ĉio supre: aplikaĵo
+              markita ne-regrandigebla estas tiu kiun tabulo rifuzas flosigi.
+              screenOrientation restas "portrait" por la telefono; en plurfenestra
+              reĝimo Androido ignoras ĝin ĉiuokaze.
+            -->
+            <layout
+                android:defaultWidth="412dp"
+                android:defaultHeight="694dp"
+                android:gravity="center"
+                android:minWidth="220dp"
+                android:minHeight="370dp" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
