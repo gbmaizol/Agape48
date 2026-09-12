@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agape48</title>
+<meta name="description" content="Agape48 - an HP 48GX emulator for Windows, Linux and Android.">
+
+<!--
+  LA LINGVOELEKTILO. GitHub Pages servas nur statikajn dosierojn: neniu servilo
+  legas la kapon Accept-Language, do la elekto devas okazi en la retumilo. Tial
+  ĉi tiu paĝo ekzistas kaj tial ĝi estas nura vojmontrilo.
+
+  KION ĜI FARAS: legas navigator.languages, trovas la unuan lingvon kiun ni
+  havas, kaj anstataŭigas sin per la README en tiu lingvo, kiun GitHub mem
+  bildigas. Neniu markdown-analizilo, neniu ekstera skripto, neniu kopio de la
+  teksto kiu povus malfreŝiĝi - unu dosiero por ĉiu lingvo, en la radiko de la
+  deponejo, kaj nenie alie.
+
+  KION ĜI NE POVAS FARI: la fronta paĝo de la deponejo mem. github.com bildigas
+  README.md servilflanke, egale por ĉiuj, kaj havas nenian hokon. Tial ĉiu
+  README portas vicon da lingvoligiloj supre - tio estas la sola maniero
+  ŝanĝi lingvon TIE, kaj ĝi estas ankaŭ la maniero reveni de ĉi tie.
+
+  ALDONI LINGVON estas unu linio en LINGVOJ plus la dosiero mem plus la ligvico
+  en ĉiu README. Nenio alia scias pri la listo.
+
+  ?lang=eo trudas unu lingvon kaj preterpasas la detekton, por ligilo kiu devas
+  alteriĝi en difinita lingvo egale kies retumilo ĝin sekvas.
+-->
+
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #faf9f7; color: #1b1b1b;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #16181c; color: #e6e6e6; }
+    a { color: #8ab4f8; }
+  }
+  main { padding: 2rem 1.25rem; text-align: center; max-width: 32rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; letter-spacing: .01em; }
+  p  { margin: .5rem 0; }
+  .kvieta { opacity: .65; font-size: .9rem; }
+  ul { list-style: none; padding: 0; margin: 1.25rem 0 0; }
+  li { display: inline-block; margin: 0 .4rem; }
+</style>
+</head>
+
+<body>
+<main>
+  <h1>Agape48</h1>
+  <p class="kvieta">An HP 48GX for Windows, Linux and Android.</p>
+
+  <!-- Videbla nur se la alidirektado ne okazas: sen JavaScript, eksterrete, aŭ
+       kiam la retumilo blokas location.replace. Neniam malplena paĝo. -->
+  <p id="klarigo" class="kvieta">Choose a language:</p>
+  <ul id="lingvoj"></ul>
+  <p class="kvieta"><a href="https://github.com/gbmaizol/Agape48">Repository</a> &middot; <a href="https://github.com/gbmaizol/Agape48/releases/latest">Downloads</a></p>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // La sola loko kiu scias kiuj lingvoj ekzistas. La unua estas la retrofalo.
+  var LINGVOJ = [
+    { etikedo: "en", nomo: "English",   dosiero: "README.md" },
+    { etikedo: "eo", nomo: "Esperanto", dosiero: "README.eo.md" }
+  ];
+  var BAZO = "https://github.com/gbmaizol/Agape48/blob/main/";
+
+  // Unue ekzakta kongruo (pt-BR), poste nur la ĉefa subetikedo (pt), ĉar
+  // retumilo petanta pt-PT devas ricevi pt-BR anstataŭ la anglan.
+  function trovu(peto) {
+    if (!peto) return null;
+    var p = String(peto).toLowerCase();
+    var baza = p.split("-")[0];
+    var i;
+    for (i = 0; i < LINGVOJ.length; i++)
+      if (LINGVOJ[i].etikedo.toLowerCase() === p) return LINGVOJ[i];
+    for (i = 0; i < LINGVOJ.length; i++)
+      if (LINGVOJ[i].etikedo.toLowerCase().split("-")[0] === baza) return LINGVOJ[i];
+    return null;
+  }
+
+  function elektu() {
+    var trudita = null;
+    try {
+      trudita = trovu(new URLSearchParams(location.search).get("lang"));
+    } catch (e) { /* malnova retumilo sen URLSearchParams: nur detektu */ }
+    if (trudita) return trudita;
+
+    var prefoj = (navigator.languages && navigator.languages.length)
+               ? navigator.languages
+               : [navigator.language || navigator.userLanguage || "en"];
+    for (var i = 0; i < prefoj.length; i++) {
+      var t = trovu(prefoj[i]);
+      if (t) return t;
+    }
+    return LINGVOJ[0];
+  }
+
+  // La listo estas konstruata ANTAŬ la alidirektado, por ke paĝo kiu restas
+  // restu uzebla.
+  var ul = document.getElementById("lingvoj");
+  LINGVOJ.forEach(function (l) {
+    var li = document.createElement("li");
+    var a = document.createElement("a");
+    a.href = BAZO + l.dosiero;
+    a.textContent = l.nomo;
+    a.setAttribute("lang", l.etikedo);
+    li.appendChild(a);
+    ul.appendChild(li);
+  });
+
+  var elektita = elektu();
+  document.getElementById("klarigo").textContent = "Opening the README in " + elektita.nomo + "…";
+  // replace, ne assign: la butono Reen devas konduki kien la vizitanto venis,
+  // ne remeti lin en alidirektilon kiu tuj resendas lin.
+  location.replace(BAZO + elektita.dosiero);
+})();
+</script>
+
+<noscript>
+  <!-- Sen JavaScript nenio povas detekti; la listo supre estas malplena, do ĉi
+       tiu portas siajn proprajn ligilojn. -->
+  <p style="text-align:center">
+    <a href="https://github.com/gbmaizol/Agape48/blob/main/README.md" lang="en">English</a> &middot;
+    <a href="https://github.com/gbmaizol/Agape48/blob/main/README.eo.md" lang="eo">Esperanto</a>
+  </p>
+</noscript>
+</body>
+</html>
