@@ -1,5 +1,7 @@
 # Agape48
 
+**English** · [Esperanto](README.eo.md)
+
 **The HP 48 you already love, on the computer and the phone you actually use — and it takes your calculator with you.**
 
 "HP" spoken in Brazilian Portuguese is *agá-pê*, which is the Greek ἀγάπη: love. Agape48 is named after the way people talk about this calculator.
