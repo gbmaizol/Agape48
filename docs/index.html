@@ -66,11 +66,18 @@
 (function () {
   "use strict";
 
-  // La sola loko kiu scias kiuj lingvoj ekzistas. La unua estas la retrofalo.
+  // La sola loko kiu scias kiuj lingvoj ekzistas. La ordo estas tiu de la
+  // ligvicoj en la README-oj: la angla unue kiel originalo, la ceteraj alfabete
+  // laŭ sia propra nomo. RETROFALO estas nomata kaj ne pozicia, por ke
+  // reordigi la liston ne ŝanĝu la konduton.
   var LINGVOJ = [
-    { etikedo: "en", nomo: "English",   dosiero: "README.md" },
-    { etikedo: "eo", nomo: "Esperanto", dosiero: "README.eo.md" }
+    { etikedo: "en",    nomo: "English",   dosiero: "README.md" },
+    { etikedo: "da",    nomo: "Dansk",     dosiero: "README.da.md" },
+    { etikedo: "es",    nomo: "Español",   dosiero: "README.es.md" },
+    { etikedo: "eo",    nomo: "Esperanto", dosiero: "README.eo.md" },
+    { etikedo: "pt-BR", nomo: "Português", dosiero: "README.pt-BR.md" }
   ];
+  var RETROFALO = "en";
   var BAZO = "https://github.com/gbmaizol/Agape48/blob/main/";
 
   // Unue ekzakta kongruo (pt-BR), poste nur la ĉefa subetikedo (pt), ĉar
@@ -101,7 +108,7 @@
       var t = trovu(prefoj[i]);
       if (t) return t;
     }
-    return LINGVOJ[0];
+    return trovu(RETROFALO) || LINGVOJ[0];
   }
 
   // La listo estas konstruata ANTAŬ la alidirektado, por ke paĝo kiu restas
@@ -130,7 +137,10 @@
        tiu portas siajn proprajn ligilojn. -->
   <p style="text-align:center">
     <a href="https://github.com/gbmaizol/Agape48/blob/main/README.md" lang="en">English</a> &middot;
-    <a href="https://github.com/gbmaizol/Agape48/blob/main/README.eo.md" lang="eo">Esperanto</a>
+    <a href="https://github.com/gbmaizol/Agape48/blob/main/README.da.md" lang="da">Dansk</a> &middot;
+    <a href="https://github.com/gbmaizol/Agape48/blob/main/README.es.md" lang="es">Español</a> &middot;
+    <a href="https://github.com/gbmaizol/Agape48/blob/main/README.eo.md" lang="eo">Esperanto</a> &middot;
+    <a href="https://github.com/gbmaizol/Agape48/blob/main/README.pt-BR.md" lang="pt-BR">Português</a>
   </p>
 </noscript>
 </body>
