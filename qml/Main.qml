@@ -307,12 +307,24 @@ Window {
     // eĉ dum la kalkulilo estas okupata - mezurite same - kaj tio estus malvera.
     // Akceptita ŝvebado ja ricevas ĉiun movon, do kalkulilo, kiu ĉesas esti preta
     // dum la muso restas, ŝanĝas la kursoron al rifuzo. drop() kontrolas denove.
+    //
+    // ANDROID HAVAS NEK KURSORON NEK LA ENHAVON DUM LA ŜVEBADO. Qt 6.12 donas al
+    // la ŝvebado nur la MIME-tipojn, ĉar Android malfermas la tirataĵon nur ĉe
+    // ACTION_DROP (QtDragManager.java), do nenio legebla ekzistas por juĝi. Tie
+    // ĉiu ŝvebado estas akceptata, kaj drop() decidas ĉe la demeto, kun la kialo
+    // en la ruĝa strio. Rifuzo sen demeto estus silenta: onDropped ne venas post
+    // rifuzita eniro.
     DropArea {
         anchors.fill: calculator
         property string kind: ""
         property string kindFor: ""
+        readonly property bool typesOnly: Qt.platform.os === "android"
 
         function judge(drag) {
+            if (typesOnly) {
+                drag.accept(Qt.CopyAction)
+                return
+            }
             const text = drag.hasText ? drag.text : ""
             const key = drag.urls.join("\n") + "\u0001" + text
             if (key !== kindFor) {
@@ -325,12 +337,28 @@ Window {
                 drag.accepted = false
         }
 
+        // Dosiero el alia Android-aplikaĵo ne venas en text/uri-list: ĝia
+        // content://-adreso kuŝas sub la propra MIME-tipo de la dosiero, ekzemple
+        // application/octet-stream, kaj drop.urls restas malplena. Qt metas tie
+        // nur la adreson de la unua dosiero. Tekstdosiero alvenas jam legita, kiel
+        // text/plain.
+        function urlsOf(drop) {
+            if (drop.urls.length > 0)
+                return drop.urls
+            for (const format of drop.formats) {
+                const value = drop.getDataAsString(format)
+                if (value.startsWith("content://"))
+                    return [value]
+            }
+            return []
+        }
+
         onEntered: (drag) => judge(drag)
         onPositionChanged: (drag) => judge(drag)
         onExited: kindFor = ""
         onDropped: (drop) => {
             kindFor = ""
-            if (engine.drop(drop.urls, drop.hasText ? drop.text : ""))
+            if (engine.drop(urlsOf(drop), drop.hasText ? drop.text : ""))
                 drop.accept(Qt.CopyAction)
             else
                 drop.accepted = false
