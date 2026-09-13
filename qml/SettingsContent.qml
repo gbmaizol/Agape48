@@ -678,11 +678,10 @@ Item {
         // window had focus. Measured at the time: 78.1 s of
         // running against 443.4 s of uptime, alive 17.6% of the elapsed time.
         //
-        // OFF BY DEFAULT BECAUSE HE ASKED FOR IT THAT WAY, twice: "Maybe it's
-        // not a bug, but a feature. I can leave with that", then "Although it's
-        // totally ok to have games progress only when focused." So this is a
-        // way out for the one case that wants it - a long computation left to
-        // run - and not a repair.
+        // OFF BY DEFAULT, because a game that progresses only while its window
+        // has focus is acceptable behaviour. So this is a way out for the one
+        // case that wants it - a long computation left to run - and not a
+        // repair.
         //
         // Not on a phone: Android stops the process when it pleases, so the
         // switch would promise something the platform will not honour.
@@ -691,6 +690,22 @@ Item {
             text: qsTr("Keep running when out of focus")
             checked: root.engine.runUnfocused
             onToggled: root.engine.runUnfocused = checked
+        }
+
+        // AŬTOMATAJ →STR KAJ STR→, ambaŭ defaŭlte malŝaltitaj. Kopii kun →STR
+        // akceptas kian ajn objekton, ĉar la ROM mem faras la tekston. Algluita
+        // aŭ demetita teksto kun STR→ alvenas kompilita - kaj plenumita, kiel
+        // komandlinio post ENTER. Sen klariga teksto, same kiel la ŝaltiloj
+        // ĉirkaŭe.
+        CompactSwitch {
+            text: qsTr("Automatic \u2192STR on Copy")
+            checked: root.engine.autoToStr
+            onToggled: root.engine.autoToStr = checked
+        }
+        CompactSwitch {
+            text: qsTr("Automatic STR\u2192 on Paste and drop")
+            checked: root.engine.autoStrTo
+            onToggled: root.engine.autoStrTo = checked
         }
 
         // THE CALIBRATION LIVES IN THE ADVANCED WINDOW NOW, since 2026sep10.

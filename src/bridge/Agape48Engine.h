@@ -106,6 +106,15 @@ class Agape48Engine : public QObject
     // times too fast. See kRealSpeedInstrPerSec for where the rate comes from.
     Q_PROPERTY(bool realSpeed READ realSpeed WRITE setRealSpeed NOTIFY realSpeedChanged)
 
+    // AŬTOMATAJ →STR KAJ STR→, du ŝaltiloj en Agordoj, ambaŭ defaŭlte malŝaltitaj.
+    // Kun autoToStr, Kopii rulas →STR per la ROM kaj kopias ties tekston, do ĉiu
+    // tipo de objekto iĝas kopiebla. Kun autoStrTo, algluita aŭ demetita teksto
+    // trapasas STR→, kiu kompilas kaj PLENUMAS ĝin ĝuste kiel komandlinio post
+    // ENTER: "1 2 +" alvenas kiel 3. Loĝas en la dosierujo de la kalkulilo, kiel
+    // la aliaj agordoj de konduto.
+    Q_PROPERTY(bool autoToStr READ autoToStr WRITE setAutoToStr NOTIFY autoToStrChanged)
+    Q_PROPERTY(bool autoStrTo READ autoStrTo WRITE setAutoStrTo NOTIFY autoStrToChanged)
+
     // THE RATE ITSELF, so calibrating it never needs a rebuild: a calibration
     // program on the calculator measures the rate, and the number it produces is
     // typed in here once. The default is derived rather than picked - see
@@ -152,6 +161,8 @@ public:
     double speedFactorMax() const;
     int  effectiveRate() const;
     bool realSpeed() const      { return m_realSpeed; }
+    bool autoToStr() const      { return m_autoToStr; }
+    bool autoStrTo() const      { return m_autoStrTo; }
     int  realSpeedRate() const  { return m_realSpeedRate; }
     int  measuredRate() const   { return m_measuredRate; }
     QString logPath() const;
@@ -178,6 +189,8 @@ public:
     void setSpeedFactor(double factor);
     void setRealSpeed(bool on);
     void setRealSpeedRate(int instructionsPerSecond);
+    void setAutoToStr(bool on);
+    void setAutoStrTo(bool on);
 
     // --- asking another instance for a calculator ---------------------------
     // Writes the request, then waits for whoever has it to save and let go.
@@ -266,6 +279,18 @@ public:
     Q_INVOKABLE bool importFile(const QUrl &url);
     Q_INVOKABLE bool exportFile(const QUrl &url);
 
+    // --- tiri kaj demeti sur la kalkulilon -----------------------------------
+    // dropKind() rigardas nur kio estas tirata: "rom", "object", "text", aŭ
+    // "unknown" kiam la enhavo ankoraŭ ne estas legebla (Androido montras nur la
+    // tipon ĝis la demeto). Malplena signifas nenion ŝarĝeblan. dropAllowed()
+    // aldonas la staton de la kalkulilo en la momento de la voko - legitan rekte
+    // el ĝia RAM, sen konservo - kaj kostas nenion, do ĝi respondas je ĉiu movo
+    // de la muso. ROM estas akceptata nur kiam neniu ROM ekzistas; ĉio alia nur
+    // kiam la kalkulilo atendas ĉe la stako.
+    Q_INVOKABLE QString dropKind(const QList<QUrl> &urls, const QString &text);
+    Q_INVOKABLE bool dropAllowed(const QString &kind) const;
+    Q_INVOKABLE bool drop(const QList<QUrl> &urls, const QString &text);
+
     Q_INVOKABLE QUrl    pathToUrl(const QString &path) const;
     Q_INVOKABLE QString urlToPath(const QUrl &url) const;
 
@@ -311,7 +336,8 @@ public slots:
     // noticing they did nothing. Handing back what was copied lets the menu
     // say it out loud, and that sentence is also the only way to see, from
     // outside, that the number was read correctly. Empty means it failed and
-    // lastError says why.
+    // lastError says why - krom kun la aŭtomata →STR, kiam la redono ĉiam estas
+    // malplena kaj la teksto alvenas poste per clipboardCopied, post la ROM.
     QString copyStackToClipboard();
     bool pasteClipboardToStack();
 
@@ -327,6 +353,11 @@ signals:
     void debugLoggingChanged();
     void realSpeedChanged();
     void realSpeedRateChanged();
+    void autoToStrChanged();
+    void autoStrToChanged();
+    // Kion Kopii metis en la tondujon. Ankaŭ la aŭtomata →STR alvenas ĉi tie,
+    // kelkajn momentojn post la menuero, kiam la ROM finis.
+    void clipboardCopied(const QString &text);
     void measuredRateChanged();
     void liveResizeChanged();
     void runUnfocusedChanged();
@@ -374,6 +405,13 @@ private:
     int  realSpeedBudget();
     void writeSpeedProbe();
     void queueTaps(const QStringList &keys);
+    QStringList unlatchShifts() const;
+    QString notReadyReason() const;
+    bool readyForObject(bool pressesKeys);
+    bool pasteText(const QString &text);
+    void beginAuto(int step);
+    void stepAuto();
+    QString sniffDropFile(const QUrl &url) const;
     void shutdownCore();
     // Save, release, detach: the single way a calculator leaves this window,
     // whether the user switched it off or another machine asked for it.
@@ -451,6 +489,19 @@ private:
     QHash<int, qint64> m_downAt;
     QSet<int>         m_releasePending;
     QStringList       m_tapQueue;   // keys Agape48 presses on the user's behalf
+
+    // La aŭtomata →STR aŭ STR→ en progreso: 0 neniu, 1 →STR, 2 STR→. La objekto
+    // estas la adreso de la programo puŝita por EVAL, kaj ĝia malapero de nivelo
+    // 1 estas la signo, ke la ROM vere rulis ĝin.
+    bool              m_autoToStr = false;
+    bool              m_autoStrTo = false;
+    int               m_autoStep = 0;
+    quint32           m_autoObject = 0;
+    // Demeto sur fenestron sen fokuso rekomencigis la haltigitan takton por siaj
+    // klavoj. Kiam ĉio finiĝis, la kalkulilo reiras al la paŭzo.
+    bool              m_dropWoke = false;
+    qint64            m_autoSince = 0;
+    bool              m_autoEvalQueued = false;
     QUrl              m_romSource;
     QString           m_lastError;
     QStringList       m_pressed;

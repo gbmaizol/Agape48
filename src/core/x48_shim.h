@@ -152,17 +152,61 @@ uint64_t    x48_ram_digest(void);
  * inkluzive de dosiero kiu tute ne estas HP 48-objekto. */
 bool        x48_stack_has_object(void);   /* ĉu io estas sur nivelo 1? */
 bool        x48_import_file(const char *path);
+/* La samaj kontroloj kiel x48_import_file() sen puŝi - inkluzive de libera
+ * memoro, kiam kalkulilo funkcias. */
+bool        x48_object_file_loadable(const char *path);
 bool        x48_export_file(const char *path);
 
 /* --- tondujo ------------------------------------------------------------ */
 
-/* Bildigas nivelon 1 de la RPL-stako kiel UTF-8 en buf. Redonas la skribitan
+/* Bildigas nivelon 1 de la RPL-stako kiel UTF-8 en buf: reela nombro aŭ ĉeno,
+ * kun la tuta HP 48-signaro tradukita al Unikodo. Redonas la skribitan
  * bajtolongon, aŭ la bezonatan longon (> buflen) se buf estis tro malgranda. */
 size_t      x48_stack_to_text(char *buf, size_t buflen);
 
-/* Analizas UTF-8 kaj puŝas la rezulton sur la stakon. Redonas false se la
- * teksto ne estas valida RPL-objekto. */
+/* Puŝas UTF-8 sur la stakon: nombro iĝas reela nombro, ĉio alia ĉeno. Akceptas
+ * Unikodon, la trigrafojn de la transiga formato (\<<, \->) kaj kaplinion
+ * "%%HP: T(3)A(D)F(.);". Redonas false kaj nomas la signon kiam iu signo ne
+ * havas HP 48-ekvivalenton. */
 bool        x48_text_to_stack(const char *utf8);
+
+/* La sama kontrolo sen puŝi: ĉu x48_text_to_stack() akceptus ĉi tiun tekston?
+ * Ne bezonas funkciantan kalkulilon. */
+bool        x48_text_loadable(const char *utf8);
+
+bool        x48_level1_is_string(void);
+uint32_t    x48_level1_address(void);     /* 0 kiam nivelo 1 estas malplena */
+
+/* --- preteco por ricevi objekton ---------------------------------------- */
+
+/* Kie la kalkulilo estas, legite rekte el ĝia RAM je la momento de la voko -
+ * sen konservo, sen disko, en mikrosekundoj. Mezurita sur ĉiuj kvin
+ * GX-revizioj K, L, M, P kaj R, kiuj konsentas duonbajton post duonbajto. */
+typedef enum x48_readiness_e {
+    X48_READY = 0,     /* ĉe la stako kaj senokupa: preta ricevi objekton   */
+    X48_NOT_RUNNING,   /* neniu kalkulilo funkcias                          */
+    X48_NOT_GX,        /* SX-ROM: la adresoj validas nur por la GX          */
+    X48_BUSY,          /* programo kuras                                    */
+    X48_OFF,           /* la kalkulilo estas malŝaltita                     */
+    X48_EDITING,       /* komandlinio aŭ redaktilo malfermita               */
+    X48_MESSAGE,       /* mesaĝo, ekzemple eraro, kovras la stakon          */
+    X48_ELSEWHERE      /* formularo, aplikaĵo, interaga stako aŭ bildo      */
+} x48_readiness_t;
+
+x48_readiness_t x48_readiness(void);
+
+/* Ĉu USER-reĝimo estas ŝaltita (1USR aŭ ŝlosita)? En ĝi ĉiu klavo povas havi
+ * alian taskon, do la aŭtomata vojo ĉi-sube ne premas klavojn tiam. */
+bool        x48_user_mode(void);
+
+/* --- aŭtomataj →STR kaj STR→ -------------------------------------------- */
+
+/* Puŝas malgrandan programon sur la stakon, por ke premo de EVAL rulu ĝin per
+ * la ROM mem: « DUP →STR » lasas la originalon kaj ĝian tekston; « STR→ »
+ * kompilas kaj plenumas ĉenon, ĝuste kiel tajpita komandlinio post ENTER. */
+bool        x48_push_tostr_program(void);
+bool        x48_push_strto_program(void);
+bool        x48_drop_level1(void);
 
 /* --- pepilo ------------------------------------------------------------- */
 
