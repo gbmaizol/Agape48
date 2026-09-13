@@ -492,11 +492,13 @@ private:
 
     // La aŭtomata →STR aŭ STR→ en progreso: 0 neniu, 1 →STR, 2 STR→. La objekto
     // estas la adreso de la programo puŝita por EVAL, kaj ĝia malapero de nivelo
-    // 1 estas la signo, ke la ROM vere rulis ĝin.
+    // 1 estas la signo, ke la ROM vere rulis ĝin. La teksto estas tiu de la ĉeno,
+    // kiun STR→ ricevis: rifuzita STR→ remetas ĉenon kun ĝuste ĝi.
     bool              m_autoToStr = false;
     bool              m_autoStrTo = false;
     int               m_autoStep = 0;
     quint32           m_autoObject = 0;
+    QString           m_autoPasted;
     // Demeto sur fenestron sen fokuso rekomencigis la haltigitan takton por siaj
     // klavoj. Kiam ĉio finiĝis, la kalkulilo reiras al la paŭzo.
     bool              m_dropWoke = false;

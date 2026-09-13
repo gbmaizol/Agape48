@@ -1987,6 +1987,24 @@ bool Agape48Engine::reloadState()
 
 // --- clipboard --------------------------------------------------------------
 
+// Nivelo 1 kiel teksto, per la tradukado de la kerno. False, kun la frazo en
+// x48_last_error(), kiam nivelo 1 estas nek nombro nek ĉeno.
+static bool level1Text(QString *text)
+{
+    QByteArray buf(512, Qt::Uninitialized);
+    size_t need = x48_stack_to_text(buf.data(), size_t(buf.size()));
+    if (need > size_t(buf.size())) {          // retry once with the real size
+        buf.resize(int(need));
+        need = x48_stack_to_text(buf.data(), size_t(buf.size()));
+    }
+    if (need == 0 || need > size_t(buf.size()))
+        return false;
+    // need counts the terminator the core writes; the string does not want it.
+    buf.truncate(int(need) - 1);
+    *text = QString::fromUtf8(buf);
+    return true;
+}
+
 QString Agape48Engine::copyStackToClipboard()
 {
     // Kun la aŭtomata →STR la teksto venas de la ROM, kelkajn momentojn poste:
@@ -2002,23 +2020,11 @@ QString Agape48Engine::copyStackToClipboard()
         }
         return {};
     }
-    QByteArray buf(512, Qt::Uninitialized);
-    size_t need = x48_stack_to_text(buf.data(), size_t(buf.size()));
-    if (need == 0) {
+    QString text;
+    if (!level1Text(&text)) {
         setError(QString::fromUtf8(x48_last_error()));
         return {};
     }
-    if (need > size_t(buf.size())) {          // retry once with the real size
-        buf.resize(int(need));
-        need = x48_stack_to_text(buf.data(), size_t(buf.size()));
-        if (need == 0 || need > size_t(buf.size())) {
-            setError(QString::fromUtf8(x48_last_error()));
-            return {};
-        }
-    }
-    // need counts the terminator the core writes; the string does not want it.
-    buf.truncate(int(need) - 1);
-    const QString text = QString::fromUtf8(buf);
     QGuiApplication::clipboard()->setText(text);
     emit clipboardCopied(text);
     return text;
@@ -2106,6 +2112,7 @@ bool Agape48Engine::pasteText(const QString &text)
     setTickRate(kTickIntervalMs);
     // Nombro jam estas objekto; nur ĉeno bezonas STR→.
     if (strTo && x48_level1_is_string()) {
+        level1Text(&m_autoPasted);
         if (x48_push_strto_program()) {
             beginAuto(2);
             return true;
@@ -2200,18 +2207,11 @@ void Agape48Engine::stepAuto()
             setError(tr("→STR stopped before it finished. The calculator's screen says why."));
             return;
         }
-        QByteArray buf(512, Qt::Uninitialized);
-        size_t need = x48_stack_to_text(buf.data(), size_t(buf.size()));
-        if (need > size_t(buf.size())) {
-            buf.resize(int(need));
-            need = x48_stack_to_text(buf.data(), size_t(buf.size()));
-        }
-        if (need == 0 || need > size_t(buf.size())) {
+        QString text;
+        if (!level1Text(&text)) {
             setError(QString::fromUtf8(x48_last_error()));
             return;
         }
-        buf.truncate(int(need) - 1);
-        const QString text = QString::fromUtf8(buf);
         // La ĉeno estis nur la vojo al la tondujo; la stako restas kia ĝi estis.
         x48_drop_level1();
         queueTaps(unlatchShifts() << QStringLiteral("ON"));
@@ -2220,7 +2220,16 @@ void Agape48Engine::stepAuto()
         return;
     }
 
-    if (state != X48_READY)
+    // RIFUZITAN STR→ MONTRAS LA TEKSTO, NE LA STATO. La ROM remetas la ĉenon per
+    // LASTARG, ĉe alia adreso ol la algluita (mezurite), kaj la eraro staras en la
+    // statusaj linioj, kiujn x48_readiness() ne legas. Sukcesa STR→ lasas ĉenon
+    // kun la sama teksto nur se la teksto mem ĝin rekreas, ekzemple nomo de
+    // variablo, kiu enhavas ĝuste tiun tekston.
+    QString back;
+    const bool refused = x48_level1_is_string() && level1Text(&back)
+                         && back == m_autoPasted;
+    m_autoPasted.clear();
+    if (state != X48_READY || refused)
         setError(tr("STR→ stopped with a message. The calculator's screen says why."));
 }
 

@@ -1387,9 +1387,10 @@ size_t x48_stack_to_text(char *buf, size_t buflen)
             buf[at] = '\0';
     } else {
         free(nibs);
-        set_error("Copy handles a number or a text string on level 1. For "
-                  "anything else use Export from stack to file, which writes "
-                  "every kind of object.");
+        set_error("Copy handles a number or a text string on level 1. "
+                  "Automatic \xE2\x86\x92" "STR on Copy, in Settings, copies "
+                  "every other kind of object as text, and Export from stack "
+                  "to file writes it whole.");
         return 0;
     }
 
@@ -1603,6 +1604,16 @@ bool x48_level1_is_string(void)
  * malaperas je la sekva klavo. Post malsukcesa STR→ la teksto estas denove sur
  * nivelo 1 kiel ĉeno, kaj la eraro staras supre.
  *
+ * 8080C NE ESTAS LEGATA. Kalkulilo, kies stako montras ses nivelojn sen statusaj
+ * linioj kaj algebraĵojn kiel frakciojn - laboro de biblioteko, ĉar fabrika 48GX
+ * ne faras tion - tenas 8080C je 0 dum ĝi atendas ĉe la stako. Mezurite
+ * 2026sep13 en la konservita RAM de tri tiaj kalkuliloj, kaj sur kopio de unu el
+ * ili tra la stako, eraro supre, komandlinio kaj ON: 0 en ĉiu, krom en la
+ * redaktilo. Tie 8080C distingas nenion, kaj sur fabrika kalkulilo ĝi distingas
+ * nur la eraron supre, kiu ne malhelpas la stakon ricevi objekton - la ON-premo
+ * post la ŝarĝo forigas la mesaĝon. 80801 restas 4 sur tiu kalkulilo, do
+ * "mesaĝo sur stako" plu estas rifuzata.
+ *
  * 80806 portas ankaŭ 1USR en sia plej malalta bito, kaj tio ne gravas ĉi tie.
  * HALT havas ĝuste la valorojn de la stako - nur la reirstako estas pli
  * profunda - kaj estas preta laŭ intenco: la tuta celo de HALT estas labori
@@ -1617,7 +1628,6 @@ bool x48_level1_is_string(void)
 #define A48_UI_C   0x80806
 #define A48_UI_D   0x8080A
 #define A48_UI_E   0x8080B
-#define A48_UI_F   0x8080C
 #define A48_USERF  0x80852         /* bito 1: USER, ĉu 1USR ĉu ŝlosita */
 
 static unsigned ram_nib(DWORD a)
@@ -1637,7 +1647,7 @@ x48_readiness_t x48_readiness(void)
         return X48_EDITING;
     if (!(ram_nib(A48_UI_C) & 2) || ram_nib(A48_UI_D) != 4 || ram_nib(A48_UI_E) != 0)
         return X48_ELSEWHERE;
-    if (ram_nib(A48_UI_A) != 4 || ram_nib(A48_UI_F) != 1)
+    if (ram_nib(A48_UI_A) != 4)
         return X48_MESSAGE;
     return X48_READY;
 }
