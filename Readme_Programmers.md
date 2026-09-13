@@ -137,7 +137,7 @@ cmake --build build-android --target apk
 
 ## Size budget
 
-**The target is under 20 MB installed.** That is the number to design against, and it reframes everything below: a stock shared-Qt Quick app lands near or just over it, a leanly configured Qt lands far under. So the first row of this table is the whole game and the rest is rounding. Do not trade away clarity, a dependency that earns its keep, or a day of work for a few hundred KB - at this budget those are free.
+**The target is under 20 MB installed.** That is the number to design against, and it reframes everything below: a shared Qt cannot reach it. With Qt shared, 0.9.2 installs at 63.6 MB on Windows and 96 MB on Linux, and removing everything the app never loads still leaves about 55 MB on Linux, because Gui, Quick, Core and Qml alone come to 33 MB. So the first row of this table is the whole game and the rest is rounding. Do not trade away clarity, a dependency that earns its keep, or a day of work for a few hundred KB - at this budget those are free.
 
 Ordered by how much each one actually saves.
 

@@ -78,9 +78,9 @@ Vera HP 48 kuras je ĉirkaŭ 2 MHz en silicio de 1990, kaj por tio ekzistas ŝal
 - **Importu kaj eksportu HP 48-objektdosierojn** — la formato `HPHP48-` — en ambaŭ direktoj, kio estas la maniero kiel programo moviĝas al vera 48, al Emu48, al Droid48, aŭ reen. Kontrolite bajton post bajto kontraŭ Emu48, kun ekstera biblioteko kiel kontrolilo: el 1206 bajtoj, 1205 revenis identaj, kaj la unu kiu diferencas estas la bajto kiu *nomas la maŝinon kiu skribis la dosieron*, kiel ĝi devas.
 - **Save memory now** kiam ajn vi volas, kaj aŭtomate kiam la aplikaĵo iras al la fono.
 
-## Malgranda, kaj ne baranta la vojon
+## Memstara, kaj ne baranta la vojon
 
-Malpli ol 20 MB instalita, unu dosiero por ĉiu platformo, neniu rultempo instalenda antaŭe. La fenestro libere regrandiĝas kaj konservas la proporciojn de la kalkulilo; vi povas fari ĝin maldika strio apud via laboro aŭ plenigi la ekranon per ĝi. La tekstgrandoj estas agordeblaj, ĉar kalkulilo kiun vi tenas malfermita la tutan tagon estas kalkulilo kiun vi devus povi legi.
+Unu dosiero por ĉiu platformo, kun propra kopio de Qt interne, do neniu rultempo estas instalenda antaŭe. La fenestro libere regrandiĝas kaj konservas la proporciojn de la kalkulilo; vi povas fari ĝin maldika strio apud via laboro aŭ plenigi la ekranon per ĝi. La tekstgrandoj estas agordeblaj, ĉar kalkulilo kiun vi tenas malfermita la tutan tagon estas kalkulilo kiun vi devus povi legi.
 
 ## Instali ĝin
 
@@ -92,7 +92,7 @@ La averto-tekstoj citataj sube aperas en la lingvo de via sistemo. Ili staras ĉ
 
 ### Windows
 
-1. Elŝutu **[`Agape48-0.9.2-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)**.
+1. Elŝutu **[`Agape48-0.9.2-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 MB).
 2. **Windows haltigos vin**: *«Windows protected your PC»*. Klaku **More info**, poste **Run anyway**. Tiu mesaĝo ne estas virusaverto — ĝi estas Windows dirante ke la instalilo portas neniun kodsubskriban atestilon, kio estas aĉeto prefere ol konstrupaŝo. Nenio en la elŝuto estas pakita aŭ obskurigita, kaj ĉiu bajto de fonto kiu eniris ĝin troviĝas en ĉi tiu deponejo.
 3. **Next**, **Next**, **Install**. Ĝi iras en `Program Files` kaj aldonas eron al la Komenca menuo.
 4. Startigu ĝin el la Komenca menuo. Ĝi malinstaliĝas kiel ĉiu alia programo, el *Apps & features*.
@@ -110,11 +110,11 @@ Ne estas `chmod`-paŝo: `tar` konservas la plenumbiton, do `install.sh` simple r
 
 Ĉio alteriĝas sub `~/.local/share/agape48`, la menuero aperas sub **Education**, kaj tajpi `agape48` rulas ĝin se `~/.local/bin` estas sur via `PATH`. La Qt-rultempo vojaĝas interne de la tar-arkivo, do ne estas distribua pakaĵo ĉasenda kaj nenio instalenda antaŭe — kio ankaŭ signifas ke ĝi ne povas rompiĝi kiam via distribuo transiras al la sekva Qt. Por forigi ĝin: `~/.local/share/agape48/uninstall.sh`, kiu reprenas ĝuste tion kion ĝi demetis kaj lasas viajn kalkulilojn netuŝitaj.
 
-La elŝuto estas 37 MB kaj malpakiĝas al 98 MB, preskaŭ tute Qt. Ĝi estas konstruita por **x86_64** kontraŭ **glibc 2.39**, do Ubuntu 24.04, Mint 22, Debian 13 aŭ io ajn pli nova. Sur pli malnova distribuo ĝi haltas je la starto kun linio `GLIBC_2.xx not found`, kiu legiĝas kiel kraŝo kaj ne estas tia. Testita sur X11.
+La elŝuto estas 35,9 MB kaj malpakiĝas al 96 MB, preskaŭ tute Qt. Ĝi estas konstruita por **x86_64** kontraŭ **glibc 2.39**, do Ubuntu 24.04, Mint 22, Debian 13 aŭ io ajn pli nova. Sur pli malnova distribuo ĝi haltas je la starto kun linio `GLIBC_2.xx not found`, kiu legiĝas kiel kraŝo kaj ne estas tia. Testita sur X11.
 
 ### Android
 
-1. Elŝutu **[`Agape48-0.9.2-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** sur la telefonon kaj frapetu ĝin.
+1. Elŝutu **[`Agape48-0.9.2-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 MB) sur la telefonon kaj frapetu ĝin.
 2. **Android rifuzos la unuan fojon** — *«your phone is not allowed to install unknown apps from this source»* — ĉar la dosiero ne venis el la Play Store. Frapetu **Settings**, permesu tiun unu fonton, kaj revenu. Android demandas laŭ *fonto*, do permesi vian retumilon ne samtempe permesas vian dosieradministrilon.
 3. Play Protect poste eble avertos pri aplikaĵo de nerekonata programisto. La butono **Install anyway** kaŝiĝas malantaŭ *More details*.
 4. Frapetu **Open**. Sur telefono la kalkulilo plenigas la ekranon, kiel Droid48 faras.

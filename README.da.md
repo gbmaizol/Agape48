@@ -78,9 +78,9 @@ En rigtig HP 48 kører ved omkring 2 MHz i 1990-silicium, og der findes en konta
 - **Importér og eksportér HP 48-objektfiler** — formatet `HPHP48-` — begge veje, hvilket er sådan et program flytter sig til en rigtig 48, til Emu48, til Droid48, eller tilbage. Kontrolleret byte for byte mod Emu48 med et tredjepartsbibliotek som kontrol: af 1206 byte kom 1205 identiske tilbage, og den ene, der adskiller sig, er den byte, der *navngiver den maskine, som skrev filen*, hvilket den skal.
 - **Save memory now** når du har lyst, og automatisk når appen går i baggrunden.
 
-## Lille, og i vejen for ingen
+## Selvstændig, og i vejen for ingen
 
-Under 20 MB installeret, én fil per platform, ingen runtime at installere først. Vinduet kan frit skifte størrelse og holder lommeregnerens proportioner; du kan gøre den til en smal strimmel ved siden af dit arbejde eller fylde skærmen med den. Tekststørrelser kan justeres, for en lommeregner, du har åben hele dagen, er en lommeregner, du bør kunne læse.
+Én fil per platform, med sin egen kopi af Qt indeni, så der er ingen runtime at installere først. Vinduet kan frit skifte størrelse og holder lommeregnerens proportioner; du kan gøre den til en smal strimmel ved siden af dit arbejde eller fylde skærmen med den. Tekststørrelser kan justeres, for en lommeregner, du har åben hele dagen, er en lommeregner, du bør kunne læse.
 
 ## Sådan installerer du den
 
@@ -92,7 +92,7 @@ Advarselsteksterne, der citeres nedenfor, vises på dit systems sprog. De står 
 
 ### Windows
 
-1. Hent **[`Agape48-0.9.2-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)**.
+1. Hent **[`Agape48-0.9.2-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 MB).
 2. **Windows stopper dig**: *«Windows protected your PC»*. Klik **More info**, derefter **Run anyway**. Den besked er ikke en virusadvarsel — det er Windows, der siger, at installationsprogrammet ikke bærer noget kodesigneringscertifikat, hvilket er et køb snarere end et byggetrin. Intet i downloadet er pakket væk eller sløret, og hver eneste byte kildekode, der gik ind i det, ligger i dette repository.
 3. **Next**, **Next**, **Install**. Den lander i `Program Files` og tilføjer et punkt i Start-menuen.
 4. Start den fra Start-menuen. Den afinstalleres som ethvert andet program, fra *Apps & features*.
@@ -110,11 +110,11 @@ Der er ikke noget `chmod`-trin: `tar` bevarer kørselsbitten, så `install.sh` k
 
 Alt lander under `~/.local/share/agape48`, menupunktet dukker op under **Education**, og at taste `agape48` kører den, hvis `~/.local/bin` er i din `PATH`. Qt-runtimen rejser inde i tarball'en, så der er ingen distributionspakke at jagte og intet at installere først — hvilket også betyder, at den ikke kan gå i stykker, når din distribution går videre til næste Qt. For at fjerne den: `~/.local/share/agape48/uninstall.sh`, som tager præcis det tilbage, den lagde, og lader dine lommeregnere være.
 
-Downloadet er 37 MB og pakker ud til 98 MB, næsten det hele Qt. Den er bygget til **x86_64** mod **glibc 2.39**, altså Ubuntu 24.04, Mint 22, Debian 13 eller noget nyere. På en ældre distribution stopper den ved opstart med linjen `GLIBC_2.xx not found`, som ligner et nedbrud og ikke er det. Testet på X11.
+Downloadet er 35,9 MB og pakker ud til 96 MB, næsten det hele Qt. Den er bygget til **x86_64** mod **glibc 2.39**, altså Ubuntu 24.04, Mint 22, Debian 13 eller noget nyere. På en ældre distribution stopper den ved opstart med linjen `GLIBC_2.xx not found`, som ligner et nedbrud og ikke er det. Testet på X11.
 
 ### Android
 
-1. Hent **[`Agape48-0.9.2-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** ned på telefonen og tryk på den.
+1. Hent **[`Agape48-0.9.2-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 MB) ned på telefonen og tryk på den.
 2. **Android nægter første gang** — *«your phone is not allowed to install unknown apps from this source»* — fordi filen ikke kom fra Play Store. Tryk **Settings**, tillad netop den kilde, og kom tilbage. Android spørger per *kilde*, så at tillade din browser tillader ikke også din filhåndtering.
 3. Play Protect advarer muligvis derefter om en app fra en ukendt udvikler. Knappen **Install anyway** ligger bag *More details*.
 4. Tryk **Open**. På en telefon fylder lommeregneren skærmen, ligesom Droid48 gør.

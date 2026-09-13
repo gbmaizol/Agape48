@@ -78,9 +78,9 @@ A real HP 48 runs at about 2 MHz in 1990 silicon, and there is a switch for that
 - **Import and export HP 48 object files** — the `HPHP48-` format — in both directions, which is how a program moves to a real 48, to Emu48, to Droid48, or back. Checked byte-for-byte against Emu48 with a third-party library as the control: of 1206 bytes, 1205 came back identical, and the one that differs is the byte that *names the machine that wrote the file*, which is supposed to.
 - **Save memory now** whenever you want it, and automatically when the app goes to the background.
 
-## Small, and stays out of the way
+## Self-contained, and stays out of the way
 
-Under 20 MB installed, one file per platform, no runtime to install first. The window resizes freely and keeps the calculator's proportions; you can make it a thin strip beside your work or fill the screen with it. Text sizes are adjustable, because a calculator you keep open all day is a calculator you should be able to read.
+One file per platform, with its own copy of Qt inside, so there is no runtime to install first. The window resizes freely and keeps the calculator's proportions; you can make it a thin strip beside your work or fill the screen with it. Text sizes are adjustable, because a calculator you keep open all day is a calculator you should be able to read.
 
 ## Installing it
 
@@ -90,7 +90,7 @@ One download per machine, no runtime to fetch first, and no account to make.
 
 ### Windows
 
-1. Download **[`Agape48-0.9.2-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)**.
+1. Download **[`Agape48-0.9.2-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17.3 MB).
 2. **Windows will stop you**: *"Windows protected your PC"*. Click **More info**, then **Run anyway**. That message is not a virus warning — it is Windows saying the installer carries no code-signing certificate, which is a purchase rather than a build step. Nothing in the download is packed or obfuscated, and every byte of source that went into it is in this repository.
 3. **Next**, **Next**, **Install**. It goes into `Program Files` and adds a Start-menu entry.
 4. Start it from the Start menu. It uninstalls like any other program, from *Apps & features*.
@@ -108,11 +108,11 @@ There is no `chmod` step: `tar` keeps the executable bit, so `install.sh` just r
 
 Everything lands under `~/.local/share/agape48`, the menu entry turns up under **Education**, and typing `agape48` runs it if `~/.local/bin` is on your `PATH`. The Qt runtime travels inside the tarball, so there is no distribution package to chase and nothing to install first — which also means it cannot break when your distribution moves to the next Qt. To remove it: `~/.local/share/agape48/uninstall.sh`, which takes back exactly what it put down and leaves your calculators alone.
 
-The download is 37 MB and unpacks to 98 MB, nearly all of it Qt. It is built for **x86_64** against **glibc 2.39**, so Ubuntu 24.04, Mint 22, Debian 13 or anything newer. On an older distribution it stops at startup with a `GLIBC_2.xx not found` line, which reads like a crash and is not one. Tested on X11.
+The download is 35.9 MB and unpacks to 96 MB, nearly all of it Qt. It is built for **x86_64** against **glibc 2.39**, so Ubuntu 24.04, Mint 22, Debian 13 or anything newer. On an older distribution it stops at startup with a `GLIBC_2.xx not found` line, which reads like a crash and is not one. Tested on X11.
 
 ### Android
 
-1. Download **[`Agape48-0.9.2-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** onto the phone and tap it.
+1. Download **[`Agape48-0.9.2-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47.4 MB) onto the phone and tap it.
 2. **Android will refuse the first time** — *"your phone is not allowed to install unknown apps from this source"* — because the file did not come from the Play Store. Tap **Settings**, allow that one source, and come back. Android asks per *source*, so allowing your browser does not also allow your file manager.
 3. Play Protect may then warn about an app from an unrecognised developer. The **Install anyway** button is behind *More details*.
 4. Tap **Open**. On a phone the calculator fills the screen, the way Droid48 does.
