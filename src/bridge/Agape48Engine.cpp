@@ -670,8 +670,7 @@ bool Agape48Engine::start()
         // Revision"?'" Ĝi estas la sola ekrano kiun homo sen ROM certe vidos, kaj
         // ĝi estis la sola loko kiu sciis pri la problemo kaj diris nenion pri la
         // solvo. La serĉĉeno estas laŭvorte kion oni tajpas en Ctrl-F sur tiu
-        // paĝo: ĝi havas dek unu ROM-ojn inter multe da alia, kaj li ne trovis
-        // ilin.
+        // paĝo: ĝi kaŝas dek unu ROM-ojn inter multe da alia.
         setError(tr("No HP 48 ROM. There is no file named \"rom\" in %1, and "
                     "none has been chosen in Settings.\n"
                     "A free one: open https://www.hpcalc.org/hp48/pc/emulators/ "

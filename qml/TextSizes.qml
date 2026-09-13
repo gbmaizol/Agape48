@@ -19,9 +19,9 @@ import QtCore
 // rekonstruon.
 //
 // La defaŭltoj estas la valoroj kiuj estis fikse enkoditaj antaŭ ol ĉi tio
-// ekzistis, do freŝa profilo aspektas ekzakte kiel antaŭe. Fari konstanta unu
-// el liaj numeroj signifas ŝanĝi la defaŭlton ĈI TIE; la konservita valoro
-// registras nur superregon.
+// ekzistis, do freŝa profilo aspektas ekzakte kiel antaŭe. Fari unu el la
+// agorditaj numeroj konstanta signifas ŝanĝi la defaŭlton ĈI TIE; la konservita
+// valoro registras nur superregon.
 //
 // Maŝin-loka, kiel la fenestra geometrio kaj la klavmapo: tekstgrando apartenas
 // al ekrano kaj al paro da okuloj, ne al la kalkulila memoro kiu sinkroniĝas

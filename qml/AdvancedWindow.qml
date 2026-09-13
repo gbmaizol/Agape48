@@ -6,8 +6,8 @@ import Agape48
 //
 // 2026sep03: "I'll find a size that works and make it default." Do la
 // celo de ĉi tiu fenestro ne estas la ŝovbutonoj, ĝi estas la NUMERO apud ĉiu
-// el ili - li ŝovas ĝis ĝi aspektas ĝusta, legas la ciferon, kaj tiu cifero
-// fariĝas defaŭlto en TextSizes.qml. Ĉiu el ili aplikiĝas tuj al la fenestro
+// el ili: la ŝovbutono iras ĝis la teksto aspektas ĝusta, la cifero apud ĝi
+// estas legebla, kaj tiu cifero fariĝas defaŭlto en TextSizes.qml. Ĉiu el ili aplikiĝas tuj al la fenestro
 // sube, kaj tial ĉi tio estas aparta fenestro anstataŭ paĝo interne de Agordoj:
 // Agordoj kovras la kalkulilon, kaj duono de tio kion oni agordas estas
 // desegnita sur la kalkulilo.

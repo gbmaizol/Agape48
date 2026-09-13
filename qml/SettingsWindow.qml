@@ -28,7 +28,8 @@ import Agape48
 //     neniu montris. Dogfood #7 petis veran, do la "…"-butono apud la
 //     stata dosierujo nun estas QtQuick.Dialogs-a FolderDialog - denaska sur ĉi
 //     tiu labortablo, ĉar Qt liveras la platforman etoson gtk3. Tio estas unu
-//     plia Qt-modulo kontraŭ la maldika-modula regulo, prenita laŭ lia ordono.
+//     plia Qt-modulo kontraŭ la maldika-modula regulo, kaj la escepto estas
+//     intenca.
 // Androida noto por poste: dua supranivela Window estas labortabla idiomaĵo.
 // Kiam la Androida konstruo okazos, ĉi tio volas fariĝi tutekrana paĝo aŭ
 // denove folio, ĉar telefono havas nenian fenestroadministrilon kiu metus ĝin

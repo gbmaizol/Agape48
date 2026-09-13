@@ -7,10 +7,10 @@ import QtQuick.Controls
 // 2026sep10: "making the toggles and the space between them smaller, more
 // like the size and space of normal text". La Switch de la stilo Basic estas
 // desegnita por dikfingro sur telefono - ĉirkaŭ 40 bilderoj da indikilo por
-// vico - kaj kvar el ili en kolumno estis la plimulto de tio kio enkadriĝis en
-// lian agordan fenestron, kio estas duono de la kialo pro kiu la rapidregiloj
-// sub ili estis trans la malsupra rando kaj kostis al li vesperon da mezuroj
-// prenitaj je rapido kiun li ne povis vidi. Vidu prokrastitajn erojn 1 kaj 2 en
+// vico - kaj kvar el ili en kolumno plenigis la plimulton de la agorda
+// fenestro, kio estas duono de la kialo pro kiu la rapidregiloj sub ili estis
+// trans la malsupra rando: tie ili ŝanĝis la rapidon dum tuta vespero da mezuroj
+// sen ke la fenestro montris ĝin. Vidu prokrastitajn erojn 1 kaj 2 en
 // docs/design-questions.md.
 //
 // LA ETIKEDO ESTAS PARTO DE LA REGILO prefere ol Label apud ĝi, kion ĉiu
@@ -21,7 +21,7 @@ import QtQuick.Controls
 // ili antaŭe ne estis.
 //
 // Dimensiita el TextSizes.dialogBody, do ĝi sekvas la tekston apud kiu ĝi sidas
-// kiam li movas tiun ŝovbutonon, anstataŭ bezoni propran numeron.
+// kiam tiu ŝovbutono moviĝas, anstataŭ bezoni propran numeron.
 Switch {
     id: control
 
