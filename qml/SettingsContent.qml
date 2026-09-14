@@ -272,7 +272,16 @@ Item {
         contentWidth: width
         contentHeight: column.implicitHeight
         clip: true
-        boundsBehavior: Flickable.StopAtBounds
+        // SUR TUŜEKRANO LA RANDO NE HALTIGAS LA TIRADON. Ĉe sia rando kun
+        // StopAtBounds Flickable rifuzas tiradon plu en tiu direkto, do ĝi ne
+        // prenas la tuŝon, kaj la ŝaltilo aŭ butono sub la fingro ricevas klakon.
+        // Mezurite sur la telefono 2026sep14: svingo supren, komencita sur
+        // "Automatic STR→ on Paste and drop" kun la paĝo jam ĉe sia fundo,
+        // ŝanĝis la ŝaltilon. Kun DragOverBounds Flickable prenas ĉiun
+        // tiradon super la sojlo. Sur labortablo la rado rulumas, kaj tie la
+        // konduto restas kia ĝi estis.
+        boundsBehavior: Qt.platform.os === "android" ? Flickable.DragOverBounds
+                                                      : Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar {}
 
     Column {
