@@ -286,7 +286,7 @@ Window {
         onRemapRequested: (k) => rebind.openFor(k)
         onCustomizeCancelled: root.customizing = false
         onBodyPressed: engine.startSystemMove(root)
-        onMenuRequested: appMenu.popup(menuButton.x,
+        onMenuRequested: appMenu.popup(root.width - appMenu.width,
                                        menuButton.y + menuButton.height)
         onUnassignedKey: (label) => banner.hint(
             qsTr("%1 is not assigned to any key. Ctrl+right-click a key to give it one.")
@@ -443,6 +443,14 @@ Window {
     // object import from 2b, not built yet.
     Menu {
         id: appMenu
+        // APARTA FENESTRO SUR LA LABORTABLO, ekde 2026sep15. Ene de la sceno la
+        // menuo ne povas eliri el la kalkulila fenestro, do kalkulilo parte ekster
+        // la ekrano portis parton de la menuo ekster ĝin (provo 22 linio 23). Kiel
+        // propra fenestro la menuo restas interne de la libera areo de la ekrano,
+        // kiun Qt trovas ĉe ĝia supra maldekstra angulo, kaj Qt donas al ĝi la
+        // stilon de ilfenestro, kiun la taskobreto kaj Alt+Tab ne montras. Android
+        // havas neniun duan fenestron, do tie la menuo restas en la sceno.
+        popupType: Qt.platform.os === "android" ? Popup.Item : Popup.Window
         onClosed: focusGuard.restart()
         MenuItem {
             text: qsTr("Open another calculator…")
@@ -535,8 +543,11 @@ Window {
         //
         // THE ITEM STAYS because its geometry is still the menu's position: an
         // invisible item still has a position, and appMenu.popup() is given
-        // menuButton.x and .y. That kept the popup in the top right corner,
+        // menuButton.y. That kept the popup in the top right corner,
         // beside the badge, without a second set of numbers to keep in step.
+        // La dekstra rando de la menuo estas tiu de la fenestro: kiel propra
+        // fenestro la menuo ne plu estas ŝovita en la kalkulilon, kaj ĉe
+        // menuButton.x ĝi pendus dekstre ekster ĝi.
         visible: false
         // Inset like the face is, and for the same reason. Measured on the
         // phone at e4ea219: the status bar is 162 px tall and this button was
@@ -562,7 +573,7 @@ Window {
             id: menuMouse
             anchors.fill: parent
             hoverEnabled: true
-            onClicked: appMenu.popup(menuButton.x, menuButton.y + menuButton.height)
+            onClicked: appMenu.popup(root.width - appMenu.width, menuButton.y + menuButton.height)
         }
     }
 
