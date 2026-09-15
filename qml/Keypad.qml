@@ -295,13 +295,27 @@ Item {
     // so the phone's route is the "Customize keyboard..." menu item and a plain
     // tap, handled in the MultiPointTouchArea above. A mouse attached to an
     // Android device does send Qt.RightButton and does land here.
+    //
+    // DEKSTRA KLAKO SUR LA EKRANO ESTAS ALGLUI, kaj kun Stir ĝi estas Kopii,
+    // ekde 2026sep15. La ekrano estas neniu klavo, do la du gestoj ne kolizias.
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.RightButton
         onClicked: (mouse) => {
+            root.ctrlUsed = true
             const hit = root.keyIndexAt(mouse.x, mouse.y)
-            if (hit >= 0)
+            if (hit >= 0) {
                 root.remapRequested(root.engine.skin.keys[hit])
+                return
+            }
+            const lcd = root.engine.skin.lcdRect
+            if (mouse.x < lcd.x || mouse.x >= lcd.x + lcd.width
+                    || mouse.y < lcd.y || mouse.y >= lcd.y + lcd.height)
+                return
+            if (mouse.modifiers & Qt.ControlModifier)
+                root.copyRequested()
+            else
+                root.pasteRequested()
         }
     }
 
