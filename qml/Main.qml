@@ -1202,8 +1202,13 @@ Window {
         }
     }
 
+    // LA MENUO FERMIĜAS KIAM LA KALKULILO PERDAS LA FOKUSON, ekde 2026sep15
+    // (provo 22 linio 23), kaj nur la menuo: Agordoj, Altnivelaj, Pri, la breto
+    // kaj la transdono restas malfermitaj. Menuo en la sceno ne ricevas klakon en
+    // alia programo, kaj restis malfermita super kalkulilo, kiun la uzanto jam
+    // forlasis.
     onActiveChanged: {
         if (active) { engine.resumeFromBackground(); focusGuard.restart() }
-        else engine.suspend()
+        else { engine.suspend(); appMenu.close() }
     }
 }
