@@ -953,6 +953,24 @@ int val;
   return;
 }
 
+/* MALPLENA KARTINGO LEGIĜAS KIEL NULOJ, ekde 2026sep15. Sen karto saturn.port1
+ * kaj saturn.port2 estas NULL, kaj la ROM de 48SX tamen agordas la regilojn de
+ * ambaŭ kartingoj. Nova kalkulilo kun la ROM sxrom-j legis tie, kiam la ekrano
+ * refreŝiĝis dum la starto, kaj haltis per SIGSEGV en read_nibble_sx(): kvin el
+ * kvin startoj sur Linukso. La skribaj vojoj jam kontrolas port1_is_ram kaj
+ * port2_is_ram. */
+static int
+port1_nibble(long offset)
+{
+  return saturn.port1 ? saturn.port1[offset & port1_mask] : 0x00;
+}
+
+static int
+port2_nibble(long offset)
+{
+  return saturn.port2 ? saturn.port2[offset & port2_mask] : 0x00;
+}
+
 int
 #ifdef __FunctionProto__
 read_nibble_sx(long addr)
@@ -990,21 +1008,21 @@ long addr;
     case 8: case 9: case 0xa: case 0xb:
       if (saturn.mem_cntl[MCTL_PORT1_SX].config[0] == 0x80000)
         {
-          return saturn.port1[(addr - 0x80000) & port1_mask];
+          return port1_nibble(addr - 0x80000);
         }
       if (saturn.mem_cntl[MCTL_PORT2_SX].config[0] == 0x80000)
         {
-          return saturn.port2[(addr - 0x80000) & port2_mask];
+          return port2_nibble(addr - 0x80000);
         }
       return 0x00;
     case 0xc: case 0xd: case 0xe:
       if (saturn.mem_cntl[MCTL_PORT1_SX].config[0] == 0xc0000)
         {
-          return saturn.port1[(addr - 0xc0000) & port1_mask];
+          return port1_nibble(addr - 0xc0000);
         }
       if (saturn.mem_cntl[MCTL_PORT2_SX].config[0] == 0xc0000)
         {
-          return saturn.port2[(addr - 0xc0000) & port2_mask];
+          return port2_nibble(addr - 0xc0000);
         }
       return 0x00;
     case 0xf:
@@ -1012,11 +1030,11 @@ long addr;
         return saturn.ram[addr - 0xf0000];
       if (saturn.mem_cntl[MCTL_PORT1_SX].config[0] == 0xc0000)
         {
-          return saturn.port1[(addr - 0xc0000) & port1_mask];
+          return port1_nibble(addr - 0xc0000);
         }
       if (saturn.mem_cntl[MCTL_PORT2_SX].config[0] == 0xc0000)
         {
-          return saturn.port2[(addr - 0xc0000) & port2_mask];
+          return port2_nibble(addr - 0xc0000);
         }
       return 0x00;
   }
@@ -1252,21 +1270,21 @@ long addr;
     case 8: case 9: case 0xa: case 0xb:
       if (saturn.mem_cntl[MCTL_PORT1_SX].config[0] == 0x80000)
         {
-          return calc_crc(saturn.port1[(addr - 0x80000) & port1_mask]);
+          return calc_crc(port1_nibble(addr - 0x80000));
         }
       if (saturn.mem_cntl[MCTL_PORT2_SX].config[0] == 0x80000)
         {
-          return calc_crc(saturn.port2[(addr - 0x80000) & port2_mask]);
+          return calc_crc(port2_nibble(addr - 0x80000));
         }
       return 0x00;
     case 0xc: case 0xd: case 0xe:
       if (saturn.mem_cntl[MCTL_PORT1_SX].config[0] == 0xc0000)
         {
-          return calc_crc(saturn.port1[(addr - 0xc0000) & port1_mask]);
+          return calc_crc(port1_nibble(addr - 0xc0000));
         }
       if (saturn.mem_cntl[MCTL_PORT2_SX].config[0] == 0xc0000)
         {
-          return calc_crc(saturn.port2[(addr - 0xc0000) & port2_mask]);
+          return calc_crc(port2_nibble(addr - 0xc0000));
         }
       return 0x00;
     case 0xf:
@@ -1274,11 +1292,11 @@ long addr;
         return calc_crc(saturn.ram[addr - 0xf0000]);
       if (saturn.mem_cntl[MCTL_PORT1_SX].config[0] == 0xc0000)
         {
-          return calc_crc(saturn.port1[(addr - 0xc0000) & port1_mask]);
+          return calc_crc(port1_nibble(addr - 0xc0000));
         }
       if (saturn.mem_cntl[MCTL_PORT2_SX].config[0] == 0xc0000)
         {
-          return calc_crc(saturn.port2[(addr - 0xc0000) & port2_mask]);
+          return calc_crc(port2_nibble(addr - 0xc0000));
         }
       return 0x00;
   }
