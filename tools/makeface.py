@@ -664,6 +664,13 @@ def main():
             "rect": [badge_box[0], badge_box[1],
                      badge_box[2] - badge_box[0], badge_box[3] - badge_box[1]],
             "color": "#%02x%02x%02x" % BRAND,
+            # Por kovri kaj reskribi la vorton kiam la ROM estas de 48SX. Neniu
+            # mallarĝa tiparo en la listo: la vorto estas skalita al la larĝo de
+            # la presita, kaj mallarĝa tiparo tiam fariĝus tro alta.
+            "background": "#%02x%02x%02x" % BODY,
+            "pixelSize": C["font_brand_model"],
+            "font": ["DejaVu Sans Condensed", "Arial", "Segoe UI", "Roboto",
+                     "Noto Sans", "DejaVu Sans", "Liberation Sans"],
         },
         "lcd": {"rect": [lcd_x, lcd_y, LCD_W, LCD_H], "zoom": LCD_ZOOM,
                 "pixelColor": LCD_PIXEL, "background": LCD_BG},

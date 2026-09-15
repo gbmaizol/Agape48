@@ -43,6 +43,8 @@ class Agape48Engine : public QObject
     Q_PROPERTY(int  contrast       READ contrast      NOTIFY frameReady)
     Q_PROPERTY(int  annunciators   READ annunciators  NOTIFY annunciatorsChanged)
     Q_PROPERTY(QString lastError   READ lastError     NOTIFY lastErrorChanged)
+    // "48SX" kiam la ŝargita ROM estas de la S-serio, alie "48GX".
+    Q_PROPERTY(QString model       READ model         NOTIFY readyChanged)
 
     // Names of the keys currently held down, whatever pressed them - mouse,
     // finger or the physical keyboard. Keypad.qml lights its caps off this.
@@ -149,6 +151,7 @@ public:
     int  contrast() const    { return m_frame.contrast; }
     int  annunciators() const{ return m_annunciators; }
     QString lastError() const{ return m_lastError; }
+    QString model() const;
     QStringList pressedKeys() const { return m_pressed; }
     StateFileManager *state() const { return m_state; }
     SkinModel        *skin()  const { return m_skin; }

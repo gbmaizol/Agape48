@@ -2051,6 +2051,12 @@ QStringList Agape48Engine::unlatchShifts() const
     return seq;
 }
 
+QString Agape48Engine::model() const
+{
+    return m_ready && x48_readiness() == X48_NOT_GX ? QStringLiteral("48SX")
+                                                    : QStringLiteral("48GX");
+}
+
 QString Agape48Engine::notReadyReason() const
 {
     switch (x48_readiness()) {
