@@ -1211,4 +1211,18 @@ Window {
         if (active) { engine.resumeFromBackground(); focusGuard.restart() }
         else { engine.suspend(); appMenu.close() }
     }
+
+    // KAJ KIAM LA APLIKAĴO IRAS EN LA FONON. Sur Android la fenestro neniam
+    // raportas sin neaktiva (vidu "THE PLATFORM'S OWN SIGNAL" en
+    // Agape48Engine.cpp), do onActiveChanged ne venas tie. Mezurite 2026sep15 sur
+    // la telefono: menuo malfermita, Hejmo, reen al Agape48, kaj la menuo estis
+    // ankoraŭ malfermita. La stato de la aplikaĵo ŝanĝiĝas sur ĉiuj platformoj;
+    // sur labortablo ĝi fermas menuon, kiun onActiveChanged jam fermis.
+    Connections {
+        target: Qt.application
+        function onStateChanged() {
+            if (Qt.application.state !== Qt.ApplicationActive)
+                appMenu.close()
+        }
+    }
 }
