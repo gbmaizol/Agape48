@@ -103,6 +103,52 @@ Item {
         }
     }
 
+    // Unu el la aspektoj de la menuo, en la grando kaj la koloroj de
+    // CompactSwitch: cirklo tiel alta kiel ĝia trako, kaj la etikedo kiel parto de
+    // la regilo. La RadioButton de la stilo Basic havas indikilon de 28 bilderoj
+    // kaj sekvas la temon de la sistemo, kiu kun hela temo skribas nigre sur ĉi
+    // tiu malhela fenestro.
+    component LookChoice: RadioButton {
+        id: choice
+        required property string look
+        readonly property int dotSize: Math.round(TextSizes.dialogBody * 1.05)
+
+        padding: 0
+        topPadding: 3
+        bottomPadding: 3
+        spacing: Math.round(TextSizes.dialogBody * 0.5)
+        checked: look === "screen" ? MenuLook.screen : MenuLook.look === look
+        onClicked: MenuLook.look = look
+
+        indicator: Rectangle {
+            implicitWidth: choice.dotSize
+            implicitHeight: choice.dotSize
+            x: choice.leftPadding
+            y: (choice.height - height) / 2
+            radius: width / 2
+            color: choice.checked ? "#3f6f3f" : "#343434"
+            border.width: 1
+            border.color: choice.checked ? "#5fa85f" : "#5a5a5a"
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: parent.width - 6
+                height: width
+                radius: width / 2
+                color: "#e8e8e8"
+                visible: choice.checked
+            }
+        }
+
+        contentItem: Text {
+            text: choice.text
+            color: choice.enabled ? "#e8e8e8" : "#8a8a8a"
+            font.pixelSize: TextSizes.dialogBody
+            verticalAlignment: Text.AlignVCenter
+            leftPadding: choice.indicator.width + choice.spacing
+        }
+    }
+
     Item {
         anchors.fill: parent
         focus: true
@@ -180,6 +226,31 @@ Item {
                     value: TextSizes.dialogHint
                     fallback: TextSizes.defaultDialogHint
                     onMoved: (v) => TextSizes.dialogHint = v
+                }
+
+                Rectangle { width: parent.width; height: 1; color: "#333" }
+
+                // LA ASPEKTO DE LA MENUO, ekde 2026sep15 (provo 22 linio 23): unu el
+                // la tri de MenuLook.qml, videbla ĉe la sekva malfermo de la menuo.
+                Label {
+                    width: parent.width
+                    text: qsTr("The menu")
+                    color: "#f0f0f0"
+                    font.pixelSize: TextSizes.dialogTitle
+                    font.weight: Font.DemiBold
+                }
+                Column {
+                    width: parent.width
+                    LookChoice { text: qsTr("Screen look"); look: "screen" }
+                    LookChoice { text: qsTr("Button look"); look: "button" }
+                    LookChoice { text: qsTr("Classic");     look: "classic" }
+                }
+                Label {
+                    width: parent.width
+                    text: qsTr("How the menu under %1 is drawn: like the calculator's screen, like its keys, or in the colours of its body.").arg(root.menuWord)
+                    color: "#7d7d7d"
+                    font.pixelSize: TextSizes.dialogHint
+                    wrapMode: Text.WordWrap
                 }
 
                 Rectangle { width: parent.width; height: 1; color: "#333" }

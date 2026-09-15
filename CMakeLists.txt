@@ -146,9 +146,11 @@ set(AGAPE48_QML_FILES
     qml/AboutContent.qml
     qml/Agape48Keymap.qml
     qml/TextSizes.qml
+    qml/MenuLook.qml
+    qml/DotText.qml
 )
 
-set_source_files_properties(qml/Agape48Keymap.qml qml/TextSizes.qml
+set_source_files_properties(qml/Agape48Keymap.qml qml/TextSizes.qml qml/MenuLook.qml
     PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(agape48

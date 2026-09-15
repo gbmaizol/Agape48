@@ -444,6 +444,107 @@ Window {
     Menu {
         id: appMenu
         onClosed: focusGuard.restart()
+        // TRI ASPEKTOJ, ekde 2026sep15 (provo 22 linio 23): la ekrano, la klavoj
+        // aŭ la korpo de la kalkulilo, laŭ MenuLook.qml, kiu ankaŭ tenas la
+        // kolorojn de la menueroj. La vizaĝo estas literumita en DejaVu Sans
+        // Condensed Bold; kie tiu tiparo mankas, la menuo prenas la unuan
+        // trovitan el ĉi tiu listo, kiu evitas mallarĝajn tiparojn. Grasa kiel la
+        // klavetikedoj, krom sur la ekrano.
+        font.family: {
+            const want = ["DejaVu Sans Condensed", "Arial", "Segoe UI", "Roboto",
+                          "Noto Sans", "DejaVu Sans", "Liberation Sans"]
+            const have = Qt.fontFamilies()
+            for (const family of want)
+                if (have.indexOf(family) >= 0)
+                    return family
+            return Qt.application.font.family
+        }
+        font.bold: !MenuLook.screen
+        palette.mid: MenuLook.rule
+        // Sur la ekrano la menueroj kuŝas interne de la nigra kadro, kaj la titolo
+        // havas sian propran vicon super ili.
+        padding: MenuLook.screen ? screenFrame.border : 0
+        topPadding: MenuLook.screen ? screenTitle.y + screenTitle.height + 6 : 0
+        FontMetrics { id: menuGlyphs; font: appMenu.font }
+        background: Item {
+            implicitWidth: 200
+            implicitHeight: 40
+
+            // La ekrano, kiel tools/makeface.py desegnas ĝin: nigra kadro kun
+            // rondigitaj anguloj ĉirkaŭ kvadrata verda vitro (colour_bezel,
+            // colour_lcd_bg). La titolo estas en la punktoj kaj la inversa video
+            // de la menuetikedoj de la kalkulilo, kaj komenciĝas kie la teksto de
+            // la menueroj komenciĝas.
+            Rectangle {
+                id: screenFrame
+                readonly property real border: 4
+                anchors.fill: parent
+                visible: MenuLook.screen
+                radius: 8
+                color: "#121214"
+                Rectangle {
+                    anchors { fill: parent; margins: screenFrame.border }
+                    color: "#9fbf7a"
+                }
+                DotText {
+                    id: screenTitle
+                    x: screenFrame.border + 2 * menuGlyphs.averageCharacterWidth - dot
+                    y: screenFrame.border + 6
+                    text: qsTr("OPTIONS MENU")
+                    ink: "#9fbf7a"
+                    paper: "#0d1a0d"
+                }
+            }
+
+            // La klavoj: la supra koloro de klavo por la korpo, kaj la gradiento
+            // de klavo, de cap_grad_top ĝis cap_grad_bot, nur laŭ la dekstra kaj
+            // la malsupra randoj; nigra kadro, kaj anguloj rondigitaj je 0,16 de
+            // la alto de unu menuero, kiel klavo je 0,16 de sia propra.
+            Rectangle {
+                id: keyBody
+                readonly property real edge: 12
+                anchors.fill: parent
+                visible: MenuLook.button
+                radius: 40 * 0.16
+                color: "#1a1e2e"
+                Rectangle {
+                    anchors { top: parent.top; bottom: parent.bottom; right: parent.right }
+                    width: keyBody.edge
+                    radius: keyBody.radius
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0; color: "#006b7173" }
+                        GradientStop { position: 1; color: "#6b7173" }
+                    }
+                }
+                Rectangle {
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                    height: keyBody.edge
+                    radius: keyBody.radius
+                    gradient: Gradient {
+                        GradientStop { position: 0; color: "#006b7173" }
+                        GradientStop { position: 1; color: "#6b7173" }
+                    }
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    radius: keyBody.radius
+                    color: "transparent"
+                    border.color: "#000000"
+                }
+            }
+
+            // La korpo: ĝia koloro kaj ĝia pli hela rando (colour_body,
+            // colour_body_edge), kun rondigitaj anguloj.
+            Rectangle {
+                anchors.fill: parent
+                visible: !MenuLook.screen && !MenuLook.button
+                radius: 8
+                color: "#222226"
+                border.color: "#3e3e46"
+                border.width: 2
+            }
+        }
         AppMenuItem {
             text: qsTr("Open another calculator…")
             onTriggered: picker.openPicker()
@@ -531,6 +632,21 @@ Window {
         FontMetrics { id: glyphs; font: entry.font }
         leftPadding: 2 * glyphs.averageCharacterWidth
         rightPadding: 2 * glyphs.averageCharacterWidth
+        // La koloroj de la aspekto el MenuLook.qml. Sur la ekrano la elektita
+        // menuero estas inversa video de plena larĝo kun kvadrataj anguloj, kiel
+        // la bilderoj de la ekrano; aliloke ĝi estas rondigita tavolo.
+        palette.windowText: entry.highlighted || entry.down ? MenuLook.inkChosen : MenuLook.ink
+        background: Rectangle {
+            readonly property real inset: MenuLook.screen ? 0 : 4
+            implicitWidth: 200
+            implicitHeight: 40
+            x: inset
+            y: MenuLook.screen ? 0 : 1
+            width: entry.width - 2 * inset
+            height: entry.height - 2 * y
+            radius: MenuLook.screen ? 0 : MenuLook.button ? height * 0.16 : 4
+            color: entry.down ? MenuLook.pressed : entry.highlighted ? MenuLook.chosen : "transparent"
+        }
     }
 
     // Raw QtQuick, not a Controls Button: the Quick Controls usage rule from
