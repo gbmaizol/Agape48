@@ -17,6 +17,7 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QQuickWindow>
+#include <QScreen>
 #include <QDateTime>
 #include <QDir>
 #include <QStandardPaths>
@@ -1772,6 +1773,32 @@ QString Agape48Engine::urlToPath(const QUrl &url) const
 bool Agape48Engine::startSystemMove(QQuickWindow *window)
 {
     return window && window->startSystemMove();
+}
+
+// La kadro estas konata nur kiam la indiĝena fenestro ekzistas, do ĝi estas
+// kreita ĉi tie, antaŭ show(): sur Vindozo la kadro tiam jam havas sian titolan
+// strion kaj randojn. Pli granda fenestro ol la libera areo tenas sian supran
+// maldekstran angulon videbla.
+void Agape48Engine::keepOnScreen(QQuickWindow *window) const
+{
+    if (!window)
+        return;
+    if (!window->handle())
+        window->create();
+    const QMargins m = window->frameMargins();
+    const QRect frame = window->geometry().marginsAdded(m);
+    QScreen *screen = QGuiApplication::screenAt(frame.center());
+    if (!screen && window->transientParent())
+        screen = window->transientParent()->screen();
+    if (!screen)
+        screen = window->screen();
+    if (!screen)
+        return;
+    const QRect free = screen->availableGeometry();
+    const int x = qMax(free.left(), qMin(frame.left(), free.right() + 1 - frame.width()));
+    const int y = qMax(free.top(), qMin(frame.top(), free.bottom() + 1 - frame.height()));
+    if (x != frame.left() || y != frame.top())
+        window->setPosition(x + m.left(), y + m.top());
 }
 
 void Agape48Engine::setWindowGeometry(QQuickWindow *window, int x, int y, int w, int h)
