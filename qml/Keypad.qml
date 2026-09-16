@@ -25,6 +25,11 @@ Item {
     signal unassignedKey(string label)
     signal bodyPressed()
 
+    // La fingro sur la korpo, kiu ankoraŭ ne movis la fenestron: ĝia pointId kaj
+    // kie ĝi komencis, en scenaj koordinatoj.
+    property int bodyPoint: -1
+    property point bodyFrom: Qt.point(0, 0)
+
     // touch point id -> key index, so a release hits the key that was pressed
     // even if the finger has drifted off it in the meantime.
     property var held: ({})
@@ -98,13 +103,38 @@ Item {
             }
             // Nothing under the finger but the body or the display. With no
             // title bar that is the drag handle, which is how Emu48 behaves.
-            if (!hitSomething)
-                root.bodyPressed()
+            //
+            // LA FENESTRO MOVIĜAS NUR KIAM LA MONTRILO MOVIĜAS. Sur Vindozo
+            // startSystemMove() transdonas la muson al la sistemo, kaj klako sen
+            // movo tie perdas sian malpremon: Qt neniam ricevas ĝin, ĉi tiu areo
+            // tenas la muson, kaj ĉiu posta premo venas ĉi tien anstataŭ al la
+            // substrekita 48GX. Mezurite 2026sep15 per realaj klakoj: post klako
+            // sur la korpo, ses klakoj sur 48GX dum ĉirkaŭ duona minuto malfermis
+            // nenion, ĝis klako sur klavo, kaj la protokolo de Qt montris premon
+            // sen malpremo. Tiro kun movo ricevas sian malpremon ĉe la fino de la
+            // movo, kaj lasis 48GX funkcii.
+            if (!hitSomething && root.bodyPoint < 0 && points.length > 0) {
+                root.bodyPoint = points[0].pointId
+                root.bodyFrom = Qt.point(points[0].sceneX, points[0].sceneY)
+            }
+        }
+        onUpdated: (points) => {
+            for (const p of points) {
+                if (p.pointId !== root.bodyPoint)
+                    continue
+                const d = Qt.styleHints.startDragDistance
+                if (Math.abs(p.sceneX - root.bodyFrom.x) > d || Math.abs(p.sceneY - root.bodyFrom.y) > d) {
+                    root.bodyPoint = -1
+                    root.bodyPressed()
+                }
+            }
         }
         onReleased: (points) => {
             for (const p of points) {
                 const i = root.held[p.pointId]
                 if (i !== undefined) { root.releaseIndex(i); delete root.held[p.pointId] }
+                if (p.pointId === root.bodyPoint)
+                    root.bodyPoint = -1
             }
             // KAJ LA ŜPRUCHELPILO FORIRAS KUN LA FINGRO. Sur labortablo la
             // montrilo restas post klako kaj la ŝvebo mem forprenas la
@@ -122,6 +152,7 @@ Item {
             // Gesture stolen by the system (notification shade, call). Let go of
             // everything, or the calculator sits with a key wedged down.
             root.held = ({})
+            root.bodyPoint = -1
             root.engine.releaseAllKeys()
         }
     }
