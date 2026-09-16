@@ -62,11 +62,27 @@ def purigi(t):
     return t
 
 
+# La vendita kerno restas angla, kaj tio estas regulo, ne escepto pardonpetanta
+# pri si. `src/core/x48/` estas la kodo de Eddie C. Dost tia, kia Droid48 lasis
+# ĝin: ĝi ne estas forkita, ĝi estas vendita, por ke oni ankoraŭ povu diferenci
+# ĝin kontraŭ la fonto kaj repreni ĝin. Ĝiaj komentoj estas la vortoj de sia
+# aŭtoro. Readme_Programmers.md diras tion per tiom da vortoj; sen ĉi tiu linio
+# la kontrolilo diras la malon, kaj kunfandpeto kiu obeas la regulon falas.
+VENDITA = re.compile(r"(^|/)src/core/x48/")
+
+
 def komentoj_el_diff(t):
     """La aldonitaj komentlinioj de unifikita diff, kaj nenio alia."""
     ligiloj = []
+    dosiero = ""
     for linio in t.splitlines():
-        if not linio.startswith("+") or linio.startswith("+++"):
+        if linio.startswith("+++"):
+            # `+++ b/vojo` aŭ `+++ /dev/null`. La vojo validas ĝis la sekva.
+            dosiero = linio[3:].strip()
+            continue
+        if not linio.startswith("+"):
+            continue
+        if VENDITA.search(dosiero):
             continue
         korpo = linio[1:].strip()
         m = re.match(r"^(//+|#+|;+|\*+|/\*+)\s*(.*)$", korpo)
