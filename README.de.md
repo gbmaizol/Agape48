@@ -92,18 +92,18 @@ Die unten zitierten Warnungen erscheinen in der Sprache deines Systems. Sie steh
 
 ### Windows
 
-1. Lade **[`Agape48-0.9.2-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 MB) herunter.
+1. Lade **[`Agape48-0.9.3-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 MB) herunter.
 2. **Windows hält dich auf**: *„Windows protected your PC“*. Klick **More info**, dann **Run anyway**. Diese Meldung ist keine Virenwarnung — es ist Windows, das sagt, dass das Installationsprogramm kein Code-Signing-Zertifikat trägt, und das ist ein Kauf und kein Bauschritt. Nichts am Download ist gepackt oder verschleiert, und jedes Byte Quelltext, das hineingegangen ist, liegt in diesem Repository.
 3. **Next**, **Next**, **Install**. Es landet in `Program Files` und legt einen Eintrag im Startmenü an.
 4. Starte es aus dem Startmenü. Es deinstalliert sich wie jedes andere Programm, über *Apps & features*.
 
 ### Linux
 
-Kein root, nichts in `/opt`, und nichts, was der Paketverwaltung hinzugefügt werden muss. Nimm **[`Agape48-0.9.2-linux-x86_64.tar.gz`](https://github.com/gbmaizol/Agape48/releases/latest)**, dann:
+Kein root, nichts in `/opt`, und nichts, was der Paketverwaltung hinzugefügt werden muss. Nimm **[`Agape48-0.9.3-linux-x86_64.tar.gz`](https://github.com/gbmaizol/Agape48/releases/latest)**, dann:
 
 ```sh
-tar xzf Agape48-0.9.2-linux-x86_64.tar.gz
-./Agape48-0.9.2-linux-x86_64/install.sh
+tar xzf Agape48-0.9.3-linux-x86_64.tar.gz
+./Agape48-0.9.3-linux-x86_64/install.sh
 ```
 
 Es gibt keinen `chmod`-Schritt: `tar` behält das Ausführungsbit, also läuft `install.sh` einfach. (Wenn du mit einem grafischen Archivprogramm entpackt hast, das die Rechte verloren hat, funktioniert `sh install.sh` trotzdem.)
@@ -114,7 +114,7 @@ Der Download ist 35,9 MB groß und entpackt sich auf 96 MB, fast alles davon Qt.
 
 ### Android
 
-1. Lade **[`Agape48-0.9.2-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 MB) auf das Telefon und tippe sie an.
+1. Lade **[`Agape48-0.9.3-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 MB) auf das Telefon und tippe sie an.
 2. **Android weigert sich beim ersten Mal** — *„your phone is not allowed to install unknown apps from this source“* — weil die Datei nicht aus dem Play Store kam. Tippe **Settings**, erlaube genau diese eine Quelle, und komm zurück. Android fragt pro *Quelle*, deinen Browser zu erlauben erlaubt also nicht auch deinen Dateimanager.
 3. Play Protect warnt danach vielleicht vor einer App von einem unbekannten Entwickler. Der Knopf **Install anyway** steckt hinter *More details*.
 4. Tippe **Open**. Auf einem Telefon füllt der Rechner den Bildschirm, so wie Droid48 es tut.
@@ -153,7 +153,7 @@ Beide Wege funktionieren, und keiner braucht den anderen:
 
 Auf Android ist das mit Abstand der leichtere der beiden Wege: der Ordner ist in jedem Dateimanager und über ein USB-Kabel sichtbar und braucht überhaupt keine Berechtigung, du hängst das Telefon also an einen Computer und legst die Datei hinein.
 
-**Der schnelle Weg — zeig der App, wo sie liegt.** Starte Agape48 und klick auf das unterstrichene **48GX** in der oberen rechten Ecke des Rechners — das ist das Menü, und einen anderen Eingang gibt es nicht. Dann **Settings → HP 48 ROM**, und wähl die Datei da aus, wo sie schon liegt. Der Rechner startet in dem Moment, in dem du Open drückst, und der Pfad wird gemerkt, du machst das also nie wieder.
+**Der schnelle Weg — zeig der App, wo sie liegt.** Starte Agape48 und klick auf das unterstrichene **48GX** in der oberen rechten Ecke des Rechners — das ist das Menü, und einen anderen Eingang gibt es nicht. Dann **Settings → HP 48 ROM**, und wähl die Datei da aus, wo sie schon liegt. Das Auswählen füllt nur das Feld: geladen wird sie von **Save**, und der Rechner wechselt im selben Fenster zu dieser ROM, ohne Neustart. Ist die Datei keine HP-48-ROM, wird der Pfad rot und die Zeile darunter sagt warum, und Save bleibt grau, bis dort eine ROM steht. Der Pfad wird gemerkt, du machst das also nie wieder.
 
 Zwei Falten, beide zum Dateidialog. Er kann nicht in ein `.zip` hineinschauen, also vorher auspacken. Und er listet ROM-förmige Namen auf, wozu `gxrom-r` und `sxrom-a` gehören — aber wenn du die Datei anders benannt hast und sie nicht siehst, stell den Filter des Dialogs auf **All files**.
 

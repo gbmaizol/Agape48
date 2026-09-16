@@ -92,18 +92,18 @@ Los avisos que se citan abajo aparecen en el idioma de tu sistema. Aquí están 
 
 ### Windows
 
-1. Descarga **[`Agape48-0.9.2-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 MB).
+1. Descarga **[`Agape48-0.9.3-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 MB).
 2. **Windows te va a frenar**: *«Windows protected your PC»*. Haz clic en **More info**, y después en **Run anyway**. Ese mensaje no es un aviso de virus — es Windows diciendo que el instalador no lleva certificado de firma de código, que es una compra y no un paso de compilación. Nada en la descarga está empaquetado ni ofuscado, y cada byte de código fuente que entró en ella está en este repositorio.
 3. **Next**, **Next**, **Install**. Va a `Program Files` y añade una entrada al menú Inicio.
 4. Ábrela desde el menú Inicio. Se desinstala como cualquier otro programa, desde *Apps & features*.
 
 ### Linux
 
-Sin root, nada en `/opt`, y nada que añadir a tu gestor de paquetes. Toma **[`Agape48-0.9.2-linux-x86_64.tar.gz`](https://github.com/gbmaizol/Agape48/releases/latest)**, y después:
+Sin root, nada en `/opt`, y nada que añadir a tu gestor de paquetes. Toma **[`Agape48-0.9.3-linux-x86_64.tar.gz`](https://github.com/gbmaizol/Agape48/releases/latest)**, y después:
 
 ```sh
-tar xzf Agape48-0.9.2-linux-x86_64.tar.gz
-./Agape48-0.9.2-linux-x86_64/install.sh
+tar xzf Agape48-0.9.3-linux-x86_64.tar.gz
+./Agape48-0.9.3-linux-x86_64/install.sh
 ```
 
 No hay paso de `chmod`: `tar` conserva el bit de ejecución, así que `install.sh` simplemente corre. (Si lo descomprimiste con un archivador gráfico que perdió los permisos, `sh install.sh` funciona igual.)
@@ -114,7 +114,7 @@ La descarga son 35,9 MB y se descomprime a 96 MB, casi todo Qt. Está compilada 
 
 ### Android
 
-1. Descarga **[`Agape48-0.9.2-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 MB) en el teléfono y tócala.
+1. Descarga **[`Agape48-0.9.3-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 MB) en el teléfono y tócala.
 2. **Android se va a negar la primera vez** — *«your phone is not allowed to install unknown apps from this source»* — porque el archivo no vino de la Play Store. Toca **Settings**, permite esa fuente concreta, y vuelve. Android pregunta por *fuente*, así que permitir tu navegador no permite también tu gestor de archivos.
 3. Play Protect puede avisar luego de una aplicación de un desarrollador no reconocido. El botón **Install anyway** está detrás de *More details*.
 4. Toca **Open**. En un teléfono la calculadora ocupa toda la pantalla, como hace Droid48.
@@ -153,7 +153,7 @@ Las dos formas funcionan, y ninguna necesita la otra:
 
 En Android esa es con diferencia la más fácil de las dos: la carpeta se ve en cualquier gestor de archivos y por cable USB y no necesita permiso ninguno, así que conectas el teléfono a una computadora y sueltas el archivo ahí.
 
-**La forma rápida — apunta la aplicación al archivo.** Abre Agape48 y haz clic en el **48GX** subrayado en la esquina superior derecha de la calculadora — ese es el menú, y no hay otra entrada. Después **Settings → HP 48 ROM**, y elige el archivo donde ya está. La calculadora arranca en el momento en que pulsas Open, y la ruta se recuerda, así que no lo vuelves a hacer.
+**La forma rápida — apunta la aplicación al archivo.** Abre Agape48 y haz clic en el **48GX** subrayado en la esquina superior derecha de la calculadora — ese es el menú, y no hay otra entrada. Después **Settings → HP 48 ROM**, y elige el archivo donde ya está. Elegirlo solo rellena el campo: **Save** es lo que lo carga, y la calculadora pasa a esa ROM en la misma ventana, sin reiniciarse. Si el archivo no es una ROM de HP 48, la ruta se vuelve roja y la línea de debajo dice por qué, y Save sigue gris hasta que ahí haya una ROM. La ruta se recuerda, así que no lo vuelves a hacer.
 
 Dos pliegues, los dos sobre el diálogo de archivos. No puede mirar dentro de un `.zip`, así que descomprime primero. Y lista nombres con forma de ROM, lo que incluye `gxrom-r` y `sxrom-a` — pero si renombraste el archivo a otra cosa y no lo ves, cambia el filtro del diálogo a **All files**.
 

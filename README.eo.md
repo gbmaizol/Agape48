@@ -92,18 +92,18 @@ La averto-tekstoj citataj sube aperas en la lingvo de via sistemo. Ili staras ĉ
 
 ### Windows
 
-1. Elŝutu **[`Agape48-0.9.2-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 MB).
+1. Elŝutu **[`Agape48-0.9.3-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 MB).
 2. **Windows haltigos vin**: *«Windows protected your PC»*. Klaku **More info**, poste **Run anyway**. Tiu mesaĝo ne estas virusaverto — ĝi estas Windows dirante ke la instalilo portas neniun kodsubskriban atestilon, kio estas aĉeto prefere ol konstrupaŝo. Nenio en la elŝuto estas pakita aŭ obskurigita, kaj ĉiu bajto de fonto kiu eniris ĝin troviĝas en ĉi tiu deponejo.
 3. **Next**, **Next**, **Install**. Ĝi iras en `Program Files` kaj aldonas eron al la Komenca menuo.
 4. Startigu ĝin el la Komenca menuo. Ĝi malinstaliĝas kiel ĉiu alia programo, el *Apps & features*.
 
 ### Linux
 
-Neniu `root`, nenio en `/opt`, kaj nenio aldonenda al via pakadministrilo. Prenu **[`Agape48-0.9.2-linux-x86_64.tar.gz`](https://github.com/gbmaizol/Agape48/releases/latest)**, poste:
+Neniu `root`, nenio en `/opt`, kaj nenio aldonenda al via pakadministrilo. Prenu **[`Agape48-0.9.3-linux-x86_64.tar.gz`](https://github.com/gbmaizol/Agape48/releases/latest)**, poste:
 
 ```sh
-tar xzf Agape48-0.9.2-linux-x86_64.tar.gz
-./Agape48-0.9.2-linux-x86_64/install.sh
+tar xzf Agape48-0.9.3-linux-x86_64.tar.gz
+./Agape48-0.9.3-linux-x86_64/install.sh
 ```
 
 Ne estas `chmod`-paŝo: `tar` konservas la plenumbiton, do `install.sh` simple ruliĝas. (Se vi malpakis per grafika arkivilo kiu forĵetis la permesojn, `sh install.sh` funkcias tamen.)
@@ -114,7 +114,7 @@ La elŝuto estas 35,9 MB kaj malpakiĝas al 96 MB, preskaŭ tute Qt. Ĝi estas k
 
 ### Android
 
-1. Elŝutu **[`Agape48-0.9.2-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 MB) sur la telefonon kaj frapetu ĝin.
+1. Elŝutu **[`Agape48-0.9.3-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 MB) sur la telefonon kaj frapetu ĝin.
 2. **Android rifuzos la unuan fojon** — *«your phone is not allowed to install unknown apps from this source»* — ĉar la dosiero ne venis el la Play Store. Frapetu **Settings**, permesu tiun unu fonton, kaj revenu. Android demandas laŭ *fonto*, do permesi vian retumilon ne samtempe permesas vian dosieradministrilon.
 3. Play Protect poste eble avertos pri aplikaĵo de nerekonata programisto. La butono **Install anyway** kaŝiĝas malantaŭ *More details*.
 4. Frapetu **Open**. Sur telefono la kalkulilo plenigas la ekranon, kiel Droid48 faras.
@@ -153,7 +153,7 @@ Ambaŭ vojoj funkcias, kaj neniu el ili bezonas la alian:
 
 Sur Android tio estas multe la pli facila el la du vojoj: la dosierujo estas videbla en ĉiu dosieradministrilo kaj tra USB-kablo kaj bezonas nenian permeson, do vi konektas la telefonon al komputilo kaj demetas la dosieron tien.
 
-**La rapida vojo — montru al la aplikaĵo kie ĝi estas.** Startigu Agape48 kaj klaku la substrekitan **48GX** en la supra dekstra angulo de la kalkulilo — tio estas la menuo, kaj alia enirejo ne ekzistas. Poste **Settings → HP 48 ROM**, kaj elektu la dosieron tie kie ĝi jam kuŝas. La kalkulilo startas en la momento kiam vi premas Open, kaj la vojo estas memorata, do vi neniam refaras tion.
+**La rapida vojo — montru al la aplikaĵo kie ĝi estas.** Startigu Agape48 kaj klaku la substrekitan **48GX** en la supra dekstra angulo de la kalkulilo — tio estas la menuo, kaj alia enirejo ne ekzistas. Poste **Settings → HP 48 ROM**, kaj elektu la dosieron tie kie ĝi jam kuŝas. La elekto nur plenigas la kampon: **Save** estas tio, kio ŝargas ĝin, kaj la kalkulilo transiras al tiu ROM en la sama fenestro, sen restarto. Se la dosiero ne estas ROM de HP 48, la vojo ruĝiĝas kaj la linio sub ĝi diras kial, kaj Save restas griza ĝis tie staras ROM. La vojo estas memorata, do vi neniam refaras tion.
 
 Du faldetoj, ambaŭ pri la dosierdialogo. Ĝi ne povas rigardi internen de `.zip`, do malzipu unue. Kaj ĝi listigas ROM-formajn nomojn, kio inkluzivas `gxrom-r` kaj `sxrom-a` — sed se vi renomis la dosieron al io alia kaj ne vidas ĝin, ŝanĝu la filtrilon de la dialogo al **All files**.
 
