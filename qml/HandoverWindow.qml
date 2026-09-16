@@ -25,6 +25,7 @@ Window {
         if (transientParent) {
             x = transientParent.x + (transientParent.width - width) / 2
             y = transientParent.y + 90
+            engine.keepOnScreen(root)
         }
     }
 

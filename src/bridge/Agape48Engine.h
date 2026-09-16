@@ -296,6 +296,11 @@ public:
 
     Q_INVOKABLE bool startSystemMove(QQuickWindow *window);
 
+    // FENESTRO VOKITA PER BUTONO APERAS INTERNE DE LA EKRANO. Ĝia kadro estas
+    // ŝovita en la liberan areon de la ekrano, kiu enhavas ĝian centron aŭ tiun
+    // de ĝia gepatra fenestro. Poste la fenestro estas movebla kien ajn.
+    Q_INVOKABLE void keepOnScreen(QQuickWindow *window) const;
+
     // One XMoveResizeWindow for a resize drag. QML cannot reach QWindow's own
     // four-argument setGeometry, and Main.qml already has a helper of that name
     // with a different signature, so the call comes through here.

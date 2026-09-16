@@ -46,6 +46,7 @@ Window {
         if (transientParent) {
             x = transientParent.x + (transientParent.width - width) / 2
             y = transientParent.y + 48
+            engine.keepOnScreen(root)
         }
         show(); raise(); requestActivate()
     }

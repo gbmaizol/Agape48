@@ -23,6 +23,8 @@ Window {
         if (transientParent) {
             x = transientParent.x + transientParent.width + 12
             y = transientParent.y
+            if (engine)
+                engine.keepOnScreen(root)
         }
         show(); raise(); requestActivate()
     }
