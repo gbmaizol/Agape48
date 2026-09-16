@@ -228,6 +228,22 @@ Item {
     FileDialog {
         id: romPicker
         title: qsTr("Choose an HP 48 ROM image")
+        // LA ELEKTILO KOMENCAS ĈE LA BRETARO, kaj tio estas respondo pri la
+        // klavo Reen. Sur Android ĉi tiu elektilo estas la Dokument-fenestro de
+        // Android mem - alia aplikaĵo, alia procezo, `ACTION_OPEN_DOCUMENT` -
+        // do dum ĝi staras Agape48 havas nenian fenestron kaj nenian klavon por
+        // mapi. Reen tie supreniras la stakon de dosierujoj kaj nuligas ĉe ĝia
+        // supro. Provo 23 linio 95: "once I press the '...' button, there's no
+        // way to cancel this action without choosing a file. I try the back
+        // action, and this takes me to the parent folder." Mezurite sur la
+        // telefono: kvar premoj, ĉar la elektilo malfermiĝis kvar dosierujojn
+        // profunde, kie ĝi laste estis.
+        //
+        // La sola maniero fari Reen unu premo estas komenci la stakon
+        // malprofunda. currentFolder fariĝas EXTRA_INITIAL_URI, kaj la dosierujo
+        // de la kalkuliloj estas krome tie, kie la ROM vere kuŝas - do la vojo
+        // eksteren kaj la vojo al la dosiero estas la sama elekto.
+        currentFolder: root.engine.state.location
         // gxrom-* kaj sxrom-* ĉar tiel hpcalc.org nomas ilin, kaj tio estas la
         // arkivo al kiu la README sendas la homon: filtro kiu kaŝas ekzakte la
         // dosierojn kiujn la instrukcio diras elŝuti estas filtro kiu malhelpas.
