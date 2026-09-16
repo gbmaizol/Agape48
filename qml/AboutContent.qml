@@ -11,7 +11,7 @@ import Agape48
 // faras, plus kelkajn alineojn pri Agape48. La pozicio estis lasita al ĉi tiu
 // dosiero por elekti.
 //
-// LA POZICIO, ĉar li petis ke ni elektu: propra sekcio malsupre, super Fini.
+// LA POZICIO: propra sekcio malsupre, super Fini.
 // Tio estas kie ĉiu labortabla programo metas ĝin, kaj la menuo jam finiĝas per
 // la du danĝeraj eroj - "Reset memory and quit" kaj "Quit" - kiujn separatoro
 // jam apartigas de ĉio alia. About eniras super tiu separatoro anstataŭ sub ĝi,

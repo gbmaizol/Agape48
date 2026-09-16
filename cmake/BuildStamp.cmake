@@ -8,8 +8,8 @@
 # anstataŭ oportuno. Horloĝa tempo ĉi tie ŝanĝiĝus je ĈIU konstruo, do la
 # kaptilo ŝanĝiĝus je ĉiu konstruo, do agape48 relegiĝus je ĉiu konstruo - kaj
 # ĉi tiu projekto ligas kun LTO, kie tio kostas dekojn da sekundoj ĉiufoje kiam
-# oni ŝanĝas unu QML-dosieron. La enarbiga tempo respondas la demandon kiun li
-# efektive havas - "ĉu ĉi tiu duumaĵo enhavas la riparon kiun mi petis" - kaj ĝi
+# oni ŝanĝas unu QML-dosieron. La enarbiga tempo respondas la demandon, por kiu
+# konstrustampo ekzistas - ĉu ĉi tiu duumaĵo enhavas la riparon - kaj ĝi
 # ŝanĝiĝas ekzakte kiam la fonto ŝanĝiĝas.
 #
 # Lanĉata per -P el propra celo, do ĝi kuras je konstruotempo kaj ne je

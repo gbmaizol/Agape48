@@ -244,6 +244,13 @@ Window {
         onKeyFeedback: (keyId) => feedback.tap()
         onLastErrorChanged: if (lastError) banner.show(lastError)
         onNotice: (text) => banner.hint(text)
+        // Kion Kopii metis en la tondujon, ankaŭ kiam la aŭtomata →STR finas
+        // momentojn post la menuero. Linifinoj iĝas spacoj kaj longa teksto
+        // estas tranĉita: ĉi tio estas strio, ne fenestro.
+        onClipboardCopied: (text) => {
+            const flat = text.replace(/\n/g, " ")
+            banner.hint(qsTr("Copied: %1").arg(flat.length > 40 ? flat.substring(0, 40) + "\u2026" : flat))
+        }
     }
 
     // "Customize keyboard…" mode: a plain click on the face opens that key's
@@ -284,6 +291,78 @@ Window {
         onUnassignedKey: (label) => banner.hint(
             qsTr("%1 is not assigned to any key. Ctrl+right-click a key to give it one.")
                 .arg(label))
+    }
+
+    // TIRI KAJ DEMETI SUR LA KALKULILON. La kursoro montras la pluson nur por
+    // dosiero aŭ teksto, kiun la kalkulilo povas ŝarĝi, kaj nur kiam ĝi povas
+    // ŝarĝi ĝin: kiam la tirado eniras la kalkulilon, la dosiero estas legata kaj
+    // la stato de la kalkulilo estas legata rekte el ĝia RAM, sen konservo. ROM
+    // estas akceptata nur de kalkulilo, kiu ankoraŭ havas neniun.
+    //
+    // RIFUZO VALIDAS POR LA TUTA ŜVEBADO. Post rifuzita eniro Qt ne plu demandas
+    // la celon, ĝis la muso eliras kaj reeniras: mezurite 2026sep13 kun fonto en
+    // Qt kaj kun fonto en GTK, kaj post 5,5 sekundoj da ŝvebado super kalkulilo,
+    // kiu fariĝis preta post 4,2, la kursoro estis ankoraŭ la rifuza. Akcepti kun
+    // IgnoreAction tenus la movojn fluantaj, sed tiam la kursoro montras la pluson
+    // eĉ dum la kalkulilo estas okupata - mezurite same - kaj tio estus malvera.
+    // Akceptita ŝvebado ja ricevas ĉiun movon, do kalkulilo, kiu ĉesas esti preta
+    // dum la muso restas, ŝanĝas la kursoron al rifuzo. drop() kontrolas denove.
+    //
+    // ANDROID HAVAS NEK KURSORON NEK LA ENHAVON DUM LA ŜVEBADO. Qt 6.12 donas al
+    // la ŝvebado nur la MIME-tipojn, ĉar Android malfermas la tirataĵon nur ĉe
+    // ACTION_DROP (QtDragManager.java), do nenio legebla ekzistas por juĝi. Tie
+    // ĉiu ŝvebado estas akceptata, kaj drop() decidas ĉe la demeto, kun la kialo
+    // en la ruĝa strio. Rifuzo sen demeto estus silenta: onDropped ne venas post
+    // rifuzita eniro.
+    DropArea {
+        anchors.fill: calculator
+        property string kind: ""
+        property string kindFor: ""
+        readonly property bool typesOnly: Qt.platform.os === "android"
+
+        function judge(drag) {
+            if (typesOnly) {
+                drag.accept(Qt.CopyAction)
+                return
+            }
+            const text = drag.hasText ? drag.text : ""
+            const key = drag.urls.join("\n") + "\u0001" + text
+            if (key !== kindFor) {
+                kind = engine.dropKind(drag.urls, text)
+                kindFor = key
+            }
+            if (engine.dropAllowed(kind))
+                drag.accept(Qt.CopyAction)
+            else
+                drag.accepted = false
+        }
+
+        // Dosiero el alia Android-aplikaĵo ne venas en text/uri-list: ĝia
+        // content://-adreso kuŝas sub la propra MIME-tipo de la dosiero, ekzemple
+        // application/octet-stream, kaj drop.urls restas malplena. Qt metas tie
+        // nur la adreson de la unua dosiero. Tekstdosiero alvenas jam legita, kiel
+        // text/plain.
+        function urlsOf(drop) {
+            if (drop.urls.length > 0)
+                return drop.urls
+            for (const format of drop.formats) {
+                const value = drop.getDataAsString(format)
+                if (value.startsWith("content://"))
+                    return [value]
+            }
+            return []
+        }
+
+        onEntered: (drag) => judge(drag)
+        onPositionChanged: (drag) => judge(drag)
+        onExited: kindFor = ""
+        onDropped: (drop) => {
+            kindFor = ""
+            if (engine.drop(urlsOf(drop), drop.hasText ? drop.text : ""))
+                drop.accept(Qt.CopyAction)
+            else
+                drop.accepted = false
+        }
     }
 
     KeyBindingWindow {
@@ -394,17 +473,12 @@ Window {
         // that can fail silently cannot be dogfooded at all.
         MenuItem {
             text: qsTr("Copy stack")
-            onTriggered: {
-                const copied = engine.copyStackToClipboard()
-                // Says what it copied, which is the confirmation a clipboard
-                // never gives you and the only way to catch a number that came
-                // out wrong. A long string is cut - this is a banner, not a
-                // window. A failure has already set the red strip.
-                if (copied !== "")
-                    banner.hint(qsTr("Copied: %1").arg(copied.length > 40
-                                                       ? copied.substring(0, 40) + "…"
-                                                       : copied))
-            }
+            // Says what it copied, which is the confirmation a clipboard never
+            // gives you and the only way to catch a number that came out wrong -
+            // through engine.clipboardCopied, because with the automatic →STR
+            // the text arrives after the ROM has finished. A failure has
+            // already set the red strip.
+            onTriggered: engine.copyStackToClipboard()
         }
         MenuItem {
             text: qsTr("Paste")

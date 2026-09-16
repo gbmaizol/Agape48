@@ -113,7 +113,10 @@ Item {
             contentWidth: width
             contentHeight: column.implicitHeight
             clip: true
-            boundsBehavior: Flickable.StopAtBounds
+            // Sur la telefono svingo komencita sur regilo ĉe la rando de la paĝo
+            // alie atingas la regilon; vidu la saman linion en SettingsContent.qml.
+            boundsBehavior: Qt.platform.os === "android" ? Flickable.DragOverBounds
+                                                          : Flickable.StopAtBounds
             ScrollBar.vertical: ScrollBar {}
 
             Column {

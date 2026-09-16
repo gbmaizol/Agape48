@@ -26,6 +26,14 @@
 #include "x48/romio.h"
 #include "x48/device.h"   /* ANN_* */
 #include "x48/rpl.h"     /* DSKTOP, TEMPTOP, the DO* prologues */
+/* La trigrafoj de la vendorita hp48char.h, kiel propra kopio sub alia nomo. La
+ * originala tabelo loĝas en rpl.c, kaj unu referenco al ĝi tirus rpl.c en la
+ * ligadon kun ĉiuj ĝiaj dependoj de la erarserĉilo, kiuj ne estas en la kerno. */
+#define hp48_trans_tbl a48_trigraphs
+#define DEFINE_TRANS_TABLE 1
+#include "x48/hp48char.h"
+#undef DEFINE_TRANS_TABLE
+#undef hp48_trans_tbl
 
 /* Defined in the vendored lcd.c. Not declared in any header there, because the
  * X11 frontend reached straight into the file. 64 rows of nibble values. */
@@ -663,6 +671,7 @@ extern void  Nwrite(BYTE *a, DWORD d, UINT s);
 extern DWORD Read5(DWORD d);
 extern DWORD RPL_CreateTemp(DWORD l);
 extern void  RPL_Push(DWORD n);
+extern void  Write5(DWORD d, DWORD n);
 
 #define A48_HDR_LEN   8            /* "HPHP48" + '-' + revision letter */
 #define A48_ADDR_END  0x100000     /* the Saturn's 20-bit address space */
@@ -828,16 +837,17 @@ bool x48_stack_has_object(void)
     return addr != 0 && addr < A48_ADDR_END;
 }
 
-bool x48_import_file(const char *path)
+/* Legas kaj kontrolas objektdosieron sen tuŝi la kalkulilon: la komuna parto de
+ * x48_import_file() kaj x48_object_file_loadable(). Je sukceso *out estas la
+ * objekto kiel duonbajtoj, kaj la vokanto liberigas ĝin. */
+static bool read_object_file(const char *path, BYTE **out, DWORD *out_size)
 {
     FILE  *fp;
     long   len;
     BYTE  *raw = NULL, *nibs = NULL;
-    DWORD  nib_count, size, addr;
+    DWORD  nib_count, size;
     size_t got;
     long   i;
-
-    if (!s_ready) { set_error("no calculator running"); return false; }
 
     if ((fp = fopen(path, "rb")) == NULL) {
         set_error("cannot open that file");
@@ -905,6 +915,42 @@ bool x48_import_file(const char *path)
         set_error("that file does not hold a single HP 48 object");
         return false;
     }
+    *out = nibs;
+    *out_size = size;
+    return true;
+}
+
+/* Ĉu objekto de size duonbajtoj trovas lokon? La sama kalkulo kiel
+ * RPL_CreateTemp() kaj RPL_Push(): la objekto kun sia ligkampo kaj marko inter
+ * la reirstako kaj la datumstako, plus unu nova stakloko. */
+static bool fits_in_memory(DWORD size)
+{
+    return Read5(RSKTOP) + size + 6 + 5 <= Read5(DSKTOP) && Read5(AVMEM) >= 1;
+}
+
+bool x48_object_file_loadable(const char *path)
+{
+    BYTE  *nibs = NULL;
+    DWORD  size = 0;
+
+    if (!read_object_file(path, &nibs, &size))
+        return false;
+    free(nibs);
+    if (s_ready && !fits_in_memory(size)) {
+        set_error("not enough calculator memory for that object");
+        return false;
+    }
+    return true;
+}
+
+bool x48_import_file(const char *path)
+{
+    BYTE  *nibs = NULL;
+    DWORD  size = 0, addr;
+
+    if (!s_ready) { set_error("no calculator running"); return false; }
+    if (!read_object_file(path, &nibs, &size))
+        return false;
 
     addr = RPL_CreateTemp(size);
     if (addr == 0) {
@@ -984,37 +1030,246 @@ bool x48_export_file(const char *path)
     return true;
 }
 
-/* --- the clipboard -------------------------------------------------------
+/* --- la tondujo ----------------------------------------------------------
  *
- * Two menu items sat over these for weeks returning "not implemented" to a
- * caller that ignored the answer, so Copy stack and Paste did nothing at all
- * and said nothing about it, on all three platforms. Found on the phone on
- * 2026sep09 with 4 and 7 plainly on the stack.
+ * NIVELO 1, NE LA TUTA STAKO, malgraŭ la nomo de la menuero, laŭ la sama regulo
+ * kiun la elporta komando ĉiam havis: reela nombro aŭ ĉeno, kiel teksto kiun
+ * homo rekonas - "1701", "-2.5E-9", "« 1 + »". Ĉiu alia tipo estas malkompila
+ * tasko, kaj la malkompililo de RPL estas la ROM mem: →STR faras ĉenon el kia
+ * ajn objekto kaj STR→ faras la malon. Tial la aŭtomataj →STR kaj STR→ pli sube
+ * enhavas nenian malkompililon; ili petas la ROM-on.
  *
- * WHAT THEY DO NOW: level 1, if it is a real number or a string, as text a
- * person would recognise - "1701", "-2.5E-9", "hello". Not the whole stack
- * despite the menu's name, which is the same level-1 rule the export command
- * has always had, and not every object type: a program or a list is a
- * decompilation problem, and the thing that decompiles RPL properly is the
- * ROM. Anything else says so and points at Export, which writes any object at
- * all.
+ * La formato de nombro estas tiu de la maŝino: 5 duonbajtoj da prologo, 3
+ * ciferoj de eksponento en dekkomplemento, 12 ciferoj de mantiso, ĉiuj kun la
+ * malplej signifa duonbajto UNUE, poste 1 duonbajto de signo - 21 duonbajtoj,
+ * kion ob_size() atendas de DOREAL. Ĉeno estas 5-duonbajta longo kiu kalkulas
+ * sin mem, poste du duonbajtoj por ĉiu signo.
  *
- * The number format is the machine's own: 5 nibbles of prologue, then 3
- * exponent digits in ten's complement, then 12 mantissa digits, all of them
- * least significant nibble FIRST, then 1 sign nibble - 21 nibbles, which is
- * what ob_size() says a DOREAL is. A string is a 5-nibble length that counts
- * itself, then two nibbles per character.
+ * LA EKSPONENTO VENAS UNUE, kaj tio indis mezuron prefere ol memoron: kun la
+ * mantiso legita de la malĝusta fino, 1701 kopiiĝis kiel "1.00000000003E170",
+ * kio estas la kialo, ke la menuero diras laŭte kion ĝi metis en la tondujon.
  *
- * THE EXPONENT COMES FIRST, and that was worth measuring rather than
- * remembering: with the mantissa read from the wrong end of the object, 1701
- * copied as "1.00000000003E170" - which is what the banner said the first time
- * this ran on the phone, and the reason the menu item now says out loud what it
- * put on the clipboard.
+ * LA SIGNARO. La HP 48 kongruas kun ASCII de 32 ĝis 126 kaj kun ISO 8859-1 de
+ * 160 ĝis 255. La 32 signoj de 128 ĝis 159 estas propraj, kaj la vendorita
+ * hp48char.h donas al ĉiu sian trigrafon, la askian formon de la transiga
+ * formato; s_hp_high aldonas la Unikodan formon en la sama ordo. Linifino estas
+ * signo 10. La ceteraj regsignoj eliras kiel siaj trigrafoj (\001), ĉar ili
+ * havas nenian videblan Unikodan formon.
  *
- * ASCII ONLY, and deliberately. The HP 48 character set agrees with ASCII from
- * 32 to 126 and goes its own way above that, so those characters pass straight
- * through in both directions and anything else is refused rather than
- * guessed at. The full table is still the missing piece the old stub named. */
+ * Enire la trigrafoj validas laŭ la kaplinio "%%HP: T(n)A(a)F(f);" kiam ĝi
+ * ĉeestas - T(0) kaj T(1) tradukas nur linifinojn, T(2) aldonas 128..159, T(3)
+ * ĉiujn - kaj sen kaplinio kiel T(3), ĉar tiel aspektas la programoj en
+ * hpcalc.org kaj en forumoj. Signo sen HP 48-ekvivalento rifuzas la tutan
+ * tekston, kaj la eraro nomas ĝin: diveni estus pli malbone ol rifuzi. La
+ * A() kaj F() de la kaplinio restas neuzataj; la angulan reĝimon kaj la
+ * dekuman signon decidas la kalkulilo mem. */
+
+/* 128..159 en UTF-8, en la ordo de hp48char.h. */
+static const char *const s_hp_high[32] = {
+    "\xE2\x88\xA1",    /* 128  ∡  \<) */
+    "x\xCC\x84",       /* 129  x̄  \x- */
+    "\xE2\x88\x87",    /* 130  ∇  \.V */
+    "\xE2\x88\x9A",    /* 131  √  \v/ */
+    "\xE2\x88\xAB",    /* 132  ∫  \.S */
+    "\xCE\xA3",        /* 133  Σ  \GS */
+    "\xE2\x96\xB6",    /* 134  ▶  \|> */
+    "\xCF\x80",        /* 135  π  \pi */
+    "\xE2\x88\x82",    /* 136  ∂  \.d */
+    "\xE2\x89\xA4",    /* 137  ≤  \<= */
+    "\xE2\x89\xA5",    /* 138  ≥  \>= */
+    "\xE2\x89\xA0",    /* 139  ≠  \=/ */
+    "\xCE\xB1",        /* 140  α  \Ga */
+    "\xE2\x86\x92",    /* 141  →  \-> */
+    "\xE2\x86\x90",    /* 142  ←  \<- */
+    "\xE2\x86\x93",    /* 143  ↓  \|v */
+    "\xE2\x86\x91",    /* 144  ↑  \|^ */
+    "\xCE\xB3",        /* 145  γ  \Gg */
+    "\xCE\xB4",        /* 146  δ  \Gd */
+    "\xCE\xB5",        /* 147  ε  \Ge */
+    "\xCE\xB7",        /* 148  η  \Gn */
+    "\xCE\xB8",        /* 149  θ  \Gh */
+    "\xCE\xBB",        /* 150  λ  \Gl */
+    "\xCF\x81",        /* 151  ρ  \Gr */
+    "\xCF\x83",        /* 152  σ  \Gs */
+    "\xCF\x84",        /* 153  τ  \Gt */
+    "\xCF\x89",        /* 154  ω  \Gw */
+    "\xCE\x94",        /* 155  Δ  \GD */
+    "\xCE\xA0",        /* 156  Π  \PI */
+    "\xCE\xA9",        /* 157  Ω  \GW */
+    "\xE2\x96\xA0",    /* 158  ■  \[] */
+    "\xE2\x88\x9E",    /* 159  ∞  \oo */
+};
+
+/* Unu HP 48-signo al UTF-8 en out, kiu havas almenaŭ 8 bajtojn. */
+static size_t hp_to_utf8(unsigned c, char *out)
+{
+    const char *t;
+    size_t n;
+
+    if (c == 10) { out[0] = '\n'; return 1; }
+    if (c >= 32 && c <= 126) { out[0] = (char)c; return 1; }
+    if (c >= 128 && c <= 159) {
+        t = s_hp_high[c - 128];
+        n = strlen(t);
+        memcpy(out, t, n);
+        return n;
+    }
+    if (c >= 160 && c <= 255) {
+        out[0] = (char)(0xC0 | (c >> 6));
+        out[1] = (char)(0x80 | (c & 0x3F));
+        return 2;
+    }
+    t = a48_trigraphs[c & 0xFF].trans;          /* regsignoj kaj 127 */
+    n = t ? strlen(t) : 0;
+    if (n == 0 || n > 7) { out[0] = '?'; return 1; }
+    memcpy(out, t, n);
+    return n;
+}
+
+/* Unu kodpunkto el UTF-8; redonas la konsumitajn bajtojn, aŭ 0 se nevalida. */
+static size_t utf8_decode(const unsigned char *s, size_t len, unsigned long *cp)
+{
+    if (len >= 1 && s[0] < 0x80) { *cp = s[0]; return 1; }
+    if (len >= 2 && (s[0] & 0xE0) == 0xC0 && (s[1] & 0xC0) == 0x80) {
+        *cp = ((unsigned long)(s[0] & 0x1F) << 6) | (s[1] & 0x3F);
+        return *cp >= 0x80 ? 2 : 0;
+    }
+    if (len >= 3 && (s[0] & 0xF0) == 0xE0 && (s[1] & 0xC0) == 0x80
+                 && (s[2] & 0xC0) == 0x80) {
+        *cp = ((unsigned long)(s[0] & 0x0F) << 12)
+            | ((unsigned long)(s[1] & 0x3F) << 6) | (s[2] & 0x3F);
+        return *cp >= 0x800 ? 3 : 0;
+    }
+    if (len >= 4 && (s[0] & 0xF8) == 0xF0 && (s[1] & 0xC0) == 0x80
+                 && (s[2] & 0xC0) == 0x80 && (s[3] & 0xC0) == 0x80) {
+        *cp = ((unsigned long)(s[0] & 0x07) << 18)
+            | ((unsigned long)(s[1] & 0x3F) << 12)
+            | ((unsigned long)(s[2] & 0x3F) << 6) | (s[3] & 0x3F);
+        return (*cp >= 0x10000 && *cp <= 0x10FFFF) ? 4 : 0;
+    }
+    return 0;
+}
+
+/* HP 48-kodo de unu el la 32 propraj signoj, aŭ -1. x̄ havas du kodpunktojn
+ * kaj estas traktata de la vokanto. */
+static int hp_high_from_cp(unsigned long cp)
+{
+    unsigned long c;
+    size_t n;
+    int i;
+
+    for (i = 0; i < 32; i++) {
+        n = strlen(s_hp_high[i]);
+        if (utf8_decode((const unsigned char *)s_hp_high[i], n, &c) == n && c == cp)
+            return 128 + i;
+    }
+    if (cp == 0x2220) return 128;               /* ∠, la ofta formo de ∡ */
+    if (cp == 0x03BC) return 181;               /* greka μ, la sama signo kiel µ */
+    return -1;
+}
+
+/* La plej longa trigrafo de hp48_trans_tbl ĉe s, laŭ la tradukreĝimo. */
+static int hp_from_trigraph(const char *s, size_t len, int mode, size_t *used)
+{
+    const char *t;
+    size_t n, bestn = 0;
+    int c, best = -1;
+
+    for (c = 0; c < 256; c++) {
+        t = a48_trigraphs[c].trans;
+        if (!t || (mode == 2 && c >= 160))
+            continue;
+        n = strlen(t);
+        if (n <= len && n > bestn && memcmp(s, t, n) == 0) {
+            best = c;
+            bestn = n;
+        }
+    }
+    *used = bestn;
+    return best;
+}
+
+/* Kie la korpo komenciĝas post eventuala kaplinio "%%HP: T(3)A(D)F(.);", kaj
+ * kun kiu tradukreĝimo. Sen kaplinio: la tuta teksto, reĝimo 3. */
+static const char *hp_header(const char *text, int *mode)
+{
+    const char *p = text, *end, *nl, *t;
+
+    *mode = 3;
+    if ((unsigned char)p[0] == 0xEF && (unsigned char)p[1] == 0xBB
+        && (unsigned char)p[2] == 0xBF)
+        p += 3;                                  /* BOM */
+    if (strncmp(p, "%%HP:", 5) != 0)
+        return p;
+    end = strchr(p, ';');
+    nl  = strchr(p, '\n');
+    if (!end || (nl && nl < end))
+        return p;                                /* komenciĝas tiel, sed ne estas kaplinio */
+    for (t = p + 5; t + 3 < end; t++)
+        if (t[0] == 'T' && t[1] == '(' && t[2] >= '0' && t[2] <= '3' && t[3] == ')') {
+            *mode = t[2] - '0';
+            break;
+        }
+    p = end + 1;
+    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')
+        p++;
+    return p;
+}
+
+/* Teksto al HP 48-bajtoj en out, kiu havas almenaŭ strlen(body) bajtojn.
+ * Redonas la nombron da bajtoj, aŭ -1 kun eraro kiu nomas la signon. */
+static long utf8_to_hp(const char *body, int mode, BYTE *out)
+{
+    const unsigned char *s = (const unsigned char *)body;
+    size_t len = strlen(body), i = 0, n;
+
+    /* La lasta linifino de tekstdosiero estas konvencio de la dosiero, ne enhavo:
+     * sen ĉi tio ĝi aperis kiel ■ ĉe la fino de ĉiu demetita programo. */
+    while (len > 0 && (s[len - 1] == '\n' || s[len - 1] == '\r'))
+        len--;
+    unsigned long cp;
+    char msg[160], shown[8];
+    long o = 0;
+    int c;
+
+    while (i < len) {
+        unsigned char b = s[i];
+        if (b == '\r') { out[o++] = 10; i += (i + 1 < len && s[i + 1] == '\n') ? 2 : 1; continue; }
+        if (b == '\n') { out[o++] = 10; i++; continue; }
+        if (b == '\t') { out[o++] = 32; i++; continue; }
+        if (b == '\\' && mode >= 2) {
+            c = hp_from_trigraph(body + i, len - i, mode, &n);
+            if (c >= 0) { out[o++] = (BYTE)c; i += n; continue; }
+            out[o++] = b; i++;
+            continue;
+        }
+        if (b == 'x' && i + 2 < len && s[i + 1] == 0xCC && s[i + 2] == 0x84) {
+            out[o++] = 129; i += 3;              /* x kaj kombina makrono: x̄ */
+            continue;
+        }
+        if (b >= 32 && b <= 126) { out[o++] = b; i++; continue; }
+        if (b < 32 || b == 127) {
+            snprintf(msg, sizeof msg, "the text holds a control character "
+                     "(code %u) that the calculator cannot hold", (unsigned)b);
+            set_error(msg);
+            return -1;
+        }
+        n = utf8_decode(s + i, len - i, &cp);
+        if (n == 0) { set_error("the text is not valid UTF-8"); return -1; }
+        c = (cp >= 0xA0 && cp <= 0xFF) ? (int)cp : hp_high_from_cp(cp);
+        if (c < 0) {
+            memset(shown, 0, sizeof shown);
+            memcpy(shown, body + i, n);
+            snprintf(msg, sizeof msg, "\"%s\" (U+%04lX) has no HP 48 "
+                     "character, so the text was not loaded", shown, cp);
+            set_error(msg);
+            return -1;
+        }
+        out[o++] = (BYTE)c;
+        i += n;
+    }
+    return o;
+}
 
 #define A48_REAL_NIBS 21
 #define A48_MANT_DIGITS 12
@@ -1112,29 +1367,30 @@ size_t x48_stack_to_text(char *buf, size_t buflen)
         need = real_to_text(nibs, buf, buflen);
     } else if (prologue == DOCSTR && size >= 10) {
         DWORD len5 = 0;
+        size_t at = 0, k;
+        char one[8];
         for (i = 5; i-- > 0; )
             len5 = (len5 << 4) | nibs[5 + i];
         chars = (len5 >= 5) ? (len5 - 5) / 2 : 0;
-        need = chars + 1;
-        if (buf && need <= buflen) {
-            for (i = 0; i < chars; i++) {
-                unsigned c = (unsigned)nibs[10 + i * 2]
-                           | ((unsigned)nibs[10 + i * 2 + 1] << 4);
-                if (c < 32 || c > 126) {   /* see the note above the table */
-                    free(nibs);
-                    set_error("that text has characters this version cannot "
-                              "translate yet - use Export from stack to file");
-                    return 0;
-                }
-                buf[i] = (char)c;
-            }
-            buf[chars] = '\0';
+        if (10 + chars * 2 > size)
+            chars = (size - 10) / 2;
+        for (i = 0; i < chars; i++) {
+            unsigned c = (unsigned)nibs[10 + i * 2]
+                       | ((unsigned)nibs[10 + i * 2 + 1] << 4);
+            k = hp_to_utf8(c, one);
+            if (buf && at + k < buflen)
+                memcpy(buf + at, one, k);
+            at += k;
         }
+        need = at + 1;
+        if (buf && need <= buflen)
+            buf[at] = '\0';
     } else {
         free(nibs);
-        set_error("Copy handles a number or a text string on level 1. For "
-                  "anything else use Export from stack to file, which writes "
-                  "every kind of object.");
+        set_error("Copy handles a number or a text string on level 1. "
+                  "Automatic \xE2\x86\x92" "STR on Copy, in Settings, copies "
+                  "every other kind of object as text, and Export from stack "
+                  "to file writes it whole.");
         return 0;
     }
 
@@ -1224,55 +1480,80 @@ static int parse_real(const char *t, BYTE *out)
     return A48_REAL_NIBS;
 }
 
+bool x48_text_loadable(const char *utf8)
+{
+    BYTE real[A48_REAL_NIBS];
+    const char *body;
+    BYTE *tmp;
+    long n;
+    int mode;
+
+    if (!utf8 || !*utf8) { set_error("there is no text"); return false; }
+    body = hp_header(utf8, &mode);
+    if (parse_real(body, real) > 0)
+        return !s_ready || fits_in_memory(A48_REAL_NIBS);
+    if (strlen(body) > (A48_MAX_NIBS / 2u) - 16u) {
+        set_error("that is too much text for the calculator");
+        return false;
+    }
+    tmp = (BYTE *)malloc(strlen(body) + 1);
+    if (!tmp) { set_error("out of memory"); return false; }
+    n = utf8_to_hp(body, mode, tmp);
+    free(tmp);
+    if (n < 0)
+        return false;
+    if (s_ready && !fits_in_memory(10 + (DWORD)n * 2)) {
+        set_error("not enough calculator memory for that text");
+        return false;
+    }
+    return true;
+}
+
 bool x48_text_to_stack(const char *utf8)
 {
     BYTE  real[A48_REAL_NIBS];
-    BYTE *nibs;
+    BYTE *nibs, *chars;
     DWORD size, addr, i;
-    size_t len;
-    int n;
+    const char *body;
+    long  len;
+    int   n, mode;
 
     if (!s_ready) { set_error("no calculator running"); return false; }
     if (!utf8 || !*utf8) { set_error("there is nothing on the clipboard"); return false; }
 
-    n = parse_real(utf8, real);
+    body = hp_header(utf8, &mode);
+    n = parse_real(body, real);
     if (n > 0) {
         nibs = (BYTE *)malloc((size_t)n);
         if (!nibs) { set_error("out of memory"); return false; }
         memcpy(nibs, real, (size_t)n);
         size = (DWORD)n;
     } else {
-        /* Not a number, so it becomes a string - which is what a calculator
-         * can honestly do with arbitrary text, and what a real 48 does when
-         * text arrives over the wire. */
-        len = strlen(utf8);
-        if (len > (A48_MAX_NIBS / 2u) - 16u) {
+        /* Ne nombro, do ĉeno - kion kalkulilo povas honeste fari el ajna
+         * teksto, kaj kion vera 48 faras kiam teksto alvenas per la kablo. */
+        if (strlen(body) > (A48_MAX_NIBS / 2u) - 16u) {
             set_error("that is too much text for the calculator");
             return false;
         }
-        for (i = 0; i < len; i++) {
-            unsigned char c = (unsigned char)utf8[i];
-            if (c < 32 || c > 126) {
-                set_error("the clipboard has characters this version cannot "
-                          "translate yet - only plain text and numbers");
-                return false;
-            }
-        }
+        chars = (BYTE *)malloc(strlen(body) + 1);
+        if (!chars) { set_error("out of memory"); return false; }
+        len = utf8_to_hp(body, mode, chars);
+        if (len < 0) { free(chars); return false; }
         size = 10 + (DWORD)len * 2;
         nibs = (BYTE *)malloc(size);
-        if (!nibs) { set_error("out of memory"); return false; }
+        if (!nibs) { free(chars); set_error("out of memory"); return false; }
         for (i = 0; i < 5; i++)
             nibs[i] = (BYTE)((DOCSTR >> (i * 4)) & 0x0f);
         {
-            DWORD field = 5 + (DWORD)len * 2;   /* the length counts itself */
+            DWORD field = 5 + (DWORD)len * 2;   /* la longo kalkulas sin mem */
             for (i = 0; i < 5; i++)
                 nibs[5 + i] = (BYTE)((field >> (i * 4)) & 0x0f);
         }
-        for (i = 0; i < len; i++) {
-            unsigned char c = (unsigned char)utf8[i];
-            nibs[10 + i * 2]     = (BYTE)(c & 0x0f);
-            nibs[10 + i * 2 + 1] = (BYTE)(c >> 4);
+        for (i = 0; i < (DWORD)len; i++) {
+            nibs[10 + i * 2]     = (BYTE)(chars[i] & 0x0f);
+            nibs[10 + i * 2 + 1] = (BYTE)(chars[i] >> 4);
         }
+        free(chars);
     }
 
     addr = RPL_CreateTemp(size);
@@ -1284,6 +1565,147 @@ bool x48_text_to_stack(const char *utf8)
     Nwrite(nibs, addr, size);
     free(nibs);
     RPL_Push(addr);
+    s_dirty = true;
+    return true;
+}
+
+uint32_t x48_level1_address(void)
+{
+    return x48_stack_has_object() ? (uint32_t)Read5(Read5(DSKTOP)) : 0;
+}
+
+bool x48_level1_is_string(void)
+{
+    if (!x48_stack_has_object())
+        return false;
+    return Read5(Read5(Read5(DSKTOP))) == DOCSTR;
+}
+
+/* --- preteco por ricevi objekton ----------------------------------------
+ *
+ * SES DUONBAJTOJ EL LA SISTEMA RAM, kaj la dormo de la Saturn. Mezurite en
+ * 2026sep13 per senkapa kalkulilo, kiu estis kondukita tra dek tri statoj - la
+ * stako, komandlinio, programa kaj alfa enigo, la redaktilo, MODES, MEMORY,
+ * CHARS, la interaga stako, EQUATION, PICTURE, HALT, kuranta programo, OFF - kun
+ * RAM-kopio en ĉiu, kaj la ekrano bildigita por kontroli, ke ĉiu stato estis tiu
+ * kiun ĝia nomo diras. Poste la sama sur la GX-revizioj K, L, M, P kaj R, kiuj
+ * donis la samajn valorojn en ĉiu stato.
+ *
+ *            stako  komandlinio  formularo/aplikaĵo  mesaĝo sur stako  eraro supre
+ *   80801      4         4              0                  0              4
+ *   80805      1         3              1                  1              1
+ *   80806      2         2              0                  2              2
+ *   8080A      4         5            e / f                4              4
+ *   8080B      0         0            0 / 1 / 8            0              0
+ *   8080C      1         1              0                  1              0
+ *
+ * "Mesaĝo sur stako" estas ekzemple "Eq: Ptype: FUNCTION" post PLOT; "eraro
+ * supre" estas "+ Error: Too Few Arguments" en la statusaj linioj. Ambaŭ
+ * malaperas je la sekva klavo. Post malsukcesa STR→ la teksto estas denove sur
+ * nivelo 1 kiel ĉeno, kaj la eraro staras supre.
+ *
+ * 8080C NE ESTAS LEGATA. Kalkulilo, kies stako montras ses nivelojn sen statusaj
+ * linioj kaj algebraĵojn kiel frakciojn - laboro de biblioteko, ĉar fabrika 48GX
+ * ne faras tion - tenas 8080C je 0 dum ĝi atendas ĉe la stako. Mezurite
+ * 2026sep13 en la konservita RAM de tri tiaj kalkuliloj, kaj sur kopio de unu el
+ * ili tra la stako, eraro supre, komandlinio kaj ON: 0 en ĉiu, krom en la
+ * redaktilo. Tie 8080C distingas nenion, kaj sur fabrika kalkulilo ĝi distingas
+ * nur la eraron supre, kiu ne malhelpas la stakon ricevi objekton - la ON-premo
+ * post la ŝarĝo forigas la mesaĝon. 80801 restas 4 sur tiu kalkulilo, do
+ * "mesaĝo sur stako" plu estas rifuzata.
+ *
+ * 80806 portas ankaŭ 1USR en sia plej malalta bito, kaj tio ne gravas ĉi tie.
+ * HALT havas ĝuste la valorojn de la stako - nur la reirstako estas pli
+ * profunda - kaj estas preta laŭ intenco: la tuta celo de HALT estas labori
+ * per la stako dum la programo atendas. Malŝaltita kalkulilo ankaŭ aspektas
+ * kiel la stako, tial display.on. La profundo de la reirstako (RSKTOP -
+ * TEMPTOP: 40 duonbajtoj ĉe la stako) ne estas uzata; la ses duonbajtoj sufiĉas
+ * por ĉiu mezurita stato, kaj numero kiu dependas de profundo estus pli
+ * facile rompebla. */
+
+#define A48_UI_A   0x80801
+#define A48_UI_B   0x80805
+#define A48_UI_C   0x80806
+#define A48_UI_D   0x8080A
+#define A48_UI_E   0x8080B
+#define A48_USERF  0x80852         /* bito 1: USER, ĉu 1USR ĉu ŝlosita */
+
+static unsigned ram_nib(DWORD a)
+{
+    BYTE b;
+    Npeek(&b, a, 1);
+    return (unsigned)(b & 0x0f);
+}
+
+x48_readiness_t x48_readiness(void)
+{
+    if (!s_ready)    return X48_NOT_RUNNING;
+    if (!opt_gx)     return X48_NOT_GX;
+    if (!s_asleep)   return X48_BUSY;
+    if (!display.on) return X48_OFF;
+    if (ram_nib(A48_UI_B) & 2)
+        return X48_EDITING;
+    if (!(ram_nib(A48_UI_C) & 2) || ram_nib(A48_UI_D) != 4 || ram_nib(A48_UI_E) != 0)
+        return X48_ELSEWHERE;
+    if (ram_nib(A48_UI_A) != 4)
+        return X48_MESSAGE;
+    return X48_READY;
+}
+
+bool x48_user_mode(void)
+{
+    return s_ready && opt_gx && (ram_nib(A48_USERF) & 2) != 0;
+}
+
+/* --- aŭtomataj →STR kaj STR→ ----------------------------------------------
+ *
+ * La montriloj estas tiuj, kiujn la kalkulilo mem kompilis, kiam oni tajpis
+ * « DUP →STR » kaj « STR→ » kaj legis la programojn el la RAM: la samaj sur
+ * K, L, M, P kaj R. Programo estas DOCOL, la montriloj, SEMI. */
+
+static const DWORD s_tostr_body[] = { 0x2361E, 0x1FB87, 0x1CB0B, 0x23639 };
+static const DWORD s_strto_body[] = { 0x2361E, 0x1CB26, 0x23639 };
+
+static bool push_program(const DWORD *body, int count)
+{
+    BYTE  nibs[5 * 8];
+    DWORD size = (DWORD)(count + 2) * 5, addr, v;
+    int   i, k;
+
+    if (x48_readiness() != X48_READY) {
+        set_error("the calculator is not waiting at the stack");
+        return false;
+    }
+    for (i = 0; i < count + 2; i++) {
+        v = (i == 0) ? DOCOL : (i == count + 1) ? SEMI : body[i - 1];
+        for (k = 0; k < 5; k++)
+            nibs[i * 5 + k] = (BYTE)((v >> (k * 4)) & 0x0f);
+    }
+    addr = RPL_CreateTemp(size);
+    if (addr == 0) {
+        set_error("not enough calculator memory for that");
+        return false;
+    }
+    Nwrite(nibs, addr, size);
+    RPL_Push(addr);
+    s_dirty = true;
+    return true;
+}
+
+bool x48_push_tostr_program(void) { return push_program(s_tostr_body, 4); }
+bool x48_push_strto_program(void) { return push_program(s_strto_body, 3); }
+
+bool x48_drop_level1(void)
+{
+    DWORD stkp;
+
+    if (!x48_stack_has_object()) {
+        set_error("there is nothing on level 1");
+        return false;
+    }
+    stkp = Read5(DSKTOP);
+    Write5(DSKTOP, stkp + 5);
+    Write5(AVMEM, Read5(AVMEM) + 1);
     s_dirty = true;
     return true;
 }

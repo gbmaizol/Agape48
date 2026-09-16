@@ -16,10 +16,9 @@ Unu peco da arto, ĉiu platformo, por ke ili ne povu disiĝi:
                                fona koloro, kaj la malnova kvadrato por ĉio pli
                                aĝa ol API 26
 
-LA FONTO ESTAS FOTOGRAFAĴO, ne la desegnita vizaĝo, de 2026sep08: "my
-wife is a designer, and she made me change my mind... rotate this image 30
-degrees counter-clockwise instead, and this will be the base for the adaptive
-icon." assets/icon-source.png estas ŝia HP48GXDusty.png, polva proksimfoto de
+LA FONTO ESTAS FOTOGRAFAĴO, ne la desegnita vizaĝo, de 2026sep08: "...rotate
+this image 30 degrees counter-clockwise instead, and this will be the base for
+the adaptive icon." assets/icon-source.png estas HP48GXDusty.png, polva proksimfoto de
 la malsupra maldekstra parto de vera klavaro - la ŝovklavoj, ON/CANCEL, ENTER -
 kopiita en la arbon por ke la konstruo ne dependu de dosiero en Dropbox, kaj kun
 forigita EXIF (la propra versinumero de GIMP kaj du tempindikoj; nek fotilo nek
@@ -101,11 +100,11 @@ ANGLE = 30                              # maldekstrume
 # NE LIA PNG. Lia dosiero estas 134x134 bilderoj tonditaj el la antaŭrigarda
 # folio de 2026sep09, do ĝi jam pasis tra malgrandigo; uzi ĝin kiel fonton
 # signifus grandigi ĝin 3,2-oble por la 432-bildera Androida tavolo. Anstataŭe
-# lia fenestro estis LOKALIZITA en la fotografaĵo kaj ĉi tie estas rekonstruita
-# el la plena rezolucio. La mezuro, per ŝablona kongruo je 46 skaloj: lia tondo
+# la mana fenestro estas LOKALIZITA en la fotografaĵo kaj ĉi tie rekonstruita el
+# la plena rezolucio. La mezuro, per ŝablona kongruo je 46 skaloj: la mana tondo
 # sidas ĉe k=0,523 de la turnita arto - ekzakte la 1,25-plenigo de tiu tago,
 # 320/613 = 0,5224 - kun meza diferenco de kanalo 3,26 el 255, kio estas
-# resampliga bruo kaj nenio alia. Tio faras lian 134-bilderan kvadraton
+# resampliga bruo kaj nenio alia. Tio faras la 134-bilderan kvadraton
 # 256x256 bilderoj de la turnita arto, kio estas PLI da detalo ol la malnova
 # ikono havis, ne malpli.
 #
@@ -119,7 +118,7 @@ ANGLE = 30                              # maldekstrume
 # ekzistas.
 FENESTRO = (170, 289, 426, 545)
 
-# +20%, liaj nombroj de 2026sep10: "Maybe it should be made with just a little
+# +20%, la nombroj de 2026sep10: "Maybe it should be made with just a little
 # bit (20%) more contrast and brightness." Aplikataj POST la fenestro, ĉar
 # ImageEnhance.Contrast kalkulas la mezvaloron de la bildo kiun oni donas al ĝi:
 # enhavigi la forĵetatan parton en tiun mezvaloron signifus agordi la ikonon laŭ
@@ -130,7 +129,7 @@ BRIGHTNESS = 1.2
 # LA DU ŜOVKLAVOJ, 2026sep11: "Please use this one, making the purple and
 # the green colors look more bright and shiny, to catch the eye."
 #
-# KIAL TIO NE POVAS ESTI FARITA LAŬ NUANCO. Mezurita sur lia fenestro: 87% de
+# KIAL TIO NE POVAS ESTI FARITA LAŬ NUANCO. Mezurita sur la mana fenestro: 87% de
 # ĉiuj saturitaj bilderoj kuŝas inter 180 kaj 250 gradoj, la verda ŝovklavo mem
 # havas mezan nuancon de 198 gradoj, kaj violkoloro - 270 ĝis 300 - havas 20
 # bilderojn en la tuta bildo. La fotografaĵo portas fortan bluan lumon, do la
@@ -153,13 +152,13 @@ TINT_FEATHER = 2                        # bilderoj da malakrigo sur la elipso
 TINT_FLOOR = 0.40                       # sub tiu lumeco la bildero ne estas tuŝita
 TINT_RAMP = 0.26
 
-# La lia, donita kiel tri nombroj: "make the background r66,g75,b92", kaj poste
-# duonigita je 2026sep08 post kiam li vidis ĝin tranĉita en cirklon sur la
-# lanĉilo: "Works! I see a circle with the calculator in it. Please make the
+# La fono, donita kiel tri nombroj: "make the background r66,g75,b92", kaj poste
+# duonigita je 2026sep08, kiam la lanĉilo jam tranĉis ĝin en cirklon: "Works! I
+# see a circle with the calculator in it. Please make the
 # background half as dark."
 #
 # DUONE TIEL MALLUMA, ne duone tiel hela - tiuj estas kontraŭaj operacioj kaj nur
-# unu el ili estas kion li petis. Malluma estas 1 - L en HSL, do duonigi ĝin
+# unu el ili respondas al la citaĵo. Malluma estas 1 - L en HSL, do duonigi ĝin
 # prenas L de 0,310 al 0,655 dum la nuanco (219 gradoj) kaj la satureco (0,165)
 # restas ekzakte kie ili estis. Tio estas la diferenco inter pli hela versio de
 # LIA ardezo kaj alia koloro kiu hazarde estas pala: rgb(66,75,92) fariĝas
@@ -168,12 +167,12 @@ TINT_RAMP = 0.26
 BACKGROUND = (153, 163, 181, 255)
 CLEAR = (0, 0, 0, 0)
 
-# CIRKLO SUR LA LABORTABLO, 2026sep11, kaj tio estas lia dua frazo pri la sama
-# tondo: "some parts of it at the bottom must be made transparent, but they are
+# CIRKLO SUR LA LABORTABLO, 2026sep11, la dua frazo pri la sama tondo: "some
+# parts of it at the bottom must be made transparent, but they are
 # out of the circle crop."
 #
 # La partoj kiuj devas fariĝi travideblaj kaj la partoj kiujn cirklo fortranĉas
-# estas la samaj partoj, kaj tion oni povas vidi sur lia propra tondo: la
+# estas la samaj partoj, kaj la mana tondo mem montras tion: la
 # malsupra maldekstra angulo estas la nigra ombro sub CANCEL kaj la malsupra
 # dekstra estas la polva nigra maso sur la tablo. Kvadrata ikono portus ambaŭ
 # kiel nigran strion laŭ sia fundo, kio estas la plendo per kiu la tuta ikono
@@ -184,7 +183,7 @@ CLEAR = (0, 0, 0, 0)
 FILL_DESKTOP = 1.0
 
 # ANDROIDO NE RICEVAS LA CIRKLON, ĉar tie la tondilon tenas la lanĉilo. Adapta
-# ikono estas du tavoloj kaj la LANĈILO elektas la silueton - cirklo sur lia
+# ikono estas du tavoloj kaj la LANĈILO elektas la silueton - cirklo sur unu
 # telefono, kvadratcirklo aŭ rondigita kvadrato sur aliaj - kaj tranĉas ambaŭ
 # tavolojn per ĝi. Antaŭa tavolo kiu jam estas cirklo montrus la fonan ardezon
 # ĉe la kvar anguloj sur ĉiu telefono kies masko ne estas cirklo. Do la antaŭa
@@ -194,9 +193,8 @@ FILL_DESKTOP = 1.0
 # 80dp dum paralaksa animacio. Kvadrato je plenigo f kovras f*108 dp, do 80dp
 # postulas f >= 0,741; 0,75 donas 81dp kaj nul nudan maskon eĉ dum la animacio.
 # Kaj ĝi estas la PLEJ MALGRANDA nombro kiu faras tion, kio gravas ĉar ĉio pli
-# granda forĵetus arton: je 0,75 la 72dp-cirklo montras 89% de la larĝo de lia
-# fenestro, do kion li vidas sur la hejmekrano estas preskaŭ ekzakte la tondo
-# kiun li faris.
+# granda forĵetus arton: je 0,75 la 72dp-cirklo montras 89% de la larĝo de la
+# mana fenestro, do la hejmekrano montras preskaŭ ekzakte la manan tondon.
 #
 # SEN FADENADO ĉi tie, malkiel ĉie aliloke. Mola rando sub masko estas nur
 # perdita kovro: ĝi mangus 2dp ĉe ĉiu flanko kaj devigus pli grandan plenigon
@@ -257,7 +255,7 @@ def tinted(img: Image.Image, spec) -> Image.Image:
 def artwork() -> Image.Image:
     """La fotografaĵo turnita, tondita al la elektita fenestro, agordita, kaj kun
     la du ŝovklavoj repentritaj. Ordo gravas dufoje: la turno antaŭ la tondo, ĉar
-    lia fenestro estas akse ordigita en la turnita spaco, kaj la kontrasto post
+    la fenestro estas akse ordigita en la turnita spaco, kaj la kontrasto post
     la tondo, ĉar ImageEnhance mezuras la bildon kiun ĝi ricevas."""
     win = turned(Image.open(SOURCE).convert("RGB")).crop(FENESTRO)
     rgb = ImageEnhance.Contrast(win.convert("RGB")).enhance(CONTRAST)

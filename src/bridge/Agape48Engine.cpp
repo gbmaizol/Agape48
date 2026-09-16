@@ -36,6 +36,15 @@ namespace {
 // says otherwise, this is the one place that has to move.
 constexpr int  kTickIntervalMs = 16;
 
+// La aŭtomata →STR / STR→: kiom longe la programo rajtas resti neruligita sur
+// nivelo 1 post la klavoj, kaj kiom longe la gardado daŭras entute.
+constexpr qint64 kAutoStartMs   = 1000;
+constexpr qint64 kAutoTimeoutMs = 10000;
+
+// La plej granda tekstdosiero, kiun demeto legas por decidi. La RAM de GX havas
+// 128 KB, do ĉeno pli granda ol tio neniam trovus lokon.
+constexpr qint64 kDropTextMaxBytes = 256 * 1024;
+
 // How long a key is guaranteed to stay down. The HP 48's ROM polls the matrix
 // on its own schedule - about 40 ms between scans - so a press and release
 // inside one gap is never seen at all. Dogfood #11 line 2: pressing Esc did
@@ -343,6 +352,8 @@ void Agape48Engine::loadCalcSettings()
     const auto s = calcSettings(m_state);
     m_runUnfocused = carried(s.get(), "window/runUnfocused", false).toBool();
     m_realSpeed    = carried(s.get(), "speed/real", false).toBool();
+    m_autoToStr    = carried(s.get(), "clipboard/autoToStr", false).toBool();
+    m_autoStrTo    = carried(s.get(), "clipboard/autoStrTo", false).toBool();
     // Clamped against the rate in force, because the far right of the slider is
     // a function of it. A factor stored where the calibration was different must
     // not push the budget past the ceiling.
@@ -396,6 +407,8 @@ Agape48Engine::Agape48Engine(QObject *parent)
         loadCalcSettings();
         emit runUnfocusedChanged();
         emit realSpeedChanged();
+        emit autoToStrChanged();
+        emit autoStrToChanged();
         emit speedFactorChanged();
         if (!m_ready) {
             start();
@@ -657,8 +670,7 @@ bool Agape48Engine::start()
         // Revision"?'" Ĝi estas la sola ekrano kiun homo sen ROM certe vidos, kaj
         // ĝi estis la sola loko kiu sciis pri la problemo kaj diris nenion pri la
         // solvo. La serĉĉeno estas laŭvorte kion oni tajpas en Ctrl-F sur tiu
-        // paĝo: ĝi havas dek unu ROM-ojn inter multe da alia, kaj li ne trovis
-        // ilin.
+        // paĝo: ĝi kaŝas dek unu ROM-ojn inter multe da alia.
         setError(tr("No HP 48 ROM. There is no file named \"rom\" in %1, and "
                     "none has been chosen in Settings.\n"
                     "A free one: open https://www.hpcalc.org/hp48/pc/emulators/ "
@@ -964,6 +976,18 @@ void Agape48Engine::tick()
         pressKey(k);
         releaseKey(k);          // the 60 ms latch holds it down long enough
     }
+    if (m_autoStep != 0)
+        stepAuto();
+    // Demeto venas el alia fenestro, kiu tenas la fokuson, do la kalkulilo estis
+    // haltigita kiam ĝi alvenis. La demeto rekomencigis la takton por siaj klavoj
+    // kaj por la ROM; kiam ĉio finiĝis, la paŭzo de nefokusita fenestro revenas
+    // per la kutima vojo, kun konservo.
+    if (m_dropWoke && m_autoStep == 0 && m_tapQueue.isEmpty()
+        && m_releasePending.isEmpty() && m_downAt.isEmpty() && x48_is_asleep()) {
+        m_dropWoke = false;
+        if (!m_runUnfocused && QGuiApplication::applicationState() != Qt::ApplicationActive)
+            suspend();
+    }
 
     // A ROM that does not answer OFF must not leave the other machine waiting
     // out its ninety seconds while this window sits here still holding the lock.
@@ -1165,6 +1189,24 @@ void Agape48Engine::setRealSpeed(bool on)
     m_paceAt   = 0;
     m_paceOwed = 0;
     emit realSpeedChanged();
+}
+
+void Agape48Engine::setAutoToStr(bool on)
+{
+    if (m_autoToStr == on)
+        return;
+    m_autoToStr = on;
+    calcSettings(m_state)->setValue(QLatin1String("clipboard/autoToStr"), on);
+    emit autoToStrChanged();
+}
+
+void Agape48Engine::setAutoStrTo(bool on)
+{
+    if (m_autoStrTo == on)
+        return;
+    m_autoStrTo = on;
+    calcSettings(m_state)->setValue(QLatin1String("clipboard/autoStrTo"), on);
+    emit autoStrToChanged();
 }
 
 // How many instructions real time has earned since the last slice. THIS IS THE
@@ -1945,26 +1987,46 @@ bool Agape48Engine::reloadState()
 
 // --- clipboard --------------------------------------------------------------
 
-QString Agape48Engine::copyStackToClipboard()
+// Nivelo 1 kiel teksto, per la tradukado de la kerno. False, kun la frazo en
+// x48_last_error(), kiam nivelo 1 estas nek nombro nek ĉeno.
+static bool level1Text(QString *text)
 {
     QByteArray buf(512, Qt::Uninitialized);
     size_t need = x48_stack_to_text(buf.data(), size_t(buf.size()));
-    if (need == 0) {
-        setError(QString::fromUtf8(x48_last_error()));
-        return {};
-    }
     if (need > size_t(buf.size())) {          // retry once with the real size
         buf.resize(int(need));
         need = x48_stack_to_text(buf.data(), size_t(buf.size()));
-        if (need == 0 || need > size_t(buf.size())) {
-            setError(QString::fromUtf8(x48_last_error()));
-            return {};
-        }
     }
+    if (need == 0 || need > size_t(buf.size()))
+        return false;
     // need counts the terminator the core writes; the string does not want it.
     buf.truncate(int(need) - 1);
-    const QString text = QString::fromUtf8(buf);
+    *text = QString::fromUtf8(buf);
+    return true;
+}
+
+QString Agape48Engine::copyStackToClipboard()
+{
+    // Kun la aŭtomata →STR la teksto venas de la ROM, kelkajn momentojn poste:
+    // stepAuto() metas ĝin en la tondujon kaj anoncas ĝin per clipboardCopied.
+    if (m_autoToStr) {
+        if (readyForObject(true)) {
+            if (!x48_stack_has_object())
+                setError(tr("There is nothing on level 1 to copy."));
+            else if (!x48_push_tostr_program())
+                setError(QString::fromUtf8(x48_last_error()));
+            else
+                beginAuto(1);
+        }
+        return {};
+    }
+    QString text;
+    if (!level1Text(&text)) {
+        setError(QString::fromUtf8(x48_last_error()));
+        return {};
+    }
     QGuiApplication::clipboard()->setText(text);
+    emit clipboardCopied(text);
     return text;
 }
 
@@ -1972,6 +2034,72 @@ bool Agape48Engine::pasteClipboardToStack()
 {
     const QString text = QGuiApplication::clipboard()->text();
     if (text.isEmpty())
+        return false;
+    return pasteText(text);
+}
+
+// --- objects arriving from outside ------------------------------------------
+
+// Ŝovklavo ŝlosita ŝanĝas la sencon de la sekva klavo - maldekstra ŝovo faras
+// el EVAL →NUM, dekstra faras el ON OFF - do ĉiu premata sekvenco komenciĝas per
+// malŝlosado, same kiel la puŝeto post Enporti.
+QStringList Agape48Engine::unlatchShifts() const
+{
+    QStringList seq;
+    if (m_annunciators & X48_ANN_RIGHT) seq << QStringLiteral("SHR");
+    if (m_annunciators & X48_ANN_LEFT)  seq << QStringLiteral("SHL");
+    return seq;
+}
+
+QString Agape48Engine::notReadyReason() const
+{
+    switch (x48_readiness()) {
+    case X48_READY:       return {};
+    case X48_NOT_RUNNING: return tr("The calculator is not running.");
+    case X48_NOT_GX:      return tr("This needs an HP 48GX ROM.");
+    case X48_BUSY:        return tr("The calculator is busy. Wait for it to finish, or press ON to stop it.");
+    case X48_OFF:         return tr("The calculator is off. Press ON first.");
+    case X48_EDITING:     return tr("The command line is open. Press ENTER or ON first.");
+    case X48_MESSAGE:     return tr("A message is on the calculator's screen. Press ON first.");
+    case X48_ELSEWHERE:   break;
+    }
+    return tr("The calculator is not at the stack. Leave the form or application first.");
+}
+
+// La antaŭkondiĉo de Alglui kaj de ĉiu demeto: la kalkulilo atendas ĉe la stako.
+// La puŝeto post la metado estas ON, kaj ON estas CANCEL - en malfermita
+// komandlinio ĝi forviŝus la tajpitan tekston. Enporti per la menuo ne pasas
+// tra ĉi tie: sur Androido la dosierelektilo sendas la aplikaĵon al la fono, kaj
+// la stato post la reveno ne estas mezurita.
+bool Agape48Engine::readyForObject(bool pressesKeys)
+{
+    if (m_autoStep != 0) {
+        setError(tr("The calculator is still finishing the last copy or paste."));
+        return false;
+    }
+    const QString why = notReadyReason();
+    if (!why.isEmpty()) {
+        setError(why);
+        return false;
+    }
+    // USER-reĝimo povas doni al EVAL alian taskon, kaj la aŭtomata vojo premas
+    // EVAL. Pli bone rifuzi ol ruli ies propran klavon.
+    if (pressesKeys && x48_user_mode()) {
+        setError(tr("USER mode is on, and it can give EVAL another job. Turn USER mode off to use automatic →STR or STR→."));
+        return false;
+    }
+    // En alfa-reĝimo EVAL tajpus la literon O en novan komandlinion.
+    if (pressesKeys && (m_annunciators & X48_ANN_ALPHA)) {
+        setError(tr("Alpha mode is on. Press α until its indicator goes off, then try again."));
+        return false;
+    }
+    return true;
+}
+
+bool Agape48Engine::pasteText(const QString &text)
+{
+    const bool strTo = m_autoStrTo;
+    if (!readyForObject(strTo))
         return false;
     if (!x48_text_to_stack(text.toUtf8().constData())) {
         // The core's own sentence, not a summary of it: it knows whether the
@@ -1982,19 +2110,242 @@ bool Agape48Engine::pasteClipboardToStack()
     }
     setError(QString());
     setTickRate(kTickIntervalMs);
+    // Nombro jam estas objekto; nur ĉeno bezonas STR→.
+    if (strTo && x48_level1_is_string()) {
+        level1Text(&m_autoPasted);
+        if (x48_push_strto_program()) {
+            beginAuto(2);
+            return true;
+        }
+        setError(QString::fromUtf8(x48_last_error()));
+    }
     // THE SAME NUDGE IMPORT NEEDS, and leaving it out is why Paste looked like
     // it did nothing at all: the object was pushed and the stack on the glass
     // went on showing what it showed before, because the ROM redraws when
     // something happens to the machine and nothing had. Measured on the phone
     // on 2026sep09 - 3.14158 copied, dropped, pasted, and the display still
-    // read what was under it. ON is also CANCEL, so any latched shift comes off
-    // first or ON would be OFF.
-    QStringList seq;
-    if (m_annunciators & X48_ANN_RIGHT) seq << QStringLiteral("SHR");
-    if (m_annunciators & X48_ANN_LEFT)  seq << QStringLiteral("SHL");
-    seq << QStringLiteral("ON");
-    queueTaps(seq);
+    // read what was under it.
+    queueTaps(unlatchShifts() << QStringLiteral("ON"));
     return true;
+}
+
+// LA ROM RULAS LA PROGRAMON, NE ĈI TIU KODO. La programo jam kuŝas sur nivelo 1,
+// kaj EVAL rulas ĝin. stepAuto() premas EVAL nur kiam la kalkulilo denove atendas
+// ĉe la stako post eventuala malŝlosado de ŝovklavo, kaj poste atendas, ĝis la
+// programo malaperis de nivelo 1.
+//
+// NENIU ON ANTAŬ EVAL. ON estas ATTN, kaj la ROM malplenigas sian klavbufron dum
+// ĝi traktas ATTN: EVAL premita dum tiu traktado simple malaperas. Mezurite en
+// 2026sep13: ON je 17 ms, EVAL je 86 ms, la Saturn okupata ĝis ĉirkaŭ 170 ms, kaj
+// la programo ankoraŭ sur nivelo 1 poste. La alfa-reĝimo, kontraŭ kiu ON estis
+// tie, nun estas rifuzata antaŭe per sia indikilo.
+void Agape48Engine::beginAuto(int step)
+{
+    m_autoStep   = step;
+    m_autoObject = x48_level1_address();
+    m_autoSince  = m_clock.elapsed();
+    m_autoEvalQueued = false;
+    setError(QString());
+    const QStringList shifts = unlatchShifts();
+    if (!shifts.isEmpty())
+        queueTaps(shifts);
+    else
+        setTickRate(kTickIntervalMs);
+}
+
+void Agape48Engine::stepAuto()
+{
+    // La klavoj unue devas eniri, alie la stato ankoraŭ estas tiu de antaŭ EVAL.
+    if (!m_tapQueue.isEmpty() || !m_releasePending.isEmpty() || !m_downAt.isEmpty())
+        return;
+
+    const x48_readiness_t state = x48_readiness();
+
+    if (!m_autoEvalQueued) {
+        if (state != X48_READY) {
+            if (m_clock.elapsed() - m_autoSince < kAutoStartMs)
+                return;
+            m_autoStep = 0;
+            if (x48_level1_address() == m_autoObject)
+                x48_drop_level1();
+            setError(notReadyReason());
+            return;
+        }
+        queueTaps({ QStringLiteral("EVAL") });
+        m_autoEvalQueued = true;
+        m_autoSince = m_clock.elapsed();
+        return;
+    }
+    const bool ran    = x48_level1_address() != m_autoObject;
+    const qint64 wait = m_clock.elapsed() - m_autoSince;
+    const int step    = m_autoStep;
+
+    if (state == X48_BUSY || (!ran && wait < kAutoStartMs)) {
+        if (wait < kAutoTimeoutMs)
+            return;
+        m_autoStep = 0;
+        // STR→ povas plenumi longan kalkulon, kaj tio estas ĝia rajto: la
+        // algluita teksto kuras plu, nur ĉi tiu gardado ĉesas. Por →STR tiom da
+        // tempo signifas, ke io misiris.
+        if (step == 1)
+            setError(tr("→STR is taking too long. Copy stopped waiting for it."));
+        return;
+    }
+    m_autoStep = 0;
+
+    if (!ran) {
+        // EVAL neniam atingis la programon. Ĝi foriras, kaj nenio alia ŝanĝiĝis.
+        if (x48_level1_address() == m_autoObject)
+            x48_drop_level1();
+        queueTaps(unlatchShifts() << QStringLiteral("ON"));
+        setError(tr("The calculator did not run the program. Nothing was changed."));
+        return;
+    }
+
+    if (step == 1) {
+        if (state != X48_READY || !x48_level1_is_string()) {
+            setError(tr("→STR stopped before it finished. The calculator's screen says why."));
+            return;
+        }
+        QString text;
+        if (!level1Text(&text)) {
+            setError(QString::fromUtf8(x48_last_error()));
+            return;
+        }
+        // La ĉeno estis nur la vojo al la tondujo; la stako restas kia ĝi estis.
+        x48_drop_level1();
+        queueTaps(unlatchShifts() << QStringLiteral("ON"));
+        QGuiApplication::clipboard()->setText(text);
+        emit clipboardCopied(text);
+        return;
+    }
+
+    // RIFUZITAN STR→ MONTRAS LA TEKSTO, NE LA STATO. La ROM remetas la ĉenon per
+    // LASTARG, ĉe alia adreso ol la algluita (mezurite), kaj la eraro staras en la
+    // statusaj linioj, kiujn x48_readiness() ne legas. Sukcesa STR→ lasas ĉenon
+    // kun la sama teksto nur se la teksto mem ĝin rekreas, ekzemple nomo de
+    // variablo, kiu enhavas ĝuste tiun tekston.
+    QString back;
+    const bool refused = x48_level1_is_string() && level1Text(&back)
+                         && back == m_autoPasted;
+    m_autoPasted.clear();
+    if (state != X48_READY || refused)
+        setError(tr("STR→ stopped with a message. The calculator's screen says why."));
+}
+
+QString Agape48Engine::sniffDropFile(const QUrl &url) const
+{
+    if (!url.isLocalFile())
+        return url.scheme() == QLatin1String("content") ? QStringLiteral("unknown") : QString();
+    const QString path = url.toLocalFile();
+    QFile f(path);
+    if (!QFileInfo(path).isFile() || !f.open(QIODevice::ReadOnly))
+        return {};
+    const qint64 size = f.size();
+    const QByteArray head = f.peek(8);
+    if (head.startsWith("HPHP48-"))
+        return x48_object_file_loadable(path.toUtf8().constData())
+                   ? QStringLiteral("object") : QString();
+    // La du formoj, kiujn la ROM-leganto de x48 mem rekonas - pakita kaj
+    // malpakita - je la tri grandoj, kiujn HP 48-ROM havas.
+    if ((size == 262144 || size == 524288 || size == 1048576)
+        && (head.startsWith(QByteArrayLiteral("\x32\x96\x1b\x80"))
+            || head.startsWith(QByteArrayLiteral("\x02\x03\x06\x09"))))
+        return QStringLiteral("rom");
+    if (size > 0 && size <= kDropTextMaxBytes) {
+        const QByteArray all = f.readAll();
+        if (!all.contains('\0') && x48_text_loadable(all.constData()))
+            return QStringLiteral("text");
+    }
+    return {};
+}
+
+QString Agape48Engine::dropKind(const QList<QUrl> &urls, const QString &text)
+{
+    if (urls.isEmpty()) {
+        if (text.isEmpty())
+            return QStringLiteral("unknown");
+        return x48_text_loadable(text.toUtf8().constData()) ? QStringLiteral("text") : QString();
+    }
+    if (urls.size() == 1)
+        return sniffDropFile(urls.first());
+    // Pluraj dosieroj nur kiam ĉiuj estas objektoj: ROM venas sola, kaj teksto
+    // kun aŭtomata STR→ okupas la kalkulilon ĝis la ROM finis.
+    for (const QUrl &u : urls) {
+        const QString k = sniffDropFile(u);
+        if (k != QLatin1String("object") && k != QLatin1String("unknown"))
+            return {};
+    }
+    return QStringLiteral("object");
+}
+
+bool Agape48Engine::dropAllowed(const QString &kind) const
+{
+    if (kind.isEmpty() || m_autoStep != 0)
+        return false;
+    const bool noRom = m_romSource.isEmpty();
+    if (kind == QLatin1String("rom"))
+        return noRom && !m_ready;
+    if (kind == QLatin1String("unknown"))
+        return (noRom && !m_ready) || x48_readiness() == X48_READY;
+    return x48_readiness() == X48_READY;
+}
+
+bool Agape48Engine::drop(const QList<QUrl> &urls, const QString &text)
+{
+    // Androida dokumento estas legebla nur post la demeto. Unu loka kopio, kaj de
+    // tie la sama kontrolo kiel por dosiero sur la labortablo.
+    QList<QUrl> local;
+    QStringList scratch;
+    for (int n = 0; n < urls.size(); ++n) {
+        const QUrl &u = urls.at(n);
+        if (u.isLocalFile()) {
+            local << u;
+            continue;
+        }
+        const QString copy = transferScratchPath() + QStringLiteral("-drop%1").arg(n);
+        if (!copyBytes(u.toString(), copy)) {
+            for (const QString &c : scratch)
+                QFile::remove(c);
+            QFile::remove(copy);
+            setError(tr("Could not read that file."));
+            return false;
+        }
+        scratch << copy;
+        local << QUrl::fromLocalFile(copy);
+    }
+
+    const QString kind = dropKind(local, text);
+    const bool wasStopped = !m_tick.isActive();
+    bool ok = false;
+    if (kind.isEmpty() || kind == QLatin1String("unknown")) {
+        setError(tr("That cannot be loaded into the calculator."));
+    } else if (!dropAllowed(kind)) {
+        setError(kind == QLatin1String("rom")
+                     ? tr("A ROM is only taken when the calculator has none.")
+                     : notReadyReason());
+    } else if (kind == QLatin1String("rom")) {
+        // La originala adreso, ne la kopio: start() mem kopias content://-ROM-on
+        // en la dosierujon de la kalkulilo, kaj la kopio ĉi tie baldaŭ malaperos.
+        setRomSource(urls.first());
+        ok = start();
+    } else if (local.isEmpty()) {
+        ok = pasteText(text);
+    } else if (kind == QLatin1String("text")) {
+        QFile f(local.first().toLocalFile());
+        ok = f.open(QIODevice::ReadOnly) && pasteText(QString::fromUtf8(f.readAll()));
+    } else {
+        ok = true;
+        for (const QUrl &u : local) {
+            if (!(ok = importFile(u)))
+                break;
+        }
+    }
+    for (const QString &c : scratch)
+        QFile::remove(c);
+    if (ok && wasStopped)
+        m_dropWoke = true;
+    return ok;
 }
 
 // --- misc -------------------------------------------------------------------
