@@ -25,6 +25,8 @@ Item {
     signal unassignedKey(string label)
     signal bodyPressed()
     signal menuRequested()
+    signal copyRequested()
+    signal pasteRequested()
 
     // Main.qml's focus guard asks and answers through these two.
     function hasKeyboardFocus()  { return keypad.activeFocus }
@@ -377,6 +379,8 @@ Item {
             onCustomizeCancelled: root.customizeCancelled()
             onUnassignedKey: (label) => root.unassignedKey(label)
             onBodyPressed: root.bodyPressed()
+            onCopyRequested: root.copyRequested()
+            onPasteRequested: root.pasteRequested()
         }
 
         // THE WAY INTO THE MENU ON EVERY PLATFORM since 2026sep10, when the

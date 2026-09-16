@@ -46,6 +46,17 @@ Item {
     property bool shiftHeld: false
     property bool shiftUsed: false
 
+    // STIR SAME KIEL MAJ, ekde 2026sep15. Stir estas la verda ŝovklavo, kaj ĝi
+    // ankaŭ tenas Ctrl+C, Ctrl+V kaj Ctrl+dekstran klakon sur la ekrano: premita
+    // tuj, ĝi lasis la verdan ŝovon sur la ekrano post ĉiu el tiuj. Ĝi do premas
+    // sian klavon nur kiam ĝi estas malpremita sen ke io alia okazis dume.
+    property bool ctrlHeld: false
+    property bool ctrlUsed: false
+
+    // Kopii kaj Alglui, per Ctrl+C / Ctrl+V kaj per dekstra klako sur la ekrano.
+    signal copyRequested()
+    signal pasteRequested()
+
     function scanOf(event) { return event.nativeScanCode || ("k" + event.key) }
 
     function keyIndexAt(px, py) {
@@ -97,6 +108,7 @@ Item {
                 if (i >= 0) {
                     root.held[p.pointId] = i
                     root.shiftUsed = true       // a click counts as "Shift was for this"
+                    root.ctrlUsed = true
                     root.pressIndex(i)
                     hitSomething = true
                 }
@@ -338,6 +350,18 @@ Item {
             event.accepted = true
             return
         }
+        if (event.key === Qt.Key_Control) {
+            if (!event.isAutoRepeat) {
+                if (root.shiftHeld)
+                    root.shiftUsed = true
+                root.ctrlHeld = true
+                root.ctrlUsed = false
+            }
+            event.accepted = true
+            return
+        }
+        if (root.ctrlHeld)
+            root.ctrlUsed = true
         // Shift held down is usually somebody reaching for a character on the
         // second level of a key - * is Shift+' on a Danish keyboard and Shift+8
         // on a US one. Pressing the calculator's own shift the moment Shift
@@ -350,6 +374,19 @@ Item {
         }
         if (root.shiftHeld)
             root.shiftUsed = true
+
+        // Ctrl+C kaj Ctrl+V, antaŭ la klavmapo: ili estas Kopii kaj Alglui.
+        if ((event.modifiers & Agape48Keymap.modMask) === Qt.ControlModifier
+                && (event.key === Qt.Key_C || event.key === Qt.Key_V)) {
+            if (!event.isAutoRepeat) {
+                if (event.key === Qt.Key_C)
+                    root.copyRequested()
+                else
+                    root.pasteRequested()
+            }
+            event.accepted = true
+            return
+        }
 
         const name = Agape48Keymap.nameFor(event.key, event.modifiers, event.text)
         if (name) {
@@ -370,6 +407,19 @@ Item {
             root.unassignedKey(Agape48Keymap.labelFor(event.key, event.modifiers, event.text))
     }
     Keys.onReleased: (event) => {
+        // Stir: kiel Maj sube, kaj nur post premo kiun ĉi tiu klavaro vidis.
+        if (event.key === Qt.Key_Control) {
+            if (!event.isAutoRepeat) {
+                const pressedHere = root.ctrlHeld
+                root.ctrlHeld = false
+                if (pressedHere && !root.ctrlUsed) {
+                    const n = Agape48Keymap.nameFor(event.key, 0, "")
+                    if (n) { root.engine.pressKey(n); root.engine.releaseKey(n) }
+                }
+            }
+            event.accepted = true
+            return
+        }
         // Shift on its own, with nothing typed while it was down: it was meant
         // as the calculator's shift after all, so tap it now. Held while
         // something else was typed, it was a level selector and the calculator

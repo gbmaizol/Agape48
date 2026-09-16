@@ -291,6 +291,8 @@ Window {
         onUnassignedKey: (label) => banner.hint(
             qsTr("%1 is not assigned to any key. Ctrl+right-click a key to give it one.")
                 .arg(label))
+        onCopyRequested: engine.copyStackToClipboard()
+        onPasteRequested: root.pasteClipboard()
     }
 
     // TIRI KAJ DEMETI SUR LA KALKULILON. La kursoro montras la pluson nur por
@@ -428,6 +430,15 @@ Window {
         }
     }
 
+    // La menuero Alglui, Ctrl+V kaj dekstra klako sur la ekrano.
+    function pasteClipboard() {
+        // A clipboard holding something the calculator cannot read already
+        // sets lastError, and the red strip says so; this is for the case
+        // where there is nothing there at all.
+        if (!engine.pasteClipboardToStack() && engine.lastError === "")
+            banner.hint(qsTr("There is nothing on the clipboard to paste."))
+    }
+
     // --- the menu -----------------------------------------------------------
     //
     // Decision 2c makes Droid48's overflow menu the whole UI spec, and until
@@ -482,11 +493,7 @@ Window {
         }
         MenuItem {
             text: qsTr("Paste")
-            // A clipboard holding something the calculator cannot read already
-            // sets lastError, and the red strip says so; this is for the case
-            // where there is nothing there at all.
-            onTriggered: if (!engine.pasteClipboardToStack() && engine.lastError === "")
-                             banner.hint(qsTr("There is nothing on the clipboard to paste."))
+            onTriggered: root.pasteClipboard()
         }
         MenuSeparator {}
         MenuItem {
