@@ -245,6 +245,16 @@ public:
     // Opens the system screen with the switch on it, for this app.
     Q_INVOKABLE void requestAnyFolderAccess();
 
+    // FORGESI LA MEMORON de la malfermita kalkulilo: forigi la kvar dosierojn
+    // kiuj ESTAS la kalkulilo, kaj kun ili la registron "contents", kiu portas
+    // sha256 de ĉiu el ili kaj do priskribus dosierojn kiuj ne plu ekzistas -
+    // handoverComplete() neniam plu dirus jes al tiu dosierujo.
+    //
+    // La dosierujo mem, la ŝlosilo kaj la ROM restas: la kalkulilo ne malaperas
+    // de la bretaro, ĝi nur perdas sian memoron. La voganto devas jam esti
+    // demetinta la kernon SEN konservo, alie la sekva skribo remetas ĉion.
+    bool forgetMemory();
+
     // location/<instance>, which is what the core is given as its state_dir.
     QString instanceDir() const;
 

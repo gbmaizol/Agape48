@@ -326,6 +326,11 @@ public slots:
 
     // --- state -------------------------------------------------------------
     void reset(bool cold = false);
+
+    // "Reset memory and quit", kiu ekde 2026sep16 vere forigas la memoron.
+    // Demetas la kernon SEN konservo kaj forigas la dosierojn kiuj estas la
+    // kalkulilo, do la sekva starto konstruas la memoron el nenio.
+    bool forgetMemory();
     bool saveState();
     bool reloadState();
 

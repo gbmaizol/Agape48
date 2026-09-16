@@ -1891,6 +1891,39 @@ void Agape48Engine::reset(bool cold)
     setTickRate(kTickIntervalMs);
 }
 
+// "Reset memory and quit" nun vere forigas la memoron, ekde 2026sep16. Ĝi estas
+// ON+A+F de vera HP 48: la sekva starto konstruas la memoron el nenio kaj
+// demandas "Try To Recover Memory?", kion oni respondas per NO.
+//
+// Ĝis nun la menuero vokis reset(true), kaj tie la parametro `cold` finiĝis
+// kiel `(void)cold;` sub TODO en x48_reset(): la kerno faris nur varman
+// restarigon. Poste Qt.quit() pasis tra aboutToQuit, kiu konservas, do la
+// neŝanĝita memoro estis reskribita sur la diskon. Provo 23 mezuris la du
+// vizaĝojn de tio: sur Linukso la kalkulilo revenis kun sia stako, sur Windows
+// la varma restarigo el meze de instrukcio lasis la memoron konfuzita.
+//
+// La kerno malleviĝas ĉi tie SEN konservo - shutdownCore() konservas, kaj tio
+// estas ĝuste la skribo kiun ĉi tio ne rajtas fari - kaj m_ready false poste
+// fermas ĉiun alian pordon al la disko: saveState() tuj rifuzas, do aboutToQuit,
+// la suspendo de Android, la perdo de fokuso kaj la detruilo ĉiuj skribas
+// nenion. La ŝlosilo kaj la ROM restas; la kalkulilo restas sur la bretaro.
+bool Agape48Engine::forgetMemory()
+{
+    if (m_ready) {
+        x48_shutdown();
+        m_ready = false;
+        m_tapQueue.clear();
+        releaseAllKeys();
+        m_tick.stop();
+        emit readyChanged();
+        emit runningChanged();
+    }
+    if (m_state->forgetMemory())
+        return true;
+    setError(m_state->lastError());
+    return false;
+}
+
 // DIAGNOSTIC, and meant to be removed once the rate is settled. Two of these
 // taken at two saves give instructions per wall second AND ticks per wall
 // second, neither of which needs saturn.i_per_s - which on 2026sep10 held
