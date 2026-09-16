@@ -92,18 +92,18 @@ Les avertissements cités ci-dessous apparaissent dans la langue de votre systè
 
 ### Windows
 
-1. Téléchargez **[`Agape48-0.9.2-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 Mo).
+1. Téléchargez **[`Agape48-0.9.3-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 Mo).
 2. **Windows va vous arrêter** : *« Windows protected your PC »*. Cliquez sur **More info**, puis sur **Run anyway**. Ce message n'est pas une alerte antivirus — c'est Windows qui dit que l'installateur ne porte aucun certificat de signature de code, ce qui est un achat et non une étape de compilation. Rien dans le téléchargement n'est empaqueté ni obscurci, et chaque octet de source qui y est entré se trouve dans ce dépôt.
 3. **Next**, **Next**, **Install**. Cela va dans `Program Files` et ajoute une entrée au menu Démarrer.
 4. Lancez-la depuis le menu Démarrer. Elle se désinstalle comme n'importe quel autre programme, depuis *Apps & features*.
 
 ### Linux
 
-Pas de root, rien dans `/opt`, et rien à ajouter à votre gestionnaire de paquets. Prenez **[`Agape48-0.9.2-linux-x86_64.tar.gz`](https://github.com/gbmaizol/Agape48/releases/latest)**, puis :
+Pas de root, rien dans `/opt`, et rien à ajouter à votre gestionnaire de paquets. Prenez **[`Agape48-0.9.3-linux-x86_64.tar.gz`](https://github.com/gbmaizol/Agape48/releases/latest)**, puis :
 
 ```sh
-tar xzf Agape48-0.9.2-linux-x86_64.tar.gz
-./Agape48-0.9.2-linux-x86_64/install.sh
+tar xzf Agape48-0.9.3-linux-x86_64.tar.gz
+./Agape48-0.9.3-linux-x86_64/install.sh
 ```
 
 Il n'y a pas d'étape `chmod` : `tar` conserve le bit d'exécution, donc `install.sh` se lance tel quel. (Si vous avez décompressé avec un archiveur graphique qui a perdu les permissions, `sh install.sh` marche quand même.)
@@ -114,7 +114,7 @@ Le téléchargement fait 35,9 Mo et se décompresse en 96 Mo, presque entièreme
 
 ### Android
 
-1. Téléchargez **[`Agape48-0.9.2-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 Mo) sur le téléphone et touchez-le.
+1. Téléchargez **[`Agape48-0.9.3-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 Mo) sur le téléphone et touchez-le.
 2. **Android va refuser la première fois** — *« your phone is not allowed to install unknown apps from this source »* — parce que le fichier ne vient pas du Play Store. Touchez **Settings**, autorisez cette source-là, et revenez. Android demande par *source*, donc autoriser votre navigateur n'autorise pas aussi votre gestionnaire de fichiers.
 3. Play Protect peut ensuite avertir au sujet d'une application d'un développeur non reconnu. Le bouton **Install anyway** est derrière *More details*.
 4. Touchez **Open**. Sur un téléphone la calculatrice remplit l'écran, comme le fait Droid48.
@@ -153,7 +153,7 @@ Les deux façons marchent, et aucune n'a besoin de l'autre :
 
 Sur Android c'est de loin la plus facile des deux : le dossier est visible dans n'importe quel gestionnaire de fichiers et par un câble USB et ne demande aucune autorisation, donc vous branchez le téléphone sur un ordinateur et vous y déposez le fichier.
 
-**La façon rapide — désignez le fichier à l'application.** Lancez Agape48 et cliquez sur le **48GX** souligné dans le coin supérieur droit de la calculatrice — c'est le menu, et il n'y a pas d'autre entrée. Ensuite **Settings → HP 48 ROM**, et choisissez le fichier là où il est déjà. La calculatrice démarre à l'instant où vous appuyez sur Open, et le chemin est retenu, donc vous ne le refaites jamais.
+**La façon rapide — désignez le fichier à l'application.** Lancez Agape48 et cliquez sur le **48GX** souligné dans le coin supérieur droit de la calculatrice — c'est le menu, et il n'y a pas d'autre entrée. Ensuite **Settings → HP 48 ROM**, et choisissez le fichier là où il est déjà. Le choix ne fait que remplir le champ : c'est **Save** qui la charge, et la calculatrice passe à cette ROM dans la même fenêtre, sans redémarrer. Si le fichier n'est pas une ROM de HP 48, le chemin passe au rouge et la ligne en dessous dit pourquoi, et Save reste gris tant qu'il n'y en a pas une. Le chemin est retenu, donc vous ne le refaites jamais.
 
 Deux plis, tous deux au sujet de la fenêtre d'ouverture. Elle ne peut pas regarder dans un `.zip`, donc décompressez d'abord. Et elle liste les noms qui ressemblent à une ROM, ce qui inclut `gxrom-r` et `sxrom-a` — mais si vous avez renommé le fichier autrement et que vous ne le voyez pas, passez le filtre de la fenêtre sur **All files**.
 

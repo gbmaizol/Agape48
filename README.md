@@ -90,18 +90,18 @@ One download per machine, no runtime to fetch first, and no account to make.
 
 ### Windows
 
-1. Download **[`Agape48-0.9.2-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17.3 MB).
+1. Download **[`Agape48-0.9.3-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17.3 MB).
 2. **Windows will stop you**: *"Windows protected your PC"*. Click **More info**, then **Run anyway**. That message is not a virus warning — it is Windows saying the installer carries no code-signing certificate, which is a purchase rather than a build step. Nothing in the download is packed or obfuscated, and every byte of source that went into it is in this repository.
 3. **Next**, **Next**, **Install**. It goes into `Program Files` and adds a Start-menu entry.
 4. Start it from the Start menu. It uninstalls like any other program, from *Apps & features*.
 
 ### Linux
 
-No root, nothing in `/opt`, and nothing to add to your package manager. Take **[`Agape48-0.9.2-linux-x86_64.tar.gz`](https://github.com/gbmaizol/Agape48/releases/latest)**, then:
+No root, nothing in `/opt`, and nothing to add to your package manager. Take **[`Agape48-0.9.3-linux-x86_64.tar.gz`](https://github.com/gbmaizol/Agape48/releases/latest)**, then:
 
 ```sh
-tar xzf Agape48-0.9.2-linux-x86_64.tar.gz
-./Agape48-0.9.2-linux-x86_64/install.sh
+tar xzf Agape48-0.9.3-linux-x86_64.tar.gz
+./Agape48-0.9.3-linux-x86_64/install.sh
 ```
 
 There is no `chmod` step: `tar` keeps the executable bit, so `install.sh` just runs. (If you unpacked with a graphical archiver that dropped permissions, `sh install.sh` works anyway.)
@@ -112,7 +112,7 @@ The download is 35.9 MB and unpacks to 96 MB, nearly all of it Qt. It is built f
 
 ### Android
 
-1. Download **[`Agape48-0.9.2-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47.4 MB) onto the phone and tap it.
+1. Download **[`Agape48-0.9.3-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47.4 MB) onto the phone and tap it.
 2. **Android will refuse the first time** — *"your phone is not allowed to install unknown apps from this source"* — because the file did not come from the Play Store. Tap **Settings**, allow that one source, and come back. Android asks per *source*, so allowing your browser does not also allow your file manager.
 3. Play Protect may then warn about an app from an unrecognised developer. The **Install anyway** button is behind *More details*.
 4. Tap **Open**. On a phone the calculator fills the screen, the way Droid48 does.
@@ -151,7 +151,7 @@ Either way round works, and neither needs the other:
 
 On Android that is much the easier of the two routes: the folder is visible in any file manager and over a USB cable and needs no permission at all, so you plug the phone into a computer and drop the file in.
 
-**The quick way — point the app at it.** Start Agape48 and click the underlined **48GX** in the top right corner of the calculator — that is the menu, and there is no other way in. Then **Settings → HP 48 ROM**, and choose the file where it already sits. The calculator starts the moment you press Open, and the path is remembered, so you never do it again.
+**The quick way — point the app at it.** Start Agape48 and click the underlined **48GX** in the top right corner of the calculator — that is the menu, and there is no other way in. Then **Settings → HP 48 ROM**, and choose the file where it already sits. Choosing only fills the field: **Save** is what loads it, and the calculator changes to that ROM in the same window, without restarting. If the file is not an HP 48 ROM the path turns red and the line under it says why, and Save stays grey until it is one. The path is remembered, so you never do it again.
 
 Two wrinkles, both about the file dialog. It cannot look inside a `.zip`, so unzip first. And it lists ROM-shaped names, which includes `gxrom-r` and `sxrom-a` — but if you renamed the file to something else and cannot see it, switch the dialog's filter to **All files**.
 

@@ -92,18 +92,18 @@ Advarselsteksterne, der citeres nedenfor, vises på dit systems sprog. De står 
 
 ### Windows
 
-1. Hent **[`Agape48-0.9.2-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 MB).
+1. Hent **[`Agape48-0.9.3-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 MB).
 2. **Windows stopper dig**: *«Windows protected your PC»*. Klik **More info**, derefter **Run anyway**. Den besked er ikke en virusadvarsel — det er Windows, der siger, at installationsprogrammet ikke bærer noget kodesigneringscertifikat, hvilket er et køb snarere end et byggetrin. Intet i downloadet er pakket væk eller sløret, og hver eneste byte kildekode, der gik ind i det, ligger i dette repository.
 3. **Next**, **Next**, **Install**. Den lander i `Program Files` og tilføjer et punkt i Start-menuen.
 4. Start den fra Start-menuen. Den afinstalleres som ethvert andet program, fra *Apps & features*.
 
 ### Linux
 
-Ingen root, intet i `/opt`, og intet at tilføje til din pakkehåndtering. Tag **[`Agape48-0.9.2-linux-x86_64.tar.gz`](https://github.com/gbmaizol/Agape48/releases/latest)**, derefter:
+Ingen root, intet i `/opt`, og intet at tilføje til din pakkehåndtering. Tag **[`Agape48-0.9.3-linux-x86_64.tar.gz`](https://github.com/gbmaizol/Agape48/releases/latest)**, derefter:
 
 ```sh
-tar xzf Agape48-0.9.2-linux-x86_64.tar.gz
-./Agape48-0.9.2-linux-x86_64/install.sh
+tar xzf Agape48-0.9.3-linux-x86_64.tar.gz
+./Agape48-0.9.3-linux-x86_64/install.sh
 ```
 
 Der er ikke noget `chmod`-trin: `tar` bevarer kørselsbitten, så `install.sh` kører bare. (Hvis du pakkede ud med et grafisk arkivprogram, der tabte rettighederne, virker `sh install.sh` alligevel.)
@@ -114,7 +114,7 @@ Downloadet er 35,9 MB og pakker ud til 96 MB, næsten det hele Qt. Den er bygget
 
 ### Android
 
-1. Hent **[`Agape48-0.9.2-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 MB) ned på telefonen og tryk på den.
+1. Hent **[`Agape48-0.9.3-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 MB) ned på telefonen og tryk på den.
 2. **Android nægter første gang** — *«your phone is not allowed to install unknown apps from this source»* — fordi filen ikke kom fra Play Store. Tryk **Settings**, tillad netop den kilde, og kom tilbage. Android spørger per *kilde*, så at tillade din browser tillader ikke også din filhåndtering.
 3. Play Protect advarer muligvis derefter om en app fra en ukendt udvikler. Knappen **Install anyway** ligger bag *More details*.
 4. Tryk **Open**. På en telefon fylder lommeregneren skærmen, ligesom Droid48 gør.
@@ -153,7 +153,7 @@ Begge veje virker, og ingen af dem har brug for den anden:
 
 På Android er det klart den nemmeste af de to veje: mappen er synlig i enhver filhåndtering og over et USB-kabel og kræver slet ingen tilladelse, så du sætter telefonen til en computer og lægger filen ind.
 
-**Den hurtige vej — peg appen på den.** Start Agape48 og klik på det understregede **48GX** i øverste højre hjørne af lommeregneren — det er menuen, og der er ingen anden vej ind. Derefter **Settings → HP 48 ROM**, og vælg filen, dér hvor den allerede ligger. Lommeregneren starter i det øjeblik du trykker Open, og stien huskes, så du gør det aldrig igen.
+**Den hurtige vej — peg appen på den.** Start Agape48 og klik på det understregede **48GX** i øverste højre hjørne af lommeregneren — det er menuen, og der er ingen anden vej ind. Derefter **Settings → HP 48 ROM**, og vælg filen, dér hvor den allerede ligger. Valget udfylder kun feltet: det er **Save**, der indlæser den, og lommeregneren skifter til den ROM i samme vindue, uden at starte forfra. Er filen ikke en HP 48-ROM, bliver stien rød, og linjen under den siger hvorfor, og Save bliver ved med at være grå, indtil der står en. Stien huskes, så du gør det aldrig igen.
 
 To krøller, begge om filvælgeren. Den kan ikke kigge ind i en `.zip`, så pak ud først. Og den viser ROM-agtige navne, hvilket omfatter `gxrom-r` og `sxrom-a` — men har du omdøbt filen til noget andet og ikke kan se den, så skift vælgerens filter til **All files**.
 
