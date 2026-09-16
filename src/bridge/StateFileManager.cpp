@@ -1007,28 +1007,24 @@ QString StateFileManager::createInstance()
         setError(tr("Could not make a new calculator."));
         return QString();
     }
-    // A new calculator starts as a copy of the one you are looking at, which is
-    // both-05 line 37: a new calculator is always a clone of whichever one is
-    // open when it is created.
+    // NOVA KALKULILO ESTAS MALPLENA, ekde 2026sep16. La dosierujo restas
+    // malplena, la ROM konstruas la memoron el nenio, kaj la kalkulilo demandas
+    // "Try To Recover Memory?" - la propra demando de HP 48 post ON+A+F, kiun
+    // oni respondas per YES aŭ NO kaj kiu lasas malplenan stakon.
     //
-    // An empty folder makes the ROM build RAM from nothing, and that is the one
-    // path that still ends at "Try To Recover Memory?" with no key getting past
-    // it - the entry this report and the three before it all say to keep away
-    // from. A clone starts from a memory image that is known to work.
+    // Ĝis nun la nova kalkulilo estis kopio de tiu, kiun oni havis malfermita
+    // (dogfood both-05 linio 37), ĉar ĝuste tiu demando haltigis la programon:
+    // la ROM de 48SX agordas ambaŭ kartingojn, kaj la legado de malplena
+    // kartingo eliris el la memoro. Ekde `sx-sen-kartoj` malplena kartingo
+    // legiĝas kiel nuloj, kaj provo 23 montras la demandon respondata sur
+    // Windows (linio 16, du novaj kalkuliloj) kaj sur Linukso (linio 66).
     //
-    // The caller has already saved and put the core down, so these are the
-    // bytes the open calculator actually has. The lock and the contents record
-    // are deliberately left behind: one names a process that does not hold this
-    // folder, and the other describes files in a different one.
-    const QString from = instanceDir();
-    if (!from.isEmpty() && QDir(from).exists()) {
-        const QDir src(from), dst(base.filePath(name));
-        for (const char *leaf : { "ram", "hp48", "port1", "port2" }) {
-            const QString one = src.filePath(QLatin1String(leaf));
-            if (QFile::exists(one))
-                QFile::copy(one, dst.filePath(QLatin1String(leaf)));
-        }
-    }
+    // La klono do perdis sian kialon kaj tenis sian koston: "New" donis la
+    // stakon de la alia kalkulilo, kun dosiero "ram" bajton post bajto sama, do
+    // du kalkuliloj kiuj aspektis kiel unu.
+    //
+    // La ROM ne estas ĉi tie. Ĝi kuŝas apud la bretaro, ne interne de unu
+    // kalkulilo, do malplena dosierujo trovas ĝin same kiel ĉiu alia.
     return openInstance(name) ? name : QString();
 }
 
