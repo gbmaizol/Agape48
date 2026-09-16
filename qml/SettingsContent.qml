@@ -30,9 +30,10 @@ Item {
     signal closeRequested()
     signal advancedRequested()
 
-    // Every way out goes through here - the Close button, Esc, the title bar's
-    // X on a desktop and the back gesture on a phone - so the confirmation
-    // cannot be walked around by picking a different exit.
+    // Every way out that does not say what it means goes through here - Esc, the
+    // title bar's X on a desktop and the back gesture on a phone - so the
+    // confirmation cannot be walked around by picking a different exit. Save and
+    // Cancel answer the question by being pressed and do not ask it again.
     function requestClose() {
         if (statePending) { warnUnsaved = true; unsavedDialog.open(); return }
         closeRequested()
@@ -232,7 +233,71 @@ Item {
         // dosierojn kiujn la instrukcio diras elŝuti estas filtro kiu malhelpas.
         nameFilters: [qsTr("ROM images (rom rom.* *.rom *.bin gxrom-* sxrom-*)"),
                       qsTr("All files (*)")]
-        onAccepted: { root.engine.romSource = selectedFile; root.engine.start() }
+        // The picker fills the field and nothing else. It used to load what it
+        // was given on the spot, which is where the silence came from: the
+        // document was handed to the core, the core kept the ROM it already had,
+        // and the field went on showing the document. What lands here is judged
+        // like anything typed, and Save is what loads it.
+        onAccepted: romField.text = root.urlToPath(selectedFile)
+    }
+
+    // --- the ROM ------------------------------------------------------------
+
+    // {ok, problem, model} for whatever is in the field right now. Re-asked on
+    // every character, which costs one open and 42 bytes.
+    property var romCheck: ({ ok: false, problem: "", model: "" })
+    function checkRom() { root.romCheck = root.engine.inspectRom(romField.text) }
+
+    // The field shows the ROM that is loaded, not the last thing anybody typed
+    // into it. Opening Settings is the moment to put it back: text left in a box
+    // and never applied is not a setting, and next time round it would read like
+    // one.
+    function syncFromEngine() {
+        romField.text = root.engine.romLoadedPath()
+        root.checkRom()
+    }
+
+    // Save applies what is in this window and leaves. The ROM is loaded here and
+    // nowhere else, so a path can be typed, corrected and thought better of
+    // without the calculator restarting under it.
+    function saveAndClose() {
+        if (!root.romCheck.ok)
+            return
+        if (root.statePending && !root.moveTo(root.pathToUrl(stateField.text)))
+            return
+        if (romField.text.trim() !== root.engine.romLoadedPath()
+            && !root.engine.loadRom(root.pathToUrl(romField.text)))
+            return
+        root.warnUnsaved = false
+        root.closeRequested()
+    }
+
+    // Cancel is a discard that was asked for out loud, so it asks nothing back.
+    // Both fields go back to what is really in use on the way out.
+    function cancelAndClose() {
+        root.syncFromEngine()
+        stateField.text = root.engine.state.displayName
+        root.warnUnsaved = false
+        root.closeRequested()
+    }
+
+    // Two ways in, because the settings are a window on a desktop and a page on
+    // a phone. The window is hidden and shown again with everything in it still
+    // alive; the page's content goes invisible with the page.
+    onVisibleChanged: if (visible) root.syncFromEngine()
+    Component.onCompleted: root.syncFromEngine()
+    Connections {
+        target: root.Window.window
+        function onVisibleChanged() {
+            if (root.Window.window && root.Window.window.visible)
+                root.syncFromEngine()
+        }
+    }
+    // The ROM in use changed somewhere else - a drop on the calculator, the
+    // fallback finding one beside the state - and the field follows it.
+    Connections {
+        target: root.engine
+        function onRomSourceChanged() { root.syncFromEngine() }
     }
 
     // Both go through Qt rather than through string surgery here - see the
@@ -333,12 +398,21 @@ Item {
                 // nobody has chosen one, and now says so, so this shows the
                 // file really in use. Dogfood #9: "the current ROM's folder
                 // and filename should be there".
-                text: root.urlToPath(root.engine.romSource)
+                //
+                // Set rather than bound, since 2026sep16: a bound text is broken
+                // by the first character typed into it and never re-syncs, and
+                // this field now has to go back to the loaded ROM every time the
+                // window opens. syncFromEngine() is the only thing that fills it.
                 placeholderText: qsTr("path to an HP 48 ROM image")
-                onAccepted: {
-                    root.engine.romSource = root.pathToUrl(text)
-                    root.engine.start()
-                }
+                // Red is the whole verdict: a path that leads nowhere and a file
+                // that is not a ROM both fail, and the sentence under the row
+                // says which. It covers the ROM being deleted or moved after it
+                // was loaded for free - the path stops resolving, so it goes red.
+                color: root.romCheck.ok ? palette.text : "#ff6b60"
+                onTextChanged: root.checkRom()
+                // Enter is the keyboard's Save button, and Save is the only
+                // thing that loads a ROM.
+                onAccepted: root.saveAndClose()
             }
             Button {
                 id: romBrowse
@@ -346,6 +420,16 @@ Item {
                 width: 40
                 onClicked: romPicker.open()
             }
+        }
+
+        // The reason, in the colour of the field it belongs to. Nothing is shown
+        // while the path is good, which is nearly always.
+        Label {
+            width: parent.width
+            visible: !root.romCheck.ok && root.romCheck.problem !== ""
+            text: root.romCheck.problem
+            color: "#ff6b60"; font.pixelSize: TextSizes.dialogHint
+            wrapMode: Text.WrapAnywhere
         }
 
         Item { width: 1; height: 6 }
@@ -748,9 +832,23 @@ Item {
     Row {
         anchors { left: parent.left; bottom: parent.bottom; margins: 18 }
         spacing: 10
+        // SAVE AND CANCEL RATHER THAN CLOSE, since 2026sep16. Close said nothing
+        // about what it was leaving behind, because until now the ROM field
+        // loaded on Enter and the picker loaded on the spot. Now nothing in this
+        // window reaches the calculator until Save, and Save cannot be pressed
+        // while the field is red - which is what stops a document that is not a
+        // ROM from being handed to the core at all.
+        //
+        // No width of their own: the row is three buttons wide now and the
+        // window's own minimum is 380, so they are left as small as their text.
         Button {
-            text: qsTr("Close")
-            onClicked: root.requestClose()
+            text: qsTr("Save")
+            enabled: root.romCheck.ok
+            onClicked: root.saveAndClose()
+        }
+        Button {
+            text: qsTr("Cancel")
+            onClicked: root.cancelAndClose()
         }
         // Its own window rather than a page in here, because half of what it
         // tunes is drawn on the calculator and this window covers it.

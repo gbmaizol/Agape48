@@ -716,17 +716,35 @@ bool Agape48Engine::start()
         && m_state->location().isLocalFile()) {
         const QString dest =
             m_state->location().toLocalFile() + QLatin1String("/rom");
-        if (!QFileInfo::exists(dest)) {
-            QFile in(m_romSource.toString());
-            QFile out(dest);
-            if (!in.open(QIODevice::ReadOnly)
-                || !out.open(QIODevice::WriteOnly | QIODevice::Truncate)
-                || out.write(in.readAll()) <= 0) {
-                out.remove();
-                setError(tr("Could not copy the chosen ROM into %1.")
-                             .arg(m_state->location().toLocalFile()));
-                return false;
-            }
+        // LA ELEKTITA DOKUMENTO VENKAS TIUN KIU JAM KUŜAS TIE. Ĝis 2026sep16 la
+        // kopio okazis nur kiam neniu "rom" ekzistis apud la stato, do sur breto
+        // kiu jam havis unu la elekto estis silente forĵetita: la kampo montris
+        // la elektitan dokumenton, la kerno legis la malnovan dosieron, kaj
+        // nenio diris tion. Mezurite sur la telefono: ROM de 48SX elektita per
+        // la elektilo, kaj la kalkulilo plu estis 48GX, kun la sama md5 kiel la
+        // antaŭa dosiero.
+        //
+        // Skribita apuden kaj poste renomita, ĉar la kopio nun anstataŭigas ion
+        // kio funkciis: kopio kiu malsukcesas duonvoje rajtas perdi nenion krom
+        // si mem.
+        const QString half = dest + QLatin1String(".nova");
+        QFile in(m_romSource.toString());
+        QFile out(half);
+        if (!in.open(QIODevice::ReadOnly)
+            || !out.open(QIODevice::WriteOnly | QIODevice::Truncate)
+            || out.write(in.readAll()) <= 0) {
+            out.remove();
+            setError(tr("Could not copy the chosen ROM into %1.")
+                         .arg(m_state->location().toLocalFile()));
+            return false;
+        }
+        out.close();
+        QFile::remove(dest);
+        if (!QFile::rename(half, dest)) {
+            QFile::remove(half);
+            setError(tr("Could not copy the chosen ROM into %1.")
+                         .arg(m_state->location().toLocalFile()));
+            return false;
         }
         // Deliberately not through setRomSource(): what gets remembered should
         // be the document the user picked, not a copy of it we made.
@@ -759,6 +777,11 @@ bool Agape48Engine::start()
     }
 
     m_ready = true;
+    // La dosiero kiun la kerno ĵus malfermis, konservita kiel loka vojo por ke
+    // Agordoj povu montri ĝin. La kampo bezonas la ŝargitan ROM-on, ne la
+    // peton: elekto kiu ne ekfunkciis lasas romSource montranta al dosiero kiun
+    // neniu kalkulilo uzas.
+    m_romLoadedPath = QDir::toNativeSeparators(m_romSource.toLocalFile());
     // Whatever the next frame shows is the calculator as it was saved, not as
     // anybody just left it. Spent by the first frame in tick().
     m_freshLoad = true;
@@ -2423,6 +2446,140 @@ void Agape48Engine::setRomSource(const QUrl &url)
     m_romSource = url;
     QSettings().setValue(QLatin1String("rom/source"), url.toString());
     emit romSourceChanged();
+}
+
+// KONTROLO ANTAŬ ŜARĜO. La kerno malfermas la ROM-on per fopen() kaj diras sian
+// opinion nur al la protokolo, do ĝis 2026sep16 malbona vojo kaj dosiero kiu ne
+// estas ROM aspektis same kiel sukceso. Ĉi tio legas la samajn kvar kapajn
+// bajtojn kaj la saman nibbleon 0x29 kiel read_rom_file() en romio.c, kaj
+// nomas la kialon: la kampo devas povi diri ĈU la vojo, ĈU la dosiero.
+//
+// Ĝi legas 42 bajtojn kaj demandas la grandon, do ĝi kostas sufiĉe malmulte por
+// esti vokata je ĉiu tajpita signo.
+QVariantMap Agape48Engine::inspectRom(const QString &text) const
+{
+    QVariantMap out;
+    out[QStringLiteral("ok")] = false;
+    out[QStringLiteral("model")] = QString();
+
+    const QString wanted = text.trimmed();
+    if (wanted.isEmpty()) {
+        out[QStringLiteral("problem")] = tr("No ROM file has been chosen.");
+        return out;
+    }
+
+    // La sama konvertado kiel ĉie aliloke: vojo tajpita de homo ne estas URL,
+    // kaj content:// el la Androida elektilo ne estas vojo.
+    const QUrl source = pathToUrl(wanted);
+    const QString name = source.isLocalFile() ? source.toLocalFile()
+                                              : source.toString();
+    const QString shown = urlToPath(source);
+
+    if (source.isLocalFile()) {
+        const QFileInfo info(name);
+        if (info.isDir()) {
+            out[QStringLiteral("problem")] =
+                tr("%1 is a folder, not a ROM image.").arg(shown);
+            return out;
+        }
+        if (!info.exists()) {
+            out[QStringLiteral("problem")] =
+                tr("There is no file at %1.").arg(shown);
+            return out;
+        }
+    }
+
+    QFile file(name);
+    if (!file.open(QIODevice::ReadOnly)) {
+        out[QStringLiteral("problem")] = tr("%1 cannot be read.").arg(shown);
+        return out;
+    }
+    const QByteArray head = file.read(0x2a);
+    const qint64 bytes = file.size();
+    file.close();
+
+    if (head.size() < 0x2a) {
+        out[QStringLiteral("problem")] =
+            tr("%1 is far too small to be an HP 48 ROM.").arg(shown);
+        return out;
+    }
+
+    // La kvar kapaj bajtoj diras kiel la nibbleoj kuŝas: paka dosiero portas du
+    // en bajto, nepaka unu. Ĉio ĉi estas read_rom_file(), sen la ŝargo.
+    const uchar *h = reinterpret_cast<const uchar *>(head.constData());
+    qint64 nibbles = 0;
+    bool packed = false;
+    // Ĉu la dosiero mem diras kio ĝi estas. La tria vojo sube akceptas kian ajn
+    // dosieron kies unua bajto ne estas nulo, kiel nudan kopion de memoro, kaj
+    // tial dosiero kiu falas tra ĝi meritas alian frazon ol ROM tranĉita
+    // duonvoje: unu estas malbona elŝuto, la alia estas simple alia dosiero.
+    bool declared = true;
+    if (h[0] == 0x02 && h[1] == 0x03 && h[2] == 0x06 && h[3] == 0x09) {
+        nibbles = bytes;
+    } else if (h[0] == 0x32 && h[1] == 0x96 && h[2] == 0x1b && h[3] == 0x80) {
+        nibbles = 2 * bytes;
+        packed = true;
+    } else if (h[1] == 0x49) {
+        out[QStringLiteral("problem")] =
+            tr("%1 is an HP 49 ROM, and this is an HP 48.").arg(shown);
+        return out;
+    } else if (h[0]) {
+        nibbles = bytes;
+        declared = false;
+    } else {
+        out[QStringLiteral("problem")] =
+            tr("%1 is not an HP 48 ROM.").arg(shown);
+        return out;
+    }
+
+    // La nibbleo 0x29 diras la serion, kaj la grando devas kongrui kun ĝi -
+    // ROM_SIZE_SX kaj ROM_SIZE_GX el romio.h, en nibbleoj. Mezurite sur ambaŭ
+    // veraj dosieroj: gxrom-r portas tie 0, sxrom-j portas 8.
+    const int at = packed ? 0x29 / 2 : 0x29;
+    const uchar nibble = packed ? ((h[at] >> 4) & 0xf) : (h[at] & 0xf);
+    const bool gx = nibble == 0;
+    const qint64 whole = gx ? 0x100000 : 0x080000;
+    if (nibbles != whole) {
+        out[QStringLiteral("problem")] = declared
+            ? tr("%1 is not a whole HP 48%2 ROM: one is %3 bytes, and this file "
+                 "is %4.").arg(shown, gx ? QStringLiteral("G/GX")
+                                         : QStringLiteral("S/SX"),
+                               QString::number(packed ? whole / 2 : whole),
+                               QString::number(bytes))
+            : tr("%1 is not an HP 48 ROM.").arg(shown);
+        return out;
+    }
+
+    out[QStringLiteral("ok")] = true;
+    out[QStringLiteral("model")] = gx ? QStringLiteral("48GX")
+                                      : QStringLiteral("48SX");
+    out[QStringLiteral("problem")] = QString();
+    return out;
+}
+
+// LA SOLA VOJO KIU ŜANĜAS LA ROM-ON DE FUNKCIANTA KALKULILO. start() revenas
+// tuj kiam la kerno jam staras, do "romSource = elektita; start()" ŝanĝis
+// nenion ajn dum kalkulilo kuris - la dua duono de tio kion la elektilo
+// silente perdis. La kerno estas malkonstruita unue, kio konservas la
+// kalkulilon kiun ĝi forlasas, same kiel ŝanĝo de kalkulilo sur la breto.
+//
+// ROM kiu ne ekfunkcias remetas tiun kiu funkciis: la fenestro rajtas rifuzi
+// elekton, sed ne rajtas lasi la uzanton kun morta kalkulilo pro provo.
+bool Agape48Engine::loadRom(const QUrl &source)
+{
+    const QUrl had = m_romSource;
+    if (source == had && m_ready)
+        return true;
+    shutdownCore();
+    setRomSource(source);
+    if (start())
+        return true;
+
+    const QString why = m_lastError;
+    setRomSource(had);
+    if (start())
+        setError(why);
+    return false;
 }
 
 void Agape48Engine::setHapticsEnabled(bool on)

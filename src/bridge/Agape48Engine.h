@@ -282,6 +282,18 @@ public:
     Q_INVOKABLE bool importFile(const QUrl &url);
     Q_INVOKABLE bool exportFile(const QUrl &url);
 
+    // --- la ROM ---------------------------------------------------------------
+    // inspectRom() juĝas dosieron sen ŝargi ĝin kaj redonas {ok, problem,
+    // model}. Ĝi legas 42 bajtojn, do la kampo en Agordoj rajtas voki ĝin je ĉiu
+    // tajpita signo. romLoadedPath() estas la loka vojo de la dosiero kiun la
+    // kerno vere malfermis - ne ĉiam tiu kiun la uzanto elektis, ĉar dokumento
+    // elektita sur Androido estas kopiita apud la staton. loadRom() estas la sola
+    // vojo kiu ŝanĝas la ROM-on de funkcianta kalkulilo: start() sola revenas tuj
+    // kiam la kerno jam staras, kaj tial elekto en Agordoj ŝanĝis nenion.
+    Q_INVOKABLE QVariantMap inspectRom(const QString &text) const;
+    Q_INVOKABLE QString romLoadedPath() const { return m_romLoadedPath; }
+    Q_INVOKABLE bool loadRom(const QUrl &source);
+
     // --- tiri kaj demeti sur la kalkulilon -----------------------------------
     // dropKind() rigardas nur kio estas tirata: "rom", "object", "text", aŭ
     // "unknown" kiam la enhavo ankoraŭ ne estas legebla (Androido montras nur la
@@ -518,6 +530,7 @@ private:
     qint64            m_autoSince = 0;
     bool              m_autoEvalQueued = false;
     QUrl              m_romSource;
+    QString           m_romLoadedPath;
     QString           m_lastError;
     QStringList       m_pressed;
     StateFileManager *m_state = nullptr;
