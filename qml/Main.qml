@@ -289,7 +289,7 @@ Window {
         onMenuRequested: appMenu.popup(menuButton.x,
                                        menuButton.y + menuButton.height)
         onUnassignedKey: (label) => banner.hint(
-            qsTr("%1 is not assigned to any key. Ctrl+right-click a key to give it one.")
+            qsTr("%1 is not assigned to any key. Right-click a key to give it one.")
                 .arg(label))
         onCopyRequested: engine.copyStackToClipboard()
         onPasteRequested: root.pasteClipboard()
