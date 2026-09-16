@@ -632,7 +632,9 @@ Window {
         MenuSeparator {}
         AppMenuItem {
             text: qsTr("Reset memory and quit")
-            onTriggered: { engine.reset(true); Qt.quit() }
+            // La memoro foriras ĉi tie, ne per varma restarigo kaj konservo sur
+            // la vojo eksteren. Vidu Agape48Engine::forgetMemory().
+            onTriggered: { engine.forgetMemory(); Qt.quit() }
         }
         AppMenuItem {
             text: qsTr("Quit")

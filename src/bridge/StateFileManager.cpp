@@ -1071,6 +1071,29 @@ bool StateFileManager::renameInstance(const QString &from, const QString &to)
     return true;
 }
 
+bool StateFileManager::forgetMemory()
+{
+    setError(QString());
+    const QString dirPath = instanceDir();
+    if (dirPath.isEmpty() || !QDir(dirPath).exists()) {
+        setError(tr("There is no calculator to clear."));
+        return false;
+    }
+    const QDir dir(dirPath);
+    bool ok = true;
+    for (const char *leaf : kWatchedFiles) {
+        const QString one = dir.filePath(QLatin1String(leaf));
+        if (QFile::exists(one) && !QFile::remove(one))
+            ok = false;
+    }
+    // La registro priskribas la bajtojn kiuj ĵus foriris, do ĝi foriras kun
+    // ili. Ĝi reaperas ĉe la sekva konservo, kiel ĉiam.
+    QFile::remove(dir.filePath(QLatin1String(kContentsName)));
+    if (!ok)
+        setError(tr("Part of the memory could not be cleared."));
+    return ok;
+}
+
 bool StateFileManager::deleteInstance(const QString &name)
 {
     setError(QString());
