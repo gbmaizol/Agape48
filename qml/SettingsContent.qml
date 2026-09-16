@@ -228,21 +228,26 @@ Item {
     FileDialog {
         id: romPicker
         title: qsTr("Choose an HP 48 ROM image")
-        // LA ELEKTILO KOMENCAS ĈE LA BRETARO, kaj tio estas respondo pri la
-        // klavo Reen. Sur Android ĉi tiu elektilo estas la Dokument-fenestro de
-        // Android mem - alia aplikaĵo, alia procezo, `ACTION_OPEN_DOCUMENT` -
-        // do dum ĝi staras Agape48 havas nenian fenestron kaj nenian klavon por
-        // mapi. Reen tie supreniras la stakon de dosierujoj kaj nuligas ĉe ĝia
-        // supro. Provo 23 linio 95: "once I press the '...' button, there's no
-        // way to cancel this action without choosing a file. I try the back
-        // action, and this takes me to the parent folder." Mezurite sur la
-        // telefono: kvar premoj, ĉar la elektilo malfermiĝis kvar dosierujojn
-        // profunde, kie ĝi laste estis.
+        // LA DIALOGO MALFERMIĜAS TIE, KIE LA ROM KUŜAS, kaj tio estas ĉio,
+        // kion ĉi tiu linio faras. Mezurite sur Linukso: la dialogo montras la
+        // dosierujon de la stato mem, kun "rom" en la listo.
         //
-        // La sola maniero fari Reen unu premo estas komenci la stakon
-        // malprofunda. currentFolder fariĝas EXTRA_INITIAL_URI, kaj la dosierujo
-        // de la kalkuliloj estas krome tie, kie la ROM vere kuŝas - do la vojo
-        // eksteren kaj la vojo al la dosiero estas la sama elekto.
+        // ĜI NE HELPAS PRI LA KLAVO REEN SUR ANDROID, kaj la unua versio de ĉi
+        // tiu komento asertis la malon sen mezuri ĝin. Du aferoj, ambaŭ poste
+        // mezuritaj sur la telefono. Unue, Android ignoras ĉi tion: la elektilo
+        // volas adreson `content://` de dokumentprovizanto, kaj ĉi tie staras
+        // vojo `file://`, do la elektilo malfermiĝas tie, kie ĝi laste estis.
+        // Due - kaj tio mortigas la ideon mem - eĉ kun ĝusta adreso
+        // `content://` la elektilo malfermiĝas ĉe la dosierujo de la kalkuliloj
+        // kaj Reen tiam bezonas KVIN premojn anstataŭ kvar, ĉar la stako de la
+        // Dokument-fenestro sekvas la profundon de la dosierujo en la arbo
+        // (Android > media > br.gbmaizol.agape48 > Agape48 calculators), ne la
+        // lokon, de kie oni eniris.
+        //
+        // Restas do la vero pri provo 23 linio 95 - "there's no way to cancel
+        // this action without choosing a file" - kaj ĝia respondo, kiu ne estas
+        // kodo: la elektilo nur plenigas la kampon, do oni elektas kion ajn kaj
+        // premas Rezigni, kaj nenio ŝargiĝis.
         currentFolder: root.engine.state.location
         // gxrom-* kaj sxrom-* ĉar tiel hpcalc.org nomas ilin, kaj tio estas la
         // arkivo al kiu la README sendas la homon: filtro kiu kaŝas ekzakte la
