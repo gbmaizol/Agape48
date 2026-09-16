@@ -64,6 +64,15 @@ Item {
     FolderDialog {
         id: folderPicker
         title: qsTr("Where should the calculator's memory live?")
+        // Sama flago kiel ĉe romPicker: sur Android nia propra dialogo, do Reen
+        // rezignas per unu premo. Ĉi tie ĝi kostas eĉ malpli ol tie, ĉar la
+        // denaska arbo-elektilo ne donas al ni skribrajton kiun ni alie ne
+        // havus: moveTo() bezonas veran vojon, kaj dosierujo, en kiun Android
+        // ne lasas nin, jam estas unu el la tri rezultoj traktataj sube.
+        options: Qt.platform.os === "android" ? FolderDialog.DontUseNativeDialog : 0
+        // Kaj ĝi komenciĝu ĉe la breto, ne ĉe /data/data/.../files, kien nia
+        // propra dialogo iras sen ĉi tiu linio. Mezurite sur la telefono.
+        currentFolder: root.engine.state.location
         onAccepted: root.moveTo(selectedFolder)
     }
 
@@ -228,6 +237,13 @@ Item {
     FileDialog {
         id: romPicker
         title: qsTr("Choose an HP 48 ROM image")
+        // SUR ANDROID LA DIALOGO ESTU NIA, ĈAR TIAM REEN REZIGNAS. La denaska
+        // elektilo estas alia programo (com.google.android.documentsui), kaj tie
+        // Reen paŝas supren tra la dosierujoj, kvar premojn, ne rezignas. Nenia
+        // aldonaĵo de la intenco ŝanĝas tion. Kun ĉi tiu flago Qt desegnas la
+        // dialogon mem per QtQuick.Dialogs.quickimpl, ene de nia propra fenestro,
+        // do Reen trafas nin. Sur Linukso kaj Vindozo la denaska dialogo restas.
+        options: Qt.platform.os === "android" ? FileDialog.DontUseNativeDialog : 0
         // LA DIALOGO MALFERMIĜAS TIE, KIE LA ROM KUŜAS, kaj tio estas ĉio,
         // kion ĉi tiu linio faras. Mezurite sur Linukso: la dialogo montras la
         // dosierujon de la stato mem, kun "rom" en la listo.
