@@ -1345,8 +1345,27 @@ Window {
         }
     }
 
+    // LA MENUO FERMIĜAS KIAM LA KALKULILO PERDAS LA FOKUSON, ekde 2026sep15
+    // (provo 22 linio 23), kaj nur la menuo: Agordoj, Altnivelaj, Pri, la breto
+    // kaj la transdono restas malfermitaj. Menuo en la sceno ne ricevas klakon en
+    // alia programo, kaj restis malfermita super kalkulilo, kiun la uzanto jam
+    // forlasis.
     onActiveChanged: {
         if (active) { engine.resumeFromBackground(); focusGuard.restart() }
-        else engine.suspend()
+        else { engine.suspend(); appMenu.close() }
+    }
+
+    // KAJ KIAM LA APLIKAĴO IRAS EN LA FONON. Sur Android la fenestro neniam
+    // raportas sin neaktiva (vidu "THE PLATFORM'S OWN SIGNAL" en
+    // Agape48Engine.cpp), do onActiveChanged ne venas tie. Mezurite 2026sep15 sur
+    // la telefono: menuo malfermita, Hejmo, reen al Agape48, kaj la menuo estis
+    // ankoraŭ malfermita. La stato de la aplikaĵo ŝanĝiĝas sur ĉiuj platformoj;
+    // sur labortablo ĝi fermas menuon, kiun onActiveChanged jam fermis.
+    Connections {
+        target: Qt.application
+        function onStateChanged() {
+            if (Qt.application.state !== Qt.ApplicationActive)
+                appMenu.close()
+        }
     }
 }
