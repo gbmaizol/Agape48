@@ -413,6 +413,53 @@ Item {
             x: box.x - 16; y: box.y - 16
             width: box.width + 32; height: box.height + 32
 
+            // LA MODELO EL LA ROM, ekde 2026sep15. La vizaĝo presas "48GX", kaj
+            // kun ROM de 48SX tiu vorto estas kovrita per la koloro de la korpo kaj
+            // skribita denove. La ROM distingas nur la S-serion de la G-serio: 48S
+            // kaj 48SX havas la saman ROM, same 48G kaj 48GX, kaj la kerno ĉiam
+            // konstruas la X-modelon. La kovrilo haltas super la substreko.
+            //
+            // LA GRANDO VENAS EL LA PRESITA VORTO, ne el pixelSize: sen la tiparo
+            // de la vizaĝo la anstataŭa tiparo havas aliajn proporciojn, kaj
+            // Arial Narrow, la unua trovita sur Vindozo el la listo de la
+            // nomŝildo, desegnis 48SX videble pli malgranda. Do la vorto "48GX" en
+            // la trovita tiparo estas mezurita, kaj 48SX ricevas la grandon kiu
+            // farus tiun vorton larĝa kiel la presita. Kun la tiparo de la vizaĝo
+            // tio estas ĝuste pixelSize.
+            Rectangle {
+                id: modelPatch
+                readonly property var badge: parent.badge
+                readonly property string family: {
+                    const want = badge && badge.font ? badge.font : []
+                    const have = Qt.fontFamilies()
+                    for (let i = 0; i < want.length; ++i)
+                        if (have.indexOf(want[i]) >= 0)
+                            return want[i]
+                    return ""
+                }
+                visible: root.engine.model !== "48GX" && !!badge && badge.background !== undefined
+                x: 14; y: 14
+                width: parent.box.width + 4; height: parent.box.height + 4
+                color: badge && badge.background ? badge.background : "transparent"
+                TextMetrics {
+                    id: printedWord
+                    font.family: modelPatch.family
+                    font.bold: true
+                    font.pixelSize: 100
+                    text: "48GX"
+                }
+                Text {
+                    anchors { right: parent.right; rightMargin: 2; verticalCenter: parent.verticalCenter }
+                    text: root.engine.model
+                    color: modelPatch.badge && modelPatch.badge.color ? modelPatch.badge.color : "#c6aa60"
+                    font.family: modelPatch.family
+                    font.bold: true
+                    font.pixelSize: printedWord.advanceWidth > 0
+                                    ? Math.round(100 * (parent.width - 2) / printedWord.advanceWidth)
+                                    : (modelPatch.badge && modelPatch.badge.pixelSize ? modelPatch.badge.pixelSize : 22)
+                }
+            }
+
             // Two px under the ink, in the ink's own colour. There are exactly
             // four free rows there - the LCD bezel starts at y=44 and the ink
             // ends at 39 - so this is measured, not chosen.

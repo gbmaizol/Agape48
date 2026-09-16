@@ -43,7 +43,18 @@
       59,
       18
     ],
-    "color": "#c6aa60"
+    "color": "#c6aa60",
+    "background": "#222226",
+    "pixelSize": 22,
+    "font": [
+      "DejaVu Sans Condensed",
+      "Arial",
+      "Segoe UI",
+      "Roboto",
+      "Noto Sans",
+      "DejaVu Sans",
+      "Liberation Sans"
+    ]
   },
   "lcd": {
     "rect": [
