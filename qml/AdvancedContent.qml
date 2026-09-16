@@ -83,7 +83,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
             }
         }
-        Slider {
+        CompactSlider {
             width: parent.width
             from: TextSizes.minSize
             to: TextSizes.maxSize
@@ -387,7 +387,7 @@ Item {
                     font.pixelSize: TextSizes.dialogBody
                 }
 
-                Slider {
+                CompactSlider {
                     id: speedSlider
                     width: parent.width
                     from: 0

@@ -126,6 +126,7 @@ set(AGAPE48_QML_FILES
     qml/Main.qml
     qml/Calculator.qml
     qml/CompactSwitch.qml
+    qml/CompactSlider.qml
     qml/Keypad.qml
     qml/SettingsWindow.qml
     qml/SettingsContent.qml
