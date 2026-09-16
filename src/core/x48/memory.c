@@ -953,12 +953,12 @@ int val;
   return;
 }
 
-/* MALPLENA KARTINGO LEGIĜAS KIEL NULOJ, ekde 2026sep15. Sen karto saturn.port1
- * kaj saturn.port2 estas NULL, kaj la ROM de 48SX tamen agordas la regilojn de
- * ambaŭ kartingoj. Nova kalkulilo kun la ROM sxrom-j legis tie, kiam la ekrano
- * refreŝiĝis dum la starto, kaj haltis per SIGSEGV en read_nibble_sx(): kvin el
- * kvin startoj sur Linukso. La skribaj vojoj jam kontrolas port1_is_ram kaj
- * port2_is_ram. */
+/* agape48: AN EMPTY CARD SLOT READS AS ZEROS, since 2026sep15. With no card
+ * fitted, saturn.port1 and saturn.port2 are NULL, and the 48SX ROM configures
+ * both slot controllers regardless. A new calculator on the sxrom-j ROM read
+ * there as the display refreshed during start-up and died with SIGSEGV in
+ * read_nibble_sx(): five starts out of five on Linux. The write paths already
+ * test port1_is_ram and port2_is_ram. */
 static int
 port1_nibble(long offset)
 {
