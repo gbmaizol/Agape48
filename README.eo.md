@@ -92,7 +92,7 @@ La averto-tekstoj citataj sube aperas en la lingvo de via sistemo. Ili staras ĉ
 
 ### Windows
 
-1. Elŝutu **[`Agape48-0.9.3-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 MB).
+1. Elŝutu **[`Agape48-0.9.3-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,4 MB).
 2. **Windows haltigos vin**: *«Windows protected your PC»*. Klaku **More info**, poste **Run anyway**. Tiu mesaĝo ne estas virusaverto — ĝi estas Windows dirante ke la instalilo portas neniun kodsubskriban atestilon, kio estas aĉeto prefere ol konstrupaŝo. Nenio en la elŝuto estas pakita aŭ obskurigita, kaj ĉiu bajto de fonto kiu eniris ĝin troviĝas en ĉi tiu deponejo.
 3. **Next**, **Next**, **Install**. Ĝi iras en `Program Files` kaj aldonas eron al la Komenca menuo.
 4. Startigu ĝin el la Komenca menuo. Ĝi malinstaliĝas kiel ĉiu alia programo, el *Apps & features*.
@@ -110,11 +110,11 @@ Ne estas `chmod`-paŝo: `tar` konservas la plenumbiton, do `install.sh` simple r
 
 Ĉio alteriĝas sub `~/.local/share/agape48`, la menuero aperas sub **Education**, kaj tajpi `agape48` rulas ĝin se `~/.local/bin` estas sur via `PATH`. La Qt-rultempo vojaĝas interne de la tar-arkivo, do ne estas distribua pakaĵo ĉasenda kaj nenio instalenda antaŭe — kio ankaŭ signifas ke ĝi ne povas rompiĝi kiam via distribuo transiras al la sekva Qt. Por forigi ĝin: `~/.local/share/agape48/uninstall.sh`, kiu reprenas ĝuste tion kion ĝi demetis kaj lasas viajn kalkulilojn netuŝitaj.
 
-La elŝuto estas 35,9 MB kaj malpakiĝas al 96 MB, preskaŭ tute Qt. Ĝi estas konstruita por **x86_64** kontraŭ **glibc 2.39**, do Ubuntu 24.04, Mint 22, Debian 13 aŭ io ajn pli nova. Sur pli malnova distribuo ĝi haltas je la starto kun linio `GLIBC_2.xx not found`, kiu legiĝas kiel kraŝo kaj ne estas tia. Testita sur X11.
+La elŝuto estas 36,0 MB kaj malpakiĝas al 98 MB, preskaŭ tute Qt. Ĝi estas konstruita por **x86_64** kontraŭ **glibc 2.39**, do Ubuntu 24.04, Mint 22, Debian 13 aŭ io ajn pli nova. Sur pli malnova distribuo ĝi haltas je la starto kun linio `GLIBC_2.xx not found`, kiu legiĝas kiel kraŝo kaj ne estas tia. Testita sur X11.
 
 ### Android
 
-1. Elŝutu **[`Agape48-0.9.3-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 MB) sur la telefonon kaj frapetu ĝin.
+1. Elŝutu **[`Agape48-0.9.3-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,6 MB) sur la telefonon kaj frapetu ĝin.
 2. **Android rifuzos la unuan fojon** — *«your phone is not allowed to install unknown apps from this source»* — ĉar la dosiero ne venis el la Play Store. Frapetu **Settings**, permesu tiun unu fonton, kaj revenu. Android demandas laŭ *fonto*, do permesi vian retumilon ne samtempe permesas vian dosieradministrilon.
 3. Play Protect poste eble avertos pri aplikaĵo de nerekonata programisto. La butono **Install anyway** kaŝiĝas malantaŭ *More details*.
 4. Frapetu **Open**. Sur telefono la kalkulilo plenigas la ekranon, kiel Droid48 faras.

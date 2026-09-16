@@ -92,7 +92,7 @@ Die unten zitierten Warnungen erscheinen in der Sprache deines Systems. Sie steh
 
 ### Windows
 
-1. Lade **[`Agape48-0.9.3-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 MB) herunter.
+1. Lade **[`Agape48-0.9.3-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,4 MB) herunter.
 2. **Windows hält dich auf**: *„Windows protected your PC“*. Klick **More info**, dann **Run anyway**. Diese Meldung ist keine Virenwarnung — es ist Windows, das sagt, dass das Installationsprogramm kein Code-Signing-Zertifikat trägt, und das ist ein Kauf und kein Bauschritt. Nichts am Download ist gepackt oder verschleiert, und jedes Byte Quelltext, das hineingegangen ist, liegt in diesem Repository.
 3. **Next**, **Next**, **Install**. Es landet in `Program Files` und legt einen Eintrag im Startmenü an.
 4. Starte es aus dem Startmenü. Es deinstalliert sich wie jedes andere Programm, über *Apps & features*.
@@ -110,11 +110,11 @@ Es gibt keinen `chmod`-Schritt: `tar` behält das Ausführungsbit, also läuft `
 
 Alles landet unter `~/.local/share/agape48`, der Menüeintrag taucht unter **Education** auf, und `agape48` zu tippen startet ihn, wenn `~/.local/bin` in deinem `PATH` liegt. Die Qt-Laufzeitumgebung reist im Tarball mit, es gibt also kein Distributionspaket zu jagen und nichts vorher zu installieren — was auch heißt, dass nichts kaputtgeht, wenn deine Distribution auf das nächste Qt weitergeht. Zum Entfernen: `~/.local/share/agape48/uninstall.sh`, das genau das zurücknimmt, was es hingelegt hat, und deine Rechner in Ruhe lässt.
 
-Der Download ist 35,9 MB groß und entpackt sich auf 96 MB, fast alles davon Qt. Gebaut für **x86_64** gegen **glibc 2.39**, also Ubuntu 24.04, Mint 22, Debian 13 oder irgendetwas Neueres. Auf einer älteren Distribution bleibt er beim Start mit einer Zeile `GLIBC_2.xx not found` stehen, was wie ein Absturz aussieht und keiner ist. Getestet unter X11.
+Der Download ist 36,0 MB groß und entpackt sich auf 98 MB, fast alles davon Qt. Gebaut für **x86_64** gegen **glibc 2.39**, also Ubuntu 24.04, Mint 22, Debian 13 oder irgendetwas Neueres. Auf einer älteren Distribution bleibt er beim Start mit einer Zeile `GLIBC_2.xx not found` stehen, was wie ein Absturz aussieht und keiner ist. Getestet unter X11.
 
 ### Android
 
-1. Lade **[`Agape48-0.9.3-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 MB) auf das Telefon und tippe sie an.
+1. Lade **[`Agape48-0.9.3-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,6 MB) auf das Telefon und tippe sie an.
 2. **Android weigert sich beim ersten Mal** — *„your phone is not allowed to install unknown apps from this source“* — weil die Datei nicht aus dem Play Store kam. Tippe **Settings**, erlaube genau diese eine Quelle, und komm zurück. Android fragt pro *Quelle*, deinen Browser zu erlauben erlaubt also nicht auch deinen Dateimanager.
 3. Play Protect warnt danach vielleicht vor einer App von einem unbekannten Entwickler. Der Knopf **Install anyway** steckt hinter *More details*.
 4. Tippe **Open**. Auf einem Telefon füllt der Rechner den Bildschirm, so wie Droid48 es tut.

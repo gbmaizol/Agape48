@@ -92,7 +92,7 @@ Les avertissements cités ci-dessous apparaissent dans la langue de votre systè
 
 ### Windows
 
-1. Téléchargez **[`Agape48-0.9.3-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,3 Mo).
+1. Téléchargez **[`Agape48-0.9.3-windows-x64-setup.exe`](https://github.com/gbmaizol/Agape48/releases/latest)** (17,4 Mo).
 2. **Windows va vous arrêter** : *« Windows protected your PC »*. Cliquez sur **More info**, puis sur **Run anyway**. Ce message n'est pas une alerte antivirus — c'est Windows qui dit que l'installateur ne porte aucun certificat de signature de code, ce qui est un achat et non une étape de compilation. Rien dans le téléchargement n'est empaqueté ni obscurci, et chaque octet de source qui y est entré se trouve dans ce dépôt.
 3. **Next**, **Next**, **Install**. Cela va dans `Program Files` et ajoute une entrée au menu Démarrer.
 4. Lancez-la depuis le menu Démarrer. Elle se désinstalle comme n'importe quel autre programme, depuis *Apps & features*.
@@ -110,11 +110,11 @@ Il n'y a pas d'étape `chmod` : `tar` conserve le bit d'exécution, donc `instal
 
 Tout atterrit sous `~/.local/share/agape48`, l'entrée de menu apparaît dans **Education**, et taper `agape48` la lance si `~/.local/bin` est dans votre `PATH`. L'environnement Qt voyage à l'intérieur de l'archive, donc il n'y a aucun paquet de distribution à chasser et rien à installer d'abord — ce qui veut aussi dire qu'elle ne peut pas casser quand votre distribution passera au Qt suivant. Pour la retirer : `~/.local/share/agape48/uninstall.sh`, qui reprend exactement ce qu'il a posé et laisse vos calculatrices tranquilles.
 
-Le téléchargement fait 35,9 Mo et se décompresse en 96 Mo, presque entièrement du Qt. Il est compilé pour **x86_64** contre la **glibc 2.39**, donc Ubuntu 24.04, Mint 22, Debian 13 ou quoi que ce soit de plus récent. Sur une distribution plus ancienne il s'arrête au démarrage avec une ligne `GLIBC_2.xx not found`, qui ressemble à un plantage et n'en est pas un. Testé sous X11.
+Le téléchargement fait 36,0 Mo et se décompresse en 98 Mo, presque entièrement du Qt. Il est compilé pour **x86_64** contre la **glibc 2.39**, donc Ubuntu 24.04, Mint 22, Debian 13 ou quoi que ce soit de plus récent. Sur une distribution plus ancienne il s'arrête au démarrage avec une ligne `GLIBC_2.xx not found`, qui ressemble à un plantage et n'en est pas un. Testé sous X11.
 
 ### Android
 
-1. Téléchargez **[`Agape48-0.9.3-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,4 Mo) sur le téléphone et touchez-le.
+1. Téléchargez **[`Agape48-0.9.3-arm64-v8a.apk`](https://github.com/gbmaizol/Agape48/releases/latest)** (47,6 Mo) sur le téléphone et touchez-le.
 2. **Android va refuser la première fois** — *« your phone is not allowed to install unknown apps from this source »* — parce que le fichier ne vient pas du Play Store. Touchez **Settings**, autorisez cette source-là, et revenez. Android demande par *source*, donc autoriser votre navigateur n'autorise pas aussi votre gestionnaire de fichiers.
 3. Play Protect peut ensuite avertir au sujet d'une application d'un développeur non reconnu. Le bouton **Install anyway** est derrière *More details*.
 4. Touchez **Open**. Sur un téléphone la calculatrice remplit l'écran, comme le fait Droid48.
