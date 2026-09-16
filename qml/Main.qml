@@ -463,12 +463,12 @@ Window {
         // havas neniun duan fenestron, do tie la menuo restas en la sceno.
         popupType: Qt.platform.os === "android" ? Popup.Item : Popup.Window
         onClosed: focusGuard.restart()
-        MenuItem {
+        AppMenuItem {
             text: qsTr("Open another calculator…")
             onTriggered: picker.openPicker()
         }
-        MenuItem { text: qsTr("Settings…");       onTriggered: settings.open() }
-        MenuItem {
+        AppMenuItem { text: qsTr("Settings…");       onTriggered: settings.open() }
+        AppMenuItem {
             text: qsTr("Customize keyboard…")
             // Not on a phone. Everything behind it is about a HARDWARE keyboard
             // - which key on it presses which key on the calculator - and the
@@ -482,7 +482,7 @@ Window {
             visible: Qt.platform.os !== "android"
             onTriggered: root.customizing = true
         }
-        MenuItem { text: qsTr("Save memory now"); onTriggered: engine.saveState() }
+        AppMenuItem { text: qsTr("Save memory now"); onTriggered: engine.saveState() }
         MenuSeparator {}
         // BOTH SAY WHAT HAPPENED, since 2026sep09. They were two menu items
         // that returned a bool nobody read: on the phone, "Copy stack" then
@@ -490,7 +490,7 @@ Window {
         // no way to tell from the outside whether the copy had failed, the
         // paste had failed, or the clipboard had never been touched. A command
         // that can fail silently cannot be dogfooded at all.
-        MenuItem {
+        AppMenuItem {
             text: qsTr("Copy stack")
             // Says what it copied, which is the confirmation a clipboard never
             // gives you and the only way to catch a number that came out wrong -
@@ -499,16 +499,16 @@ Window {
             // already set the red strip.
             onTriggered: engine.copyStackToClipboard()
         }
-        MenuItem {
+        AppMenuItem {
             text: qsTr("Paste")
             onTriggered: root.pasteClipboard()
         }
         MenuSeparator {}
-        MenuItem {
+        AppMenuItem {
             text: qsTr("Import file to stack…")
             onTriggered: importPicker.open()
         }
-        MenuItem {
+        AppMenuItem {
             text: qsTr("Export from stack to file…")
             // Ask before the dialog, not after: being told there is nothing to
             // export once you have already typed a filename is the wrong way
@@ -524,19 +524,28 @@ Window {
         // Propra sekcio super la du eroj kiuj fermas la programon, kaj ne sub
         // ili: la lasta grupo restas "la du danĝeraj" kaj nenio sendanĝera
         // sidas inter ili. La kialo por la pozicio staras en AboutContent.qml.
-        MenuItem {
+        AppMenuItem {
             text: qsTr("About Agape48…")
             onTriggered: root.about.open()
         }
         MenuSeparator {}
-        MenuItem {
+        AppMenuItem {
             text: qsTr("Reset memory and quit")
             onTriggered: { engine.reset(true); Qt.quit() }
         }
-        MenuItem {
+        AppMenuItem {
             text: qsTr("Quit")
             onTriggered: { engine.saveState(); Qt.quit() }
         }
+    }
+
+    // ĈIU MENUERO, kun du signoj da spaco ĉe ambaŭ flankoj de sia teksto, ekde
+    // 2026sep15 (provo 22 linio 23), mezuritaj en la tiparo de la menuo mem.
+    component AppMenuItem: MenuItem {
+        id: entry
+        FontMetrics { id: glyphs; font: entry.font }
+        leftPadding: 2 * glyphs.averageCharacterWidth
+        rightPadding: 2 * glyphs.averageCharacterWidth
     }
 
     // Raw QtQuick, not a Controls Button: the Quick Controls usage rule from
